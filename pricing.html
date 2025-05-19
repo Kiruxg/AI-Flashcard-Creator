@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pricing - AI Flashcard Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    </script>
+    <!-- Stripe -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Other Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="container">
+        <div class="header-content">
+          <h1>
+            <a href="index.html" class="site-title">AI Flashcard Genie</a>
+          </h1>
+          <nav class="main-nav">
+            <a href="index.html">Home</a>
+            <a href="pricing.html" class="active">Pricing</a>
+          </nav>
+          <div class="user-menu" id="userMenu" style="display: none">
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+          </div>
+          <button id="showLoginBtn" class="btn btn-secondary">Login</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- Pricing Hero Section -->
+      <div class="pricing-hero">
+        <h1>Choose Your Plan</h1>
+        <p>Start learning smarter with AI-powered flashcards</p>
+      </div>
+
+      <!-- Free Tier -->
+      <div class="tier-features free">
+        <h2>Free Tier</h2>
+        <p class="tier-description">Perfect for trying out the service</p>
+        <ul>
+          <li>✨ Generate 20 AI-powered flashcards monthly</li>
+          <li>📚 Save up to 3 study decks</li>
+          <li>🎯 Basic Q&A and term-definition cards</li>
+          <li>📤 Export one deck per month</li>
+        </ul>
+        <a href="index.html" class="btn btn-secondary">Get Started</a>
+      </div>
+
+      <!-- Premium Features -->
+      <div class="premium-features">
+        <h2>Premium Features</h2>
+        <p class="tier-description">
+          Transform your study materials into powerful learning tools
+        </p>
+        <ul>
+          <li>⚡️ Instantly convert any study material into flashcards</li>
+          <li>🧠 Smart concept breakdown for complex topics</li>
+          <li>📊 Track your learning progress with detailed analytics</li>
+          <li>🎯 Personalized study recommendations</li>
+          <li>📱 Study anywhere, anytime - syncs across all devices</li>
+          <li>💡 Advanced card types for deeper understanding</li>
+        </ul>
+      </div>
+
+      <!-- Pricing Options -->
+      <div class="pricing-options">
+        <div class="pricing-card">
+          <h3>Monthly</h3>
+          <p class="price">$14.99/month</p>
+          <ul class="features">
+            <li>🚀 Unlimited AI flashcard generation</li>
+            <li>📚 Save and organize unlimited study decks</li>
+            <li>🎯 Master complex topics with advanced card types</li>
+            <li>📊 Track your learning progress in real-time</li>
+            <li>📱 Study seamlessly across all your devices</li>
+            <li>💬 Priority support when you need help</li>
+          </ul>
+          <button
+            class="btn btn-primary"
+            id="monthlySubBtn"
+            data-price-id="price_monthly_id"
+          >
+            Start Learning Smarter
+          </button>
+        </div>
+
+        <div class="pricing-card featured">
+          <div class="best-value">Best Value</div>
+          <h3>Yearly</h3>
+          <p class="price">$149.99/year</p>
+          <p class="save">Save 17%</p>
+          <ul class="features">
+            <li>🚀 Everything in Monthly, plus:</li>
+            <li>🎁 Early access to new features</li>
+            <li>📈 Advanced learning analytics</li>
+            <li>🎯 Custom study recommendations</li>
+            <li>📚 Unlimited deck exports</li>
+            <li>💡 AI-powered study insights</li>
+          </ul>
+          <button
+            class="btn btn-primary"
+            id="yearlySubBtn"
+            data-price-id="price_yearly_id"
+          >
+            Get Best Value
+          </button>
+        </div>
+      </div>
+
+      <!-- FAQ Section -->
+      <div class="faq-section">
+        <h2>Frequently Asked Questions</h2>
+        <div class="faq-grid">
+          <div class="faq-item">
+            <h3>How does AI help me study better?</h3>
+            <p>
+              Our AI analyzes your study materials to create effective
+              flashcards that break down complex concepts into understandable
+              parts. It identifies key information, creates meaningful
+              connections, and adapts to your learning style for better
+              retention.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What makes your flashcards different?</h3>
+            <p>
+              Unlike traditional flashcards, our AI-powered system creates cards
+              that focus on understanding rather than memorization. It generates
+              concept-based cards that help you grasp the underlying principles,
+              making learning more effective and long-lasting.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What is your refund policy?</h3>
+            <p>
+              We offer a 7-day money-back guarantee for all premium
+              subscriptions. If you're not satisfied with our service, simply
+              contact our support team within 7 days of your purchase for a full
+              refund.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>Can I switch plans later?</h3>
+            <p>
+              Yes, you can upgrade or downgrade your plan at any time. When
+              upgrading, you'll get immediate access to premium features. When
+              downgrading, changes will take effect at the end of your current
+              billing period.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What payment methods do you accept?</h3>
+            <p>
+              We accept all major credit cards (Visa, Mastercard, American
+              Express) through our secure payment processor, Stripe. All
+              payments are encrypted and processed securely.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>Can I cancel my subscription?</h3>
+            <p>
+              Yes, you can cancel your subscription at any time. You'll continue
+              to have access to premium features until the end of your billing
+              period. No refunds are provided for partial months.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What happens to my data if I cancel?</h3>
+            <p>
+              Your flashcards and study progress are preserved for 30 days after
+              cancellation. You can reactivate your subscription during this
+              period to regain full access to your data.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>Do you offer student discounts?</h3>
+            <p>
+              Yes! Students can get a 20% discount on any plan. Contact our
+              support team with your student ID or .edu email address to verify
+              your student status.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal" style="display: none">
+      <!-- ... (copy the auth modal content from index.html) ... -->
+    </div>
+
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>

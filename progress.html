@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Study Progress - AI Flashcard Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    </script>
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Other Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+  </head>
+  <body>
+    <!-- Header -->
+    <header class="header">
+      <div class="container">
+        <div class="header-content">
+          <h1>
+            <a href="index.html" class="site-title">AI Flashcard Genie</a>
+          </h1>
+          <nav class="main-nav">
+            <a href="index.html">Home</a>
+            <a href="pricing.html">Pricing</a>
+            <a href="progress.html" class="active">Progress</a>
+          </nav>
+          <div class="user-menu" id="userMenu" style="display: none">
+            <span id="userEmail"></span>
+            <button id="logoutBtn" class="btn btn-secondary">Logout</button>
+          </div>
+          <button id="showLoginBtn" class="btn btn-secondary">Login</button>
+        </div>
+      </div>
+    </header>
+
+    <div class="container">
+      <!-- Progress Overview -->
+      <div class="progress-overview">
+        <h2>Study Progress</h2>
+        <div class="stats-grid">
+          <div class="stat-card">
+            <h3>Study Streak</h3>
+            <p class="stat-value" id="studyStreak">0</p>
+            <p class="stat-label">days</p>
+          </div>
+          <div class="stat-card">
+            <h3>Total Cards</h3>
+            <p class="stat-value" id="totalCards">0</p>
+            <p class="stat-label">cards studied</p>
+          </div>
+          <div class="stat-card">
+            <h3>Mastery Rate</h3>
+            <p class="stat-value" id="masteryRate">0%</p>
+            <p class="stat-label">cards mastered</p>
+          </div>
+          <div class="stat-card">
+            <h3>Accuracy</h3>
+            <p class="stat-value" id="accuracy">0%</p>
+            <p class="stat-label">average</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Charts -->
+      <div class="progress-charts">
+        <div class="chart-container">
+          <h3>Study Activity</h3>
+          <canvas id="studyActivityChart"></canvas>
+        </div>
+        <div class="chart-container">
+          <h3>Card Mastery</h3>
+          <canvas id="masteryChart"></canvas>
+        </div>
+      </div>
+
+      <!-- Study History -->
+      <div class="study-history">
+        <h3>Recent Study Sessions</h3>
+        <div class="history-list" id="studyHistory">
+          <!-- Study sessions will be populated here -->
+        </div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="recommendations">
+        <h3>Study Recommendations</h3>
+        <div class="recommendations-list" id="recommendations">
+          <!-- Recommendations will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal" style="display: none">
+      <!-- ... (copy the auth modal content from index.html) ... -->
+    </div>
+
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./studyProgress.js"></script>
+    <script type="module" src="./progress.js"></script>
+  </body>
+</html>
