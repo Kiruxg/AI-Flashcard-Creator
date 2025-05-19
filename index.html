@@ -303,9 +303,9 @@
           <i class="fas fa-bars"></i>
         </button>
         <nav class="main-nav">
-          <a href="#" class="active">Home</a>
           <a href="#decks">My Decks</a>
           <a href="#progress">Progress</a>
+          <a href="pricing.html" id="pricingNav">Pricing/Upgrade</a>
         </nav>
         <div class="user-menu">
           <span id="userEmail"></span>
@@ -320,9 +320,9 @@
         </div>
       </div>
       <nav id="mobileMenu" class="mobile-nav">
-        <a href="#" class="active">Home</a>
         <a href="#decks">My Decks</a>
         <a href="#progress">Progress</a>
+        <a href="pricing.html" id="mobilePricingNav">Pricing/Upgrade</a>
         <div class="mobile-user-menu">
           <span id="mobileUserEmail"></span>
           <button id="mobileShowLoginBtn" class="btn btn-primary">Login</button>
@@ -338,20 +338,141 @@
     </header>
 
     <div class="container">
-      <!-- Deck Management -->
-      <div class="deck-management">
-        <div class="deck-controls">
-          <input
-            type="text"
-            id="deckName"
-            placeholder="Enter deck name"
-            class="deck-input"
-          />
-          <button id="saveDeckBtn" class="btn btn-primary">Save Deck</button>
+      <!-- Input Area -->
+      <div class="input-section">
+        <div class="input-tabs">
+          <button class="tab-btn active" data-tab="text">Text Input</button>
+          <button class="tab-btn" data-tab="file">File Upload</button>
         </div>
-        <div id="savedDecks" class="saved-decks">
-          <!-- Saved decks will be listed here -->
+
+        <div class="tab-content input-tab-content active" id="textTab">
+          <textarea
+            id="textInput"
+            placeholder="Enter or paste your text here..."
+            rows="6"
+          ></textarea>
+          <div class="input-controls">
+            <select id="cardType" class="card-type-select">
+              <option value="qa">Question & Answer</option>
+              <option value="term">Term & Definition</option>
+              <option value="cloze">Cloze Deletion</option>
+            </select>
+            <select id="cardCount" class="card-count-select">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+              <option value="35">35</option>
+              <option value="40">40</option>
+              <option value="45">45</option>
+              <option value="50">50</option>
+            </select>
+            <button id="generateBtn" class="btn btn-primary">
+              Generate Flashcards
+            </button>
+          </div>
         </div>
+
+        <div
+          class="tab-content input-tab-content"
+          id="fileUploadTab"
+          style="display: none"
+        >
+          <div id="dropzone" class="dropzone">
+            <i class="fas fa-cloud-upload-alt"></i>
+            <p>Drag and drop a file here or click to browse</p>
+            <input type="file" id="fileInput" accept=".txt,.pdf,.docx" hidden />
+          </div>
+          <div
+            id="selectedFileName"
+            class="selected-file-name"
+            style="display: none"
+          >
+            <i class="fas fa-file"></i>
+            <span id="fileNameText"></span>
+          </div>
+          <div class="input-controls">
+            <select id="fileCardType" class="card-type-select">
+              <option value="qa">Question & Answer</option>
+              <option value="term">Term & Definition</option>
+              <option value="cloze">Cloze Deletion</option>
+            </select>
+            <select id="fileCardCount" class="card-count-select">
+              <option value="5">5</option>
+              <option value="10" selected>10</option>
+              <option value="15">15</option>
+              <option value="20">20</option>
+              <option value="25">25</option>
+              <option value="30">30</option>
+              <option value="35">35</option>
+              <option value="40">40</option>
+              <option value="45">45</option>
+              <option value="50">50</option>
+            </select>
+            <button id="processFileBtn" class="btn btn-primary" disabled>
+              Generate Flashcards
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Static Flashcard Viewer Placeholder -->
+      <div id="flashcardViewerPlaceholder" class="flashcard-viewer-placeholder">
+        <div class="placeholder-icon">📝</div>
+        <div class="placeholder-message">
+          Your flashcards will appear here after you generate them.
+        </div>
+      </div>
+
+      <!-- Remove .grid and .upload-section wrappers, make flashcard viewer full width -->
+      <div id="flashcardViewer" class="flashcard-viewer" style="display: none">
+        <div class="progress-container">
+          <div class="progress-bar">
+            <div id="progressBar" class="progress"></div>
+          </div>
+          <span id="progressText">0/0 cards reviewed</span>
+        </div>
+        <div id="flashcard" class="flashcard">
+          <div class="card-front">
+            <p id="frontText"></p>
+          </div>
+          <div class="card-back">
+            <p id="backText"></p>
+          </div>
+        </div>
+        <div class="card-controls">
+          <button id="showAnswerBtn" class="btn btn-primary">
+            <i class="fas fa-eye"></i> Show Answer
+          </button>
+          <div class="navigation-buttons">
+            <button id="prevCardBtn" class="btn btn-secondary">
+              <i class="fas fa-chevron-left"></i>
+            </button>
+            <button id="shuffleBtn" class="btn btn-secondary">
+              <i class="fas fa-random"></i>
+            </button>
+            <button id="nextCardBtn" class="btn btn-secondary">
+              <i class="fas fa-chevron-right"></i>
+            </button>
+          </div>
+          <div class="performance-buttons">
+            <button class="btn btn-danger" data-performance="1">
+              <i class="fas fa-times"></i> Unfamiliar
+            </button>
+            <button class="btn btn-success" data-performance="5">
+              <i class="fas fa-star"></i> I know it!
+            </button>
+          </div>
+        </div>
+        <button
+          id="saveDeckBtn"
+          class="btn btn-primary"
+          style="margin-top: 1rem; width: 100%"
+        >
+          <i class="fas fa-save"></i> Save Deck
+        </button>
       </div>
 
       <div class="study-interface" style="display: none">
@@ -463,277 +584,6 @@
             <h4>Card Difficulty</h4>
             <div class="difficulty-chart">
               <canvas id="difficultyChart"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="input-section">
-        <div class="card">
-          <h2>Create Flashcards</h2>
-          <div class="input-tabs">
-            <button class="tab-btn active" data-tab="text">Text Input</button>
-            <button class="tab-btn" data-tab="camera">Camera Upload</button>
-            <button class="tab-btn" data-tab="file">File Upload</button>
-          </div>
-
-          <!-- Text Input Tab -->
-          <div class="input-tab-content active" id="textTab">
-            <form id="textForm">
-              <textarea
-                id="textInput"
-                rows="4"
-                placeholder="Paste your study notes here..."
-              ></textarea>
-              <div class="generation-options">
-                <select id="cardType" class="select-input">
-                  <option value="qa">Question & Answer</option>
-                  <option value="term">Term & Definition</option>
-                  <option value="concept">Concept Based</option>
-                </select>
-                <select id="cardCount" class="select-input">
-                  <option value="5">5 cards</option>
-                  <option value="10">10 cards</option>
-                  <option value="15" class="premium-option">15 cards</option>
-                  <option value="20" class="premium-option">20 cards</option>
-                  <option value="25" class="premium-option">25 cards</option>
-                  <option value="30" class="premium-option">30 cards</option>
-                  <option value="35" class="premium-option">35 cards</option>
-                  <option value="40" class="premium-option">40 cards</option>
-                  <option value="45" class="premium-option">45 cards</option>
-                  <option value="50" class="premium-option">50 cards</option>
-                </select>
-              </div>
-              <button type="submit" class="btn btn-primary">
-                Generate Flashcards
-              </button>
-            </form>
-          </div>
-
-          <!-- Camera Upload Tab -->
-          <div id="cameraUploadTab" class="input-tab-content">
-            <div class="camera-container">
-              <div class="camera-preview">
-                <video id="cameraFeed" autoplay playsinline></video>
-                <canvas id="cameraCanvas" style="display: none"></canvas>
-                <div class="camera-overlay">
-                  <div class="camera-guide"></div>
-                </div>
-              </div>
-              <div class="camera-controls">
-                <button id="startCameraBtn" class="btn btn-primary">
-                  <i class="fas fa-camera"></i> Start Camera
-                </button>
-                <button id="captureBtn" class="btn btn-primary" disabled>
-                  <i class="fas fa-camera-retro"></i> Capture
-                </button>
-                <button
-                  id="retakeBtn"
-                  class="btn btn-secondary"
-                  style="display: none"
-                >
-                  <i class="fas fa-redo"></i> Retake
-                </button>
-                <button
-                  id="processImageBtn"
-                  class="btn btn-success"
-                  style="display: none"
-                >
-                  <i class="fas fa-magic"></i> Process Notes
-                </button>
-              </div>
-              <div class="camera-status">
-                <p id="cameraStatus">Camera not started</p>
-              </div>
-              <div class="captured-image" style="display: none">
-                <img id="capturedImage" alt="Captured notes" />
-              </div>
-            </div>
-            <div class="camera-instructions">
-              <h3>Tips for Best Results:</h3>
-              <ul>
-                <li>Ensure good lighting for clear text</li>
-                <li>Hold the camera steady and parallel to the notes</li>
-                <li>Keep text within the guide lines</li>
-                <li>Use dark ink on light paper for best contrast</li>
-                <li>Avoid shadows and glare on the paper</li>
-              </ul>
-            </div>
-            <select id="cameraCardType" class="select-input">
-              <option value="basic">Basic Cards</option>
-              <option value="cloze">Cloze Cards</option>
-              <option value="mcq">Multiple Choice</option>
-            </select>
-            <select id="cameraCardCount" class="select-input">
-              <option value="5">5 Cards</option>
-              <option value="10">10 Cards</option>
-              <option value="15">15 Cards</option>
-              <option value="20">20 Cards</option>
-            </select>
-          </div>
-
-          <!-- File Upload Tab -->
-          <div id="fileUploadTab" class="input-tab-content">
-            <form id="uploadForm">
-              <div id="dropzone" class="dropzone">
-                <input
-                  type="file"
-                  id="fileInput"
-                  accept=".pdf,.doc,.docx,.txt"
-                  style="display: none"
-                />
-                <div class="upload-icon">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                </div>
-                <p>Drag and drop your file here or click to browse</p>
-                <p class="file-types">Supported formats: PDF, DOC, DOCX, TXT</p>
-              </div>
-
-              <div id="cardTypeSelection" style="display: none">
-                <div class="form-group">
-                  <label for="fileCardType">Card Type:</label>
-                  <select id="fileCardType" class="select-input">
-                    <option value="">Select a card type</option>
-                    <option value="qa">Question & Answer</option>
-                    <option value="term">Term & Definition</option>
-                    <option value="concept">Concept & Explanation</option>
-                  </select>
-                </div>
-
-                <div
-                  class="form-group"
-                  id="cardCountGroup"
-                  style="display: none"
-                >
-                  <label for="fileCardCount">Number of Cards:</label>
-                  <select id="fileCardCount" class="select-input">
-                    <option value="5">5 cards</option>
-                    <option value="10">10 cards</option>
-                    <option value="15" class="premium-option">15 cards</option>
-                    <option value="20" class="premium-option">20 cards</option>
-                    <option value="25" class="premium-option">25 cards</option>
-                    <option value="30" class="premium-option">30 cards</option>
-                    <option value="35" class="premium-option">35 cards</option>
-                    <option value="40" class="premium-option">40 cards</option>
-                    <option value="45" class="premium-option">45 cards</option>
-                    <option value="50" class="premium-option">50 cards</option>
-                  </select>
-                  <small class="premium-feature"
-                    >Premium users can generate up to 50 cards</small
-                  >
-                </div>
-
-                <div class="form-actions">
-                  <button
-                    type="button"
-                    id="generateCardsBtn"
-                    class="btn btn-primary"
-                  >
-                    <i class="fas fa-magic"></i> Generate Flashcards
-                  </button>
-                  <button
-                    type="button"
-                    id="newFileBtn"
-                    class="btn btn-secondary"
-                  >
-                    <i class="fas fa-file-upload"></i> Upload New File
-                  </button>
-                </div>
-              </div>
-            </form>
-
-            <div
-              id="fileUploadLoadingIndicator"
-              class="loading-overlay"
-              style="display: none"
-            >
-              <div class="loading-content">
-                <div class="spinner"></div>
-                <div class="loading-message">
-                  <h3>Generating your flashcards...</h3>
-                  <p class="loading-subtitle">This may take a few moments</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div class="grid">
-        <!-- Left Column - Upload Section -->
-        <div class="upload-section">
-          <div class="card">
-            <h2>Flashcard Viewer</h2>
-            <div
-              id="flashcardViewerLoadingIndicator"
-              class="loading-overlay"
-              style="display: none"
-            >
-              <div class="loading-content">
-                <div class="spinner"></div>
-                <div class="loading-message">
-                  <h3>Generating Flashcards</h3>
-                  <p class="loading-subtitle">This may take a few moments...</p>
-                </div>
-              </div>
-            </div>
-            <div id="flashcardContainer" class="flashcard-container">
-              <div id="emptyState" class="empty-state">
-                <div class="icon">📝</div>
-                <p>Upload a file or enter text to generate flashcards</p>
-                <button
-                  id="studyNowBtn"
-                  class="btn btn-primary"
-                  style="display: none"
-                >
-                  <i class="fas fa-play"></i> Study Now
-                  <span class="due-count"></span>
-                </button>
-              </div>
-              <div
-                id="flashcardViewer"
-                class="flashcard-viewer"
-                style="display: none"
-              >
-                <div class="progress-container">
-                  <div class="progress-bar">
-                    <div id="progressBar" class="progress"></div>
-                  </div>
-                  <span id="progressText">0/0 cards reviewed</span>
-                </div>
-                <div id="flashcard" class="flashcard">
-                  <div class="card-front">
-                    <p id="frontText"></p>
-                  </div>
-                  <div class="card-back">
-                    <p id="backText"></p>
-                  </div>
-                </div>
-                <div class="card-controls">
-                  <button id="showAnswerBtn" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> Show Answer
-                  </button>
-                  <div class="navigation-buttons">
-                    <button id="prevCardBtn" class="btn btn-secondary">
-                      <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button id="shuffleBtn" class="btn btn-secondary">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button id="nextCardBtn" class="btn btn-secondary">
-                      <i class="fas fa-chevron-right"></i>
-                    </button>
-                  </div>
-                  <div class="performance-buttons">
-                    <button class="btn btn-danger" data-performance="1">
-                      <i class="fas fa-times"></i> Unfamiliar
-                    </button>
-                    <button class="btn btn-success" data-performance="5">
-                      <i class="fas fa-star"></i> I know it!
-                    </button>
-                  </div>
-                </div>
-              </div>
             </div>
           </div>
         </div>

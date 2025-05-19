@@ -64,64 +64,91 @@ $(document).ready(function () {
 
   // Initialize deck manager when user logs in
   onAuthStateChanged(auth, async (user) => {
-    if (user) {
-      currentUser = user;
-      deckManager = new DeckManager(user.uid);
+    try {
+      if (user) {
+        console.log("User authenticated:", user.uid);
+        currentUser = user;
+        deckManager = new DeckManager(user.uid);
 
-      // Update desktop view
-      const userMenu = document.getElementById("userMenu");
-      const showLoginBtn = document.getElementById("showLoginBtn");
-      const userEmail = document.getElementById("userEmail");
+        // Update desktop view
+        const userMenu = document.getElementById("userMenu");
+        const showLoginBtn = document.getElementById("showLoginBtn");
+        const userEmail = document.getElementById("userEmail");
 
-      // Update mobile view
-      const mobileUserEmail = document.getElementById("mobileUserEmail");
-      const mobileShowLoginBtn = document.getElementById("mobileShowLoginBtn");
-      const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+        // Update mobile view
+        const mobileUserEmail = document.getElementById("mobileUserEmail");
+        const mobileShowLoginBtn =
+          document.getElementById("mobileShowLoginBtn");
+        const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
 
-      if (window.innerWidth > 768) {
-        // Desktop view
-        if (userMenu) userMenu.style.display = "flex";
-        if (showLoginBtn) showLoginBtn.style.display = "none";
-        if (userEmail) userEmail.textContent = user.email;
+        if (window.innerWidth > 768) {
+          // Desktop view
+          if (userMenu) userMenu.style.display = "flex";
+          if (showLoginBtn) showLoginBtn.style.display = "none";
+          if (userEmail) userEmail.textContent = user.email;
+        } else {
+          // Mobile view
+          if (mobileUserEmail) mobileUserEmail.textContent = user.email;
+          if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "none";
+          if (mobileLogoutBtn) mobileLogoutBtn.style.display = "block";
+        }
+
+        // Wait for auth state to be fully initialized
+        await new Promise((resolve) => setTimeout(resolve, 100));
+
+        try {
+          await loadUserDecks();
+          await loadStudyProgress();
+          await updateSubscriptionUI();
+          updatePremiumFeatures();
+        } catch (error) {
+          console.error("Error initializing user data:", error);
+          if (error.code === "permission-denied") {
+            // Force a token refresh and retry
+            await user.getIdToken(true);
+            await loadUserDecks();
+            await loadStudyProgress();
+            await updateSubscriptionUI();
+            updatePremiumFeatures();
+          }
+        }
       } else {
-        // Mobile view
-        if (mobileUserEmail) mobileUserEmail.textContent = user.email;
-        if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "none";
-        if (mobileLogoutBtn) mobileLogoutBtn.style.display = "block";
+        console.log("User signed out");
+        currentUser = null;
+        deckManager = null;
+
+        // Update desktop view
+        const userMenu = document.getElementById("userMenu");
+        const showLoginBtn = document.getElementById("showLoginBtn");
+        const userEmail = document.getElementById("userEmail");
+
+        // Update mobile view
+        const mobileUserEmail = document.getElementById("mobileUserEmail");
+        const mobileShowLoginBtn =
+          document.getElementById("mobileShowLoginBtn");
+        const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
+
+        if (window.innerWidth > 768) {
+          // Desktop view
+          if (userMenu) userMenu.style.display = "none";
+          if (showLoginBtn) showLoginBtn.style.display = "block";
+          if (userEmail) userEmail.textContent = "";
+        } else {
+          // Mobile view
+          if (mobileUserEmail) mobileUserEmail.textContent = "";
+          if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "block";
+          if (mobileLogoutBtn) mobileLogoutBtn.style.display = "none";
+        }
+
+        userDecks = [];
+        updateDeckList();
       }
-
-      await loadUserDecks();
-      await loadStudyProgress();
-      await updateSubscriptionUI();
-      updatePremiumFeatures();
-    } else {
-      currentUser = null;
-      deckManager = null;
-
-      // Update desktop view
-      const userMenu = document.getElementById("userMenu");
-      const showLoginBtn = document.getElementById("showLoginBtn");
-      const userEmail = document.getElementById("userEmail");
-
-      // Update mobile view
-      const mobileUserEmail = document.getElementById("mobileUserEmail");
-      const mobileShowLoginBtn = document.getElementById("mobileShowLoginBtn");
-      const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-
-      if (window.innerWidth > 768) {
-        // Desktop view
-        if (userMenu) userMenu.style.display = "none";
-        if (showLoginBtn) showLoginBtn.style.display = "block";
-        if (userEmail) userEmail.textContent = "";
-      } else {
-        // Mobile view
-        if (mobileUserEmail) mobileUserEmail.textContent = "";
-        if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "block";
-        if (mobileLogoutBtn) mobileLogoutBtn.style.display = "none";
+    } catch (error) {
+      console.error("Error in auth state change handler:", error);
+      // Show error to user if it's a critical error
+      if (error.code === "auth/network-request-failed") {
+        showErrorMessage("Network error. Please check your connection.");
       }
-
-      userDecks = [];
-      updateDeckList();
     }
   });
 
@@ -400,1123 +427,81 @@ $(document).ready(function () {
 
   // Deck management
   async function loadUserDecks() {
-    if (!deckManager) return;
+    if (!deckManager) {
+      console.warn(
+        "Deck manager not initialized. User may not be authenticated."
+      );
+      return;
+    }
+
+    if (!currentUser) {
+      console.warn("No current user found. User may have been logged out.");
+      return;
+    }
 
     try {
+      // Ensure we have a fresh token
+      await currentUser.getIdToken(true);
+
+      console.log("Loading decks for user:", currentUser.uid);
       userDecks = await deckManager.loadDecks();
+      console.log("Successfully loaded decks:", userDecks.length);
       updateDeckList(userDecks);
     } catch (error) {
       console.error("Error loading decks:", error);
-      alert("Failed to load decks: " + error.message);
-    }
-  }
-
-  function updateDeckList(decks = []) {
-    const deckList = document.querySelector(".saved-decks");
-    if (!deckList) return;
-
-    if (!decks || decks.length === 0) {
-      deckList.innerHTML = '<p class="no-decks">No saved decks yet</p>';
-      return;
-    }
-
-    deckList.innerHTML = decks
-      .map(
-        (deck) => `
-      <div class="deck-card" data-deck-id="${deck.id}">
-        <h3>${deck.name}</h3>
-        <p>${deck.cards ? deck.cards.length : 0} cards</p>
-        <div class="deck-actions">
-          <button class="btn btn-primary study-deck">
-            <i class="fas fa-graduation-cap"></i> Study
-          </button>
-          <button class="btn btn-secondary load-deck">
-            <i class="fas fa-edit"></i> Edit
-          </button>
-          <button class="btn btn-danger delete-deck">
-            <i class="fas fa-trash"></i> Delete
-          </button>
-          <button class="btn btn-info export-deck">
-            <i class="fas fa-download"></i> Export
-          </button>
-        </div>
-      </div>
-    `
-      )
-      .join("");
-
-    // Add event listeners for deck actions
-    deckList.querySelectorAll(".study-deck").forEach((button) => {
-      button.addEventListener("click", async function () {
-        const deckId = this.closest(".deck-card").dataset.deckId;
-        const deck = decks.find((d) => d.id === deckId);
-        if (deck) {
-          initializeStudySession(deck);
-        }
-      });
-    });
-
-    deckList.querySelectorAll(".load-deck").forEach((button) => {
-      button.addEventListener("click", async function () {
-        const deckId = this.closest(".deck-card").dataset.deckId;
-        try {
-          showLoading(true);
-          const deck = await deckManager.getDeck(deckId);
-          flashcards = deck.cards;
-          currentCardIndex = 0;
-          isFlipped = false;
-          updateFlashcard();
-          showFlashcardViewer(true);
-        } catch (error) {
-          console.error("Error loading deck:", error);
-          alert("Failed to load deck: " + error.message);
-        } finally {
-          showLoading(false);
-        }
-      });
-    });
-
-    deckList.querySelectorAll(".delete-deck").forEach((button) => {
-      button.addEventListener("click", async function () {
-        if (!confirm("Are you sure you want to delete this deck?")) return;
-
-        const deckId = this.closest(".deck-card").dataset.deckId;
-        try {
-          showLoading(true);
-          await deckManager.deleteDeck(deckId);
-          await loadUserDecks();
-        } catch (error) {
-          console.error("Error deleting deck:", error);
-          alert("Failed to delete deck: " + error.message);
-        } finally {
-          showLoading(false);
-        }
-      });
-    });
-
-    deckList.querySelectorAll(".export-deck").forEach((button) => {
-      button.addEventListener("click", async function () {
-        const deckId = this.closest(".deck-card").dataset.deckId;
-        try {
-          const deck = await deckManager.getDeck(deckId);
-          exportDeck(deck);
-        } catch (error) {
-          console.error("Error exporting deck:", error);
-          alert("Failed to export deck: " + error.message);
-        }
-      });
-    });
-  }
-
-  // Save study progress
-  async function saveStudyProgress(cardId, performance) {
-    if (!currentUser) return;
-
-    try {
-      const progressRef = doc(
-        db,
-        "studyProgress",
-        currentUser.uid,
-        "cards",
-        cardId
-      );
-      const progressData = spacedRepetition.calculateNextReview(
-        cardId,
-        performance
-      );
-
-      await setDoc(progressRef, {
-        ...progressData,
-        lastReviewed: new Date(),
-        userId: currentUser.uid,
-      });
-    } catch (error) {
-      console.error("Error saving study progress:", error);
-    }
-  }
-
-  // Load study progress
-  async function loadStudyProgress() {
-    if (!currentUser) return;
-
-    try {
-      const progressRef = collection(
-        db,
-        "studyProgress",
-        currentUser.uid,
-        "cards"
-      );
-      const snapshot = await getDocs(progressRef);
-
-      snapshot.docs.forEach((doc) => {
-        const data = doc.data();
-        spacedRepetition.reviewData.set(doc.id, data);
+      console.error("Error details:", {
+        code: error.code,
+        message: error.message,
+        stack: error.stack,
+        userId: currentUser?.uid,
+        isAuthenticated: !!currentUser,
+        authState: auth.currentUser ? "authenticated" : "not authenticated",
       });
 
-      // Update Study Now button after loading progress
-      updateStudyNowButton();
-    } catch (error) {
-      console.error("Error loading study progress:", error);
-    }
-  }
-
-  // Text form submission
-  $("#textForm").on("submit", function (e) {
-    e.preventDefault();
-    const text = $("#textInput").val().trim();
-    if (text) {
-      processText(text);
-    }
-  });
-
-  // Flashcard navigation
-  function initializeFlashcardControls() {
-    // Remove any existing event listeners first
-    $("#prevBtn, #nextBtn").off("click");
-    $("#shuffleBtn").off("click");
-    $("#showAnswerBtn, #flipCard").off("click");
-    $(".performance-buttons button").off("click");
-    $(document).off("keydown.flashcard");
-
-    // Keyboard navigation
-    $(document).on("keydown.flashcard", function (e) {
-      if (!$("#flashcardViewer").is(":visible")) return;
-
-      switch (e.key) {
-        case "ArrowLeft":
-          navigateCard("prev");
-          break;
-        case "ArrowRight":
-          navigateCard("next");
-          break;
-        case " ": // Space bar
-          e.preventDefault();
-          $("#showAnswerBtn, #flipCard").click();
-          break;
-        case "1":
-          if ($(".performance-buttons").is(":visible")) {
-            $('[data-performance="1"]').click();
-          }
-          break;
-        case "2":
-          if ($(".performance-buttons").is(":visible")) {
-            $('[data-performance="3"]').click();
-          }
-          break;
-        case "3":
-          if ($(".performance-buttons").is(":visible")) {
-            $('[data-performance="5"]').click();
-          }
-          break;
-      }
-    });
-
-    // Navigation buttons
-    $("#prevBtn").on("click", function (e) {
-      e.preventDefault();
-      navigateCard("prev");
-    });
-
-    $("#nextBtn").on("click", function (e) {
-      e.preventDefault();
-      navigateCard("next");
-    });
-
-    // Shuffle button
-    $("#shuffleBtn").on("click", function (e) {
-      e.preventDefault();
-      flashcards = flashcards.sort(() => Math.random() - 0.5);
-      currentCardIndex = 0;
-      updateFlashcard();
-      showSuccessMessage("Cards shuffled");
-    });
-
-    // Show Answer button
-    $("#showAnswerBtn, #flipCard").on("click", function (e) {
-      e.preventDefault();
-      const $btn = $(this);
-      const $cardBack = $btn
-        .closest(".card-controls")
-        .prev()
-        .find(".card-back");
-      const $performanceButtons = $btn
-        .closest(".card-controls")
-        .find(".performance-buttons");
-
-      if ($cardBack.length) {
-        $cardBack.slideDown(200);
-        $btn.hide();
-        $performanceButtons.slideDown(200);
-      }
-    });
-
-    // Performance buttons
-    $(".performance-buttons button").on("click", async function (e) {
-      e.preventDefault();
-      const performance = parseInt($(this).data("performance"));
-      const card = flashcards[currentCardIndex];
-
-      // Update card metadata based on performance
-      if (!card.metadata) {
-        card.metadata = {};
-      }
-      card.metadata.markedAsUnfamiliar = performance < 3;
-
-      // Record performance
-      await saveStudyProgress(card.id, performance);
-      spacedRepetition.calculateNextReview(card.id, performance);
-
-      // Move to next card
-      navigateCard("next");
-    });
-  }
-
-  function navigateCard(direction) {
-    const oldIndex = currentCardIndex;
-    if (direction === "prev" && currentCardIndex > 0) {
-      currentCardIndex--;
-    } else if (
-      direction === "next" &&
-      currentCardIndex < flashcards.length - 1
-    ) {
-      currentCardIndex++;
-    }
-
-    // Only update if the index actually changed
-    if (oldIndex !== currentCardIndex) {
-      updateFlashcard();
-    }
-  }
-
-  function updateFlashcard() {
-    const card = flashcards[currentCardIndex];
-    if (!card) return;
-
-    // Update card content
-    $("#frontText").text(card.front);
-    $("#backText").text(card.back);
-
-    // Reset card state
-    $(".card-back").hide();
-    $("#showAnswerBtn").show();
-    $(".performance-buttons").hide();
-
-    // Update navigation state
-    $("#prevBtn").prop("disabled", currentCardIndex === 0);
-    $("#nextBtn").prop("disabled", currentCardIndex === flashcards.length - 1);
-
-    // Update counter
-    $("#cardCounter").text(`${currentCardIndex + 1} / ${flashcards.length}`);
-
-    // Update progress
-    updateProgress();
-  }
-
-  function updateProgress() {
-    const totalCards = flashcards.length;
-    const markedCards = flashcards.filter(
-      (card) => card.metadata?.markedAsUnfamiliar
-    ).length;
-    const progress = (markedCards / totalCards) * 100;
-
-    $("#progressBar").css("width", `${progress}%`);
-    $("#progressText").text(`${markedCards}/${totalCards} cards marked`);
-  }
-
-  // Flashcard flip
-  $("#flashcard").on("click", function () {
-    isFlipped = !isFlipped;
-    $(this).toggleClass("flipped");
-  });
-
-  // Update file handling functions
-  function validateAndProcessFile(file) {
-    // Check file type using native File API
-    const allowedTypes = [
-      "application/pdf",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-      "text/plain"
-    ];
-
-    // Get file extension
-    const extension = file.name.split('.').pop().toLowerCase();
-    const mimeType = file.type;
-
-    // Check if either the MIME type or extension is allowed
-    const isValidType = allowedTypes.includes(mimeType) || 
-                       ['pdf', 'doc', 'docx', 'txt'].includes(extension);
-
-    if (!isValidType) {
-      showErrorMessage("Please upload a PDF, DOC, DOCX, or TXT file");
-      return;
-    }
-
-    // Check file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
-    if (file.size > maxSize) {
-      showErrorMessage("File size must be less than 10MB");
-      return;
-    }
-
-    // Show card type selection after file validation
-    $("#fileInput").hide();
-    $("#dropzone").hide();
-    $("#cardTypeSelection").show();
-
-    // Store the file for later processing
-    window.uploadedFile = file;
-  }
-
-  // Add handleFile function before the generateCardsBtn click handler
-  async function handleFile(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-
-      reader.onload = async function (e) {
-        try {
-          const content = e.target.result;
-          let text = "";
-
-          switch (file.type) {
-            case "application/pdf":
-              // Use a different worker configuration that complies with CSP
-              const loadingTask = pdfjsLib.getDocument({
-                data: content,
-                cMapUrl:
-                  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/cmaps/",
-                cMapPacked: true,
-                standardFontDataUrl:
-                  "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/standard_fonts/",
-                disableWorker: false, // Enable worker but use CDN version
-              });
-
-              const pdf = await loadingTask.promise;
-              const numPages = pdf.numPages;
-
-              // Extract text from each page
-              for (let i = 1; i <= numPages; i++) {
-                const page = await pdf.getPage(i);
-                const textContent = await page.getTextContent();
-                text +=
-                  textContent.items.map((item) => item.str).join(" ") + "\n";
-              }
-              break;
-
-            case "application/msword":
-            case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-              // For DOC/DOCX files, we'll need to use a server-side conversion
-              // For now, show an error message
-              throw new Error(
-                "DOC/DOCX files are not supported in the browser. Please convert to PDF or TXT first."
-              );
-              break;
-
-            case "text/plain":
-              text = content;
-              break;
-
-            default:
-              throw new Error("Unsupported file type");
-          }
-
-          // Clean up the extracted text
-          text = text
-            .replace(/\r\n/g, "\n") // Normalize line endings
-            .replace(/\n{3,}/g, "\n\n") // Remove excessive newlines
-            .replace(/\s+/g, " ") // Normalize spaces
-            .trim();
-
-          resolve(text);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      reader.onerror = () => reject(new Error("Error reading file"));
-
-      // Read the file based on its type
-      if (file.type === "application/pdf") {
-        reader.readAsArrayBuffer(file);
-      } else {
-        reader.readAsText(file);
-      }
-    });
-  }
-
-  // Add card type selection handler
-  $("#generateCardsBtn").on("click", async function () {
-    if (!window.uploadedFile) {
-      showErrorMessage("Please upload a file first");
-      return;
-    }
-
-    const cardType = $("#cardType").val();
-    if (!cardType) {
-      showErrorMessage("Please select a card type");
-      return;
-    }
-
-    const cardCount = parseInt($("#cardCount").val());
-    const isPremium = subscriptionManager.isPremium();
-
-    // Validate card count based on premium status
-    if (!isPremium && cardCount > 10) {
-      showErrorMessage(
-        "Free users can only generate up to 10 cards. Please upgrade to premium for more options."
-      );
-      return;
-    }
-
-    // Check free tier limits
-    if (!isPremium) {
+      // Check if the error is due to authentication
       if (
-        lastGenerationTime &&
-        Date.now() - lastGenerationTime < FREE_TIER_COOLDOWN
+        error.code === "permission-denied" ||
+        error.message.includes("permission")
       ) {
-        const hoursLeft = Math.ceil(
-          (FREE_TIER_COOLDOWN - (Date.now() - lastGenerationTime)) /
-            (60 * 60 * 1000)
+        console.warn(
+          "Authentication error detected. Attempting to refresh auth state..."
         );
+
+        try {
+          // Force a token refresh
+          await currentUser.getIdToken(true);
+          // Reload the user to ensure auth state is fresh
+          await currentUser.reload();
+
+          // If still authenticated, try loading decks again
+          if (auth.currentUser) {
+            console.log("Auth state refreshed, retrying deck load...");
+            userDecks = await deckManager.loadDecks();
+            updateDeckList(userDecks);
+            return;
+          } else {
+            console.error("User no longer authenticated after refresh");
+            showErrorMessage("Session expired. Please log in again.");
+            // Trigger a sign out to clear the invalid state
+            await signOut(auth);
+          }
+        } catch (retryError) {
+          console.error("Failed to refresh auth state:", retryError);
+          showErrorMessage("Authentication error. Please log in again.");
+          // Trigger a sign out to clear the invalid state
+          await signOut(auth);
+        }
+      } else if (
+        error.code === "unavailable" ||
+        error.code === "network-request-failed"
+      ) {
         showErrorMessage(
-          `Free tier limit reached. Please wait ${hoursLeft} hours before generating more cards, or upgrade to premium for unlimited cards.`
-        );
-        return;
-      }
-    }
-
-    // Start loading with minimum duration
-    showLoading(true);
-    const loadingStartTime = Date.now();
-
-    try {
-      // Process the file
-      const text = await handleFile(window.uploadedFile);
-      if (!text) {
-        throw new Error("No text content could be extracted from the file");
-      }
-
-      // Generate flashcards
-      await processText(text);
-
-      // Ensure loading screen stays for at least 3 seconds
-      const elapsedTime = Date.now() - loadingStartTime;
-      const remainingTime = Math.max(0, 3000 - elapsedTime);
-
-      if (remainingTime > 0) {
-        await new Promise((resolve) => setTimeout(resolve, remainingTime));
-      }
-
-      // Update last generation time for free tier
-      if (!isPremium) {
-        lastGenerationTime = Date.now();
-      }
-    } catch (error) {
-      console.error("Error generating flashcards:", error);
-      showErrorMessage(
-        error.message || "Failed to generate flashcards. Please try again."
-      );
-    } finally {
-      showLoading(false);
-    }
-  });
-
-  // Modify processText function to respect free tier limits
-  async function processText(text) {
-    if (isGenerating) return;
-    isGenerating = true;
-
-    try {
-      const cardType = $("#cardType").val();
-      const cardCount = parseInt($("#cardCount").val());
-
-      // Always treat as premium for testing
-      const isPremium = true;
-
-      // Make the API request
-      const response = await fetch(
-        "http://localhost:12345/api/generate-flashcards",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            text,
-            cardType,
-            cardCount,
-            options: {
-              userId: currentUser?.uid,
-              isPremium: true, // Always send premium status
-            },
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(
-          error.details || error.message || "Failed to generate flashcards"
-        );
-      }
-
-      const data = await response.json();
-      flashcards = data.flashcards;
-
-      // Update UI with flashcards
-      updateFlashcardViewer(flashcards);
-
-      // Update card count for premium users
-      if (isPremium && currentUser) {
-        monthlyCardCount += flashcards.length;
-        await setDoc(doc(db, "users", currentUser.uid), {
-          monthlyCardCount,
-        });
-      }
-
-      // Show success message
-      showSuccessMessage("Flashcards generated successfully");
-      console.log("Flashcard generation completed successfully");
-    } catch (error) {
-      console.error("Error generating flashcards:", error);
-      throw error;
-    } finally {
-      isGenerating = false;
-    }
-  }
-
-  // Helper function to update loading message
-  function updateLoadingMessage(message) {
-    const loadingMessage = document.querySelector(".loading-message h3");
-    if (loadingMessage) {
-      loadingMessage.textContent = message;
-    }
-  }
-
-  // Helper function to clean and format card content
-  function cleanCardContent(content) {
-    if (!content) return "";
-
-    return (
-      content
-        .trim()
-        // Remove multiple spaces
-        .replace(/\s+/g, " ")
-        // Remove any HTML tags
-        .replace(/<[^>]*>/g, "")
-        // Fix common formatting issues
-        .replace(/\n\s*\n/g, "\n")
-        // Ensure proper sentence endings
-        .replace(/([^.!?])\s*$/, "$1.")
-        // Remove any markdown formatting
-        .replace(/[*_`#]/g, "")
-    );
-  }
-
-  // Add a function to validate AI response
-  function validateAIResponse(cards) {
-    return cards.every((card) => {
-      // Check required fields
-      if (!card.front || !card.back) return false;
-
-      // Check content length
-      if (card.front.length < 10 || card.back.length < 20) return false;
-
-      // Check for common issues
-      if (card.front === card.back) return false;
-      if (card.front.includes("undefined") || card.back.includes("undefined"))
-        return false;
-
-      return true;
-    });
-  }
-
-  // Add error handling for AI-specific issues
-  const AI_ERROR_MESSAGES = {
-    context_length_exceeded:
-      "The text is too long. Please try with a shorter text or split it into smaller sections.",
-    invalid_request:
-      "The AI service is having trouble processing this content. Please try rephrasing or using different text.",
-    rate_limit_exceeded:
-      "Too many requests. Please wait a moment before trying again.",
-    content_filter:
-      "The content contains material that cannot be processed. Please check the text and try again.",
-    model_overloaded:
-      "The AI service is currently busy. Please try again in a few moments.",
-  };
-
-  // UI update functions
-  function showFlashcardViewer(show) {
-    if (show) {
-      $("#emptyState").hide();
-      $("#flashcardViewer").show();
-      // Reinitialize flashcard controls when showing the viewer
-      initializeFlashcardControls();
-    } else {
-      $("#flashcardViewer").hide();
-      $("#emptyState").show();
-    }
-  }
-
-  function showLoading(show) {
-    const loadingIndicator = document.getElementById("loadingIndicator");
-
-    if (show) {
-      loadingStartTime = Date.now();
-      loadingIndicator.style.display = "flex";
-      loadingIndicator.style.opacity = "1";
-    } else {
-      const elapsedTime = Date.now() - loadingStartTime;
-      const remainingTime = Math.max(0, MIN_LOADING_TIME - elapsedTime);
-
-      // Add fade out animation
-      loadingIndicator.style.opacity = "0";
-
-      // Wait for the minimum time and animation to complete before hiding
-      setTimeout(() => {
-        loadingIndicator.style.display = "none";
-      }, remainingTime + 300); // Add 300ms for fade out animation
-    }
-  }
-
-  // Update the loading indicator styles
-  document.head.insertAdjacentHTML(
-    "beforeend",
-    `
-    <style>
-      #loadingIndicator {
-        transition: opacity 0.3s ease;
-        opacity: 0;
-      }
-    </style>
-  `
-  );
-
-  // Add refund-related error messages
-  const SUBSCRIPTION_ERRORS = {
-    card_declined: "Your card was declined. Please try a different card.",
-    insufficient_funds: "Your card has insufficient funds.",
-    expired_card: "Your card has expired. Please update your card details.",
-    processing_error:
-      "There was an error processing your payment. Please try again.",
-    rate_limit: "Too many attempts. Please try again later.",
-    invalid_request: "Invalid payment information. Please check your details.",
-    authentication_required:
-      "Additional authentication is required. Please check your email.",
-    subscription_canceled: "Your subscription has been canceled.",
-    subscription_past_due:
-      "Your subscription is past due. Please update your payment method.",
-    subscription_unpaid:
-      "Your subscription is unpaid. Please update your payment method.",
-    refund_window_expired: "Refund request is outside the 7-day window",
-    refund_processing_error: "Error processing refund request",
-    refund_already_processed:
-      "Refund has already been processed for this subscription",
-  };
-
-  // Handle subscription buttons
-  $(document).on("click", "#monthlySubBtn, #yearlySubBtn", async function () {
-    if (!currentUser) {
-      $("#authModal").show();
-      return;
-    }
-
-    const priceId = $(this).data("price-id");
-    const isUpgrade = $(this).data("upgrade") === "true";
-    const currentPlan = $(this).data("current-plan");
-
-    if (!priceId) {
-      console.error("Price ID not found");
-      alert("Error: Price ID not configured. Please contact support.");
-      return;
-    }
-
-    try {
-      showLoading(true);
-      const response = await fetch("/create-checkout-session", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          priceId: priceId,
-          userId: currentUser.uid,
-          isUpgrade: isUpgrade,
-          currentPlan: currentPlan,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to create checkout session");
-      }
-
-      const { sessionId } = await response.json();
-      const stripe = await loadStripe(PRICES.MONTHLY.id.split("_")[0]);
-
-      const { error } = await stripe.redirectToCheckout({ sessionId });
-      if (error) {
-        throw new Error(error.message);
-      }
-    } catch (error) {
-      console.error("Subscription error:", error);
-      const errorMessage =
-        SUBSCRIPTION_ERRORS[error.code] ||
-        "An error occurred while processing your subscription. Please try again.";
-      showSubscriptionError(errorMessage);
-    } finally {
-      showLoading(false);
-    }
-  });
-
-  // Handle subscription cancellation
-  $(document).on("click", "#cancelSubBtn", async function () {
-    const subscriptionDetails = subscriptionManager.getSubscriptionDetails();
-    const subscriptionStart = new Date(subscriptionDetails.startDate);
-    const now = new Date();
-    const daysSinceStart = (now - subscriptionStart) / (1000 * 60 * 60 * 24);
-    const isRefundEligible = daysSinceStart <= 7;
-
-    let cancelOptions = {
-      title: "Cancel Subscription",
-      message: isRefundEligible
-        ? "Would you like to request a refund? You're within the 7-day refund window."
-        : "Are you sure you want to cancel your subscription? You'll continue to have access until the end of your billing period.",
-      showRefundOption: isRefundEligible,
-    };
-
-    const result = await showCancelConfirmationModal(cancelOptions);
-    if (!result.confirmed) return;
-
-    try {
-      showLoading(true);
-      const response = await fetch("/cancel-subscription", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: currentUser.uid,
-          cancelAtPeriodEnd: !result.requestRefund,
-          requestRefund: result.requestRefund,
-          reason: result.reason,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error.message || "Failed to cancel subscription");
-      }
-
-      const result = await response.json();
-      await updateSubscriptionUI();
-
-      if (result.refund) {
-        showSuccessMessage(
-          "Subscription canceled and refund processed successfully. The refund will appear in your account within 5-10 business days."
+          "Network error. Please check your connection and try again."
         );
       } else {
-        showSuccessMessage(result.message);
+        showErrorMessage("Failed to load decks. Please try again.");
       }
-    } catch (error) {
-      console.error("Error canceling subscription:", error);
-      showSubscriptionError(
-        SUBSCRIPTION_ERRORS[error.code] ||
-          error.message ||
-          "An error occurred while canceling your subscription. Please try again."
-      );
-    } finally {
-      showLoading(false);
     }
-  });
-
-  // Handle subscription reactivation
-  $(document).on("click", "#reactivateSubBtn", async function () {
-    try {
-      showLoading(true);
-      const response = await fetch("/reactivate-subscription", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          userId: currentUser.uid,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.message || "Failed to reactivate subscription");
-      }
-
-      await updateSubscriptionUI();
-      alert("Your subscription has been reactivated!");
-    } catch (error) {
-      console.error("Error reactivating subscription:", error);
-      showSubscriptionError(
-        SUBSCRIPTION_ERRORS[error.code] ||
-          "An error occurred while reactivating your subscription. Please try again."
-      );
-    } finally {
-      showLoading(false);
-    }
-  });
-
-  // Update subscription UI
-  async function updateSubscriptionUI() {
-    const subscriptionDetails = subscriptionManager.getSubscriptionDetails();
-    const $subscriptionStatus = $("#subscriptionStatus");
-    const $pricingOptions = $(".pricing-options");
-    const $currentPlan = $("#currentPlan");
-    const $nextBillingDate = $("#nextBillingDate");
-    const $cancelSubBtn = $("#cancelSubBtn");
-    const $reactivateSubBtn = $("#reactivateSubBtn");
-
-    if (subscriptionDetails.isPremium) {
-      $subscriptionStatus.show();
-      $pricingOptions.hide();
-
-      // Update plan details
-      $currentPlan.text(`Current Plan: ${subscriptionDetails.planName}`);
-
-      // Format and show next billing date
-      const nextBilling = new Date(subscriptionDetails.nextBillingDate);
-      $nextBillingDate.text(
-        `Next billing date: ${nextBilling.toLocaleDateString()}`
-      );
-
-      // Show appropriate buttons based on subscription status
-      if (subscriptionDetails.status === "active") {
-        $cancelSubBtn.show();
-        $reactivateSubBtn.hide();
-      } else if (subscriptionDetails.status === "canceled") {
-        $cancelSubBtn.hide();
-        $reactivateSubBtn.show();
-        $nextBillingDate.text(
-          "Subscription will end on: " + nextBilling.toLocaleDateString()
-        );
-      } else if (subscriptionDetails.status === "refunded") {
-        $cancelSubBtn.hide();
-        $reactivateSubBtn.hide();
-        $nextBillingDate.text(
-          "Subscription refunded on: " +
-            new Date(
-              subscriptionDetails.refundDetails.date
-            ).toLocaleDateString()
-        );
-        showSuccessMessage(
-          `Refund processed successfully. Amount: $${(
-            subscriptionDetails.refundDetails.amount / 100
-          ).toFixed(2)}`
-        );
-      } else if (subscriptionDetails.status === "past_due") {
-        $cancelSubBtn.show();
-        $reactivateSubBtn.hide();
-        $nextBillingDate.text("Payment required to maintain access");
-        showSubscriptionError(
-          "Your subscription is past due. Please update your payment method."
-        );
-      }
-    } else {
-      $subscriptionStatus.hide();
-      $pricingOptions.show();
-    }
-
-    // Update pricing buttons based on current subscription
-    updatePricingButtons(subscriptionDetails);
-  }
-
-  // Update pricing buttons based on current subscription
-  function updatePricingButtons(subscriptionDetails) {
-    const $monthlyBtn = $("#monthlySubBtn");
-    const $yearlyBtn = $("#yearlySubBtn");
-
-    if (subscriptionDetails.isPremium) {
-      // If user has monthly plan, show upgrade to yearly
-      if (subscriptionDetails.planName === "Monthly") {
-        $monthlyBtn.hide();
-        $yearlyBtn
-          .show()
-          .text("Upgrade to Yearly")
-          .data("upgrade", "true")
-          .data("current-plan", "monthly");
-      }
-      // If user has yearly plan, show downgrade to monthly
-      else if (subscriptionDetails.planName === "Yearly") {
-        $yearlyBtn.hide();
-        $monthlyBtn
-          .show()
-          .text("Downgrade to Monthly")
-          .data("upgrade", "true")
-          .data("current-plan", "yearly");
-      }
-    } else {
-      // Reset buttons for new subscriptions
-      $monthlyBtn
-        .show()
-        .text("Subscribe Monthly")
-        .removeData("upgrade")
-        .removeData("current-plan");
-      $yearlyBtn
-        .show()
-        .text("Subscribe Yearly")
-        .removeData("upgrade")
-        .removeData("current-plan");
-    }
-  }
-
-  // Show subscription error
-  function showSubscriptionError(message) {
-    // Remove any existing error messages
-    $(".subscription-error").remove();
-
-    // Add new error message
-    $(".subscription-status").prepend(`
-      <div class="subscription-error">
-        <p>${message}</p>
-        <button class="btn btn-link" onclick="this.parentElement.remove()">Dismiss</button>
-      </div>
-    `);
-  }
-
-  // Update UI based on subscription status
-  function updatePremiumFeatures() {
-    const isPremium = subscriptionManager.isPremium();
-    
-    if (isPremium) {
-      $(".premium-feature").removeClass("locked");
-      $("#premiumBadge").show();
-      $(".premium-option").show();
-    } else {
-      $(".premium-feature").addClass("locked");
-      $("#premiumBadge").hide();
-      $(".premium-option").hide();
-    }
-    updateCardCountOptions();
-  }
-
-  // Update card count options based on premium status
-  function updateCardCountOptions() {
-    const isPremium = subscriptionManager.isPremium();
-    const $cardCountSelects = $("#cardCount, #cameraCardCount, #fileCardCount");
-    
-    $cardCountSelects.each(function () {
-      const $select = $(this);
-      const $premiumOptions = $select.find(".premium-option");
-      
-      if (isPremium) {
-        // Enable and show premium options for premium users
-        $premiumOptions.prop('disabled', false).show();
-      } else {
-        // Disable and hide premium options for non-premium users
-        $premiumOptions.prop('disabled', true).hide();
-        
-        // Reset to max free tier value if premium option was selected
-        const currentValue = parseInt($select.val());
-        if (currentValue > 10) {
-          $select.val("10");
-        }
-        
-        // Remove any premium options from the select element
-        $premiumOptions.detach();
-      }
-    });
-  }
-
-  // Add event listener to prevent selecting disabled options
-  $(document).on('change', '#cardCount, #cameraCardCount, #fileCardCount', function() {
-    const $select = $(this);
-    const selectedValue = parseInt($select.val());
-    const isPremium = subscriptionManager.isPremium();
-    
-    if (!isPremium && selectedValue > 10) {
-      $select.val("10");
-      showErrorMessage("Free users can only generate up to 10 cards. Please upgrade to premium for more options.");
-    }
-  });
-
-  // Update the card type selection handler to show card count options
-  $("#cardType").on("change", function () {
-    const $cardCountGroup = $("#cardCountGroup");
-    if ($(this).val()) {
-      $cardCountGroup.show();
-      updateCardCountOptions(); // Update options when shown
-    } else {
-      $cardCountGroup.hide();
-    }
-  });
-
-  // Add cancel confirmation modal
-  function showCancelConfirmationModal(options) {
-    return new Promise((resolve) => {
-      const modalHtml = `
-        <div class="modal" id="cancelConfirmationModal">
-          <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>${options.title}</h2>
-            <p>${options.message}</p>
-            ${
-              options.showRefundOption
-                ? `
-              <div class="refund-option">
-                <label>
-                  <input type="checkbox" id="requestRefund">
-                  Request a refund (within 7 days of purchase)
-                </label>
-                <div id="refundReasonContainer" style="display: none; margin-top: 1rem;">
-                  <label for="refundReason">Reason for refund:</label>
-                  <textarea id="refundReason" rows="3" placeholder="Please let us know why you're requesting a refund..."></textarea>
-                </div>
-              </div>
-            `
-                : ""
-            }
-            <div class="modal-actions">
-              <button class="btn btn-secondary" id="cancelBtn">Cancel</button>
-              <button class="btn btn-primary" id="confirmBtn">Confirm</button>
-            </div>
-          </div>
-        </div>
-      `;
-
-      // Add modal to DOM
-      $("body").append(modalHtml);
-      const $modal = $("#cancelConfirmationModal");
-      $modal.show();
-
-      // Handle refund option toggle
-      if (options.showRefundOption) {
-        $("#requestRefund").on("change", function () {
-          $("#refundReasonContainer").toggle(this.checked);
-        });
-      }
-
-      // Handle modal close
-      $modal.find(".close, #cancelBtn").on("click", function () {
-        $modal.remove();
-        resolve({ confirmed: false });
-      });
-
-      // Handle confirmation
-      $("#confirmBtn").on("click", function () {
-        const requestRefund = $("#requestRefund").is(":checked");
-        const reason = $("#refundReason").val();
-
-        if (requestRefund && !reason.trim()) {
-          showSubscriptionError(
-            "Please provide a reason for the refund request"
-          );
-          return;
-        }
-
-        $modal.remove();
-        resolve({
-          confirmed: true,
-          requestRefund,
-          reason: reason.trim(),
-        });
-      });
-    });
   }
 
   // Add success message function
@@ -2124,54 +1109,38 @@ $(document).ready(function () {
   // Initialize tab switching
   function initializeTabSwitching() {
     const tabButtons = document.querySelectorAll(".input-tabs .tab-btn");
-    if (!tabButtons.length) {
-      console.warn("No tab buttons found");
-      return;
-    }
+    const tabContents = document.querySelectorAll(".input-tab-content");
+
+    // On load, show only the active tab content
+    tabContents.forEach((content) => {
+      if (content.classList.contains("active")) {
+        content.style.display = "block";
+      } else {
+        content.style.display = "none";
+      }
+    });
 
     tabButtons.forEach((button) => {
       button.addEventListener("click", () => {
-        const tab = button.dataset.tab;
-        if (!tab) {
-          console.warn("Tab button missing data-tab attribute");
-          return;
-        }
-
-        // Map tab names to their corresponding IDs
-        const tabIdMap = {
-          'text': 'textTab',
-          'camera': 'cameraUploadTab',
-          'file': 'fileUploadTab'
-        };
-
-        const targetTabId = tabIdMap[tab];
-        if (!targetTabId) {
-          console.warn(`Unknown tab type: ${tab}`);
-          return;
-        }
-
-        // Update tab buttons
-        tabButtons.forEach((btn) => {
-          if (btn) btn.classList.remove("active");
-        });
-        button.classList.add("active");
-
-        // Update tab content
-        const tabContents = document.querySelectorAll(".input-tab-content");
+        // Remove active from all buttons and contents
+        tabButtons.forEach((btn) => btn.classList.remove("active"));
         tabContents.forEach((content) => {
-          if (content) content.classList.remove("active");
+          content.classList.remove("active");
+          content.style.display = "none";
         });
 
+        // Add active to clicked button and show corresponding content
+        button.classList.add("active");
+        const tab = button.dataset.tab;
+        const tabIdMap = {
+          text: "textTab",
+          file: "fileUploadTab",
+        };
+        const targetTabId = tabIdMap[tab];
         const targetTab = document.getElementById(targetTabId);
         if (targetTab) {
           targetTab.classList.add("active");
-        } else {
-          console.warn(`Tab content element #${targetTabId} not found`);
-        }
-
-        // Stop camera when switching away from camera tab
-        if (tab !== "camera" && cameraStream) {
-          stopCamera();
+          targetTab.style.display = "block";
         }
       });
     });
@@ -2185,9 +1154,6 @@ $(document).ready(function () {
     // Initialize file handling
     initializeFileHandling();
 
-    // Initialize flashcard controls
-    initializeFlashcardControls();
-
     // Initialize session recovery
     initializeSessionRecovery();
 
@@ -2195,12 +1161,7 @@ $(document).ready(function () {
     initializeMobileMenu();
 
     // Add save deck button handler
-    $("#saveDeckBtn").on("click", async function () {
-      const deckName = $("#deckName").val().trim();
-      if (!deckName) {
-        showErrorMessage("Please enter a deck name");
-        return;
-      }
+    $(document).on("click", "#saveDeckBtn", async function () {
       if (!flashcards || flashcards.length === 0) {
         showErrorMessage("No flashcards to save");
         return;
@@ -2209,13 +1170,22 @@ $(document).ready(function () {
         showErrorMessage("Please log in to save decks");
         return;
       }
-
+      let defaultName = "My Deck";
+      if (flashcards.length > 0 && flashcards[0].front) {
+        defaultName =
+          flashcards[0].front.substring(0, 20) +
+          (flashcards[0].front.length > 20 ? "..." : "");
+      }
+      const deckName = prompt("Enter a name for your deck:", defaultName);
+      if (!deckName) {
+        showErrorMessage("Please enter a deck name");
+        return;
+      }
       try {
         showLoading(true);
         await deckManager.saveDeck(deckName, flashcards);
         await loadUserDecks(); // Refresh the deck list
         showSuccessMessage("Deck saved successfully!");
-        $("#deckName").val(""); // Clear the deck name input
       } catch (error) {
         console.error("Error saving deck:", error);
         showErrorMessage("Failed to save deck: " + error.message);
@@ -2237,1104 +1207,15 @@ $(document).ready(function () {
       }
     });
 
-    // Initialize camera functionality
-    initializeCamera();
-
-    // Stop camera when leaving page
-    window.addEventListener("beforeunload", () => {
-      stopCamera();
-    });
-  });
-
-  // Update camera initialization to remove duplicate tab switching code
-  function initializeCamera() {
-    const startCameraBtn = document.getElementById("startCameraBtn");
-    const captureBtn = document.getElementById("captureBtn");
-    const retakeBtn = document.getElementById("retakeBtn");
-    const processImageBtn = document.getElementById("processImageBtn");
-    const cameraFeed = document.getElementById("cameraFeed");
-    const cameraCanvas = document.getElementById("cameraCanvas");
-    const cameraStatus = document.getElementById("cameraStatus");
-    const capturedImage = document.getElementById("capturedImage");
-    const capturedImageContainer = document.querySelector(".captured-image");
-
-    // Start camera
-    startCameraBtn.addEventListener("click", async () => {
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-        });
-        cameraFeed.srcObject = cameraStream;
-        startCameraBtn.disabled = true;
-        captureBtn.disabled = false;
-        cameraStatus.textContent = "Camera started";
-        cameraStatus.style.color = "var(--success-color)";
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        cameraStatus.textContent = "Error accessing camera: " + error.message;
-        cameraStatus.style.color = "var(--error-color)";
-      }
-    });
-
-    // ... rest of the camera initialization code ...
-  }
-
-  // Study Session Management
-  let currentStudySession = null;
-
-  function initializeStudySession(deck) {
-    currentStudySession = {
-      deck,
-      currentCardIndex: 0,
-      cards: [...deck.cards],
-      sessionStats: {
-        correct: 0,
-        incorrect: 0,
-        total: deck.cards.length,
-        startTime: Date.now(),
-        lastCardTime: Date.now(),
-        cardTimes: [], // Array to store time spent on each card
-        streak: 0, // Current streak of correct answers
-        longestStreak: 0,
-        accuracy: 0,
-        cardsByDifficulty: {
-          easy: 0,
-          medium: 0,
-          hard: 0,
-        },
-      },
-      studyTimer: {
-        startTime: Date.now(),
-        pausedTime: 0,
-        isPaused: false,
-        totalPausedTime: 0,
-      },
-    };
-
-    // Start the study timer
-    startStudyTimer();
-
-    // Show study interface
-    document.querySelector(".deck-management").style.display = "none";
-    document.querySelector(".study-interface").style.display = "block";
-    document.querySelector(".study-history").style.display = "none";
-
-    // Update the study interface HTML
-    const studyInterface = document.querySelector(".study-interface");
-    studyInterface.innerHTML = `
-        <div class="study-header">
-            <h2>Study Session</h2>
-            <div class="study-stats">
-                <span class="stat-item">
-                    <i class="fas fa-chart-line"></i>
-                    <span class="stat-value" id="studyAccuracy">0%</span>
-                    <span class="stat-label">Accuracy</span>
-                </span>
-                <span class="stat-item">
-                    <i class="fas fa-fire"></i>
-                    <span class="stat-value" id="currentStreak">0</span>
-                    <span class="stat-label">Current Streak</span>
-                </span>
-                <span class="stat-item">
-                    <i class="fas fa-clock"></i>
-                    <span class="stat-value" id="studyTime">00:00</span>
-                    <span class="stat-label">Study Time</span>
-                </span>
-                <span class="stat-item">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span class="stat-value" id="cardsPerMinute">0</span>
-                    <span class="stat-label">Cards/Min</span>
-                </span>
-            </div>
-        </div>
-
-        <div class="study-card">
-            <div class="card-content">
-                <div class="card-front"></div>
-                <div class="card-back" style="display: none"></div>
-            </div>
-            <div class="card-controls">
-                <button class="btn btn-secondary" id="prevBtn" disabled>
-                    <i class="fas fa-arrow-left"></i> Previous
-                </button>
-                <button class="btn btn-primary" id="flipCard">
-                    <i class="fas fa-sync-alt"></i> Show Answer
-                </button>
-                <button class="btn btn-secondary" id="pauseBtn">
-                    <i class="fas fa-pause"></i> Pause
-                </button>
-                <button class="btn btn-secondary" id="nextBtn" disabled>
-                    Next <i class="fas fa-arrow-right"></i>
-                </button>
-                <div class="performance-buttons" style="display: none">
-                    <button class="btn btn-danger" data-performance="1">
-                        <i class="fas fa-times"></i> Don't Know
-                    </button>
-                    <button class="btn btn-warning" data-performance="3">
-                        <i class="fas fa-question"></i> Hard
-                    </button>
-                    <button class="btn btn-success" data-performance="5">
-                        <i class="fas fa-check"></i> Know
-                    </button>
-                </div>
-            </div>
-        </div>
-
-        <div class="study-progress">
-            <div class="progress-container">
-                <div class="progress-bar" style="width: 0%"></div>
-            </div>
-            <div class="progress-stats">
-                <span id="cardsReviewed">0</span> / <span id="totalCards">0</span> cards
-                <span class="difficulty-stats">
-                    <span class="difficulty easy"><i class="fas fa-circle"></i> Easy: <span id="easyCount">0</span></span>
-                    <span class="difficulty medium"><i class="fas fa-circle"></i> Medium: <span id="mediumCount">0</span></span>
-                    <span class="difficulty hard"><i class="fas fa-circle"></i> Hard: <span id="hardCount">0</span></span>
-                </span>
-            </div>
-        </div>
-
-        <div class="study-complete" style="display: none">
-            <h3>Study Session Complete!</h3>
-            <div class="session-stats">
-                <div class="stat-card">
-                    <i class="fas fa-check-circle"></i>
-                    <span class="stat-value" id="sessionCorrect">0</span>
-                    <span class="stat-label">Correct</span>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-times-circle"></i>
-                    <span class="stat-value" id="sessionIncorrect">0</span>
-                    <span class="stat-label">Incorrect</span>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-percentage"></i>
-                    <span class="stat-value" id="sessionAccuracy">0%</span>
-                    <span class="stat-label">Accuracy</span>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-clock"></i>
-                    <span class="stat-value" id="sessionDuration">00:00</span>
-                    <span class="stat-label">Duration</span>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-fire"></i>
-                    <span class="stat-value" id="sessionStreak">0</span>
-                    <span class="stat-label">Longest Streak</span>
-                </div>
-                <div class="stat-card">
-                    <i class="fas fa-tachometer-alt"></i>
-                    <span class="stat-value" id="sessionCardsPerMinute">0</span>
-                    <span class="stat-label">Cards/Min</span>
-                </div>
-            </div>
-            <div class="session-actions">
-                <button class="btn btn-primary" id="restartSession">
-                    <i class="fas fa-redo"></i> Restart Session
-                </button>
-                <button class="btn btn-secondary" id="endSession">
-                    <i class="fas fa-home"></i> Return to Decks
-                </button>
-            </div>
-        </div>
-    `;
-
-    // Initialize event listeners
-    initializeStudyEventListeners();
-    initializeStudyTimer();
-
-    // Initialize study stats
-    updateStudyStats();
-    showNextCard();
-  }
-
-  // Add study timer functions
-  function startStudyTimer() {
-    if (!currentStudySession) return;
-
-    currentStudySession.studyTimer.startTime = Date.now();
-    currentStudySession.studyTimer.isPaused = false;
-    updateStudyTimer();
-  }
-
-  function pauseStudyTimer() {
-    if (!currentStudySession || currentStudySession.studyTimer.isPaused) return;
-
-    currentStudySession.studyTimer.pausedTime = Date.now();
-    currentStudySession.studyTimer.isPaused = true;
-  }
-
-  function resumeStudyTimer() {
-    if (!currentStudySession || !currentStudySession.studyTimer.isPaused)
-      return;
-
-    currentStudySession.studyTimer.totalPausedTime +=
-      Date.now() - currentStudySession.studyTimer.pausedTime;
-    currentStudySession.studyTimer.isPaused = false;
-    updateStudyTimer();
-  }
-
-  function updateStudyTimer() {
-    if (!currentStudySession || currentStudySession.studyTimer.isPaused) return;
-
-    const elapsed =
-      Date.now() -
-      currentStudySession.studyTimer.startTime -
-      currentStudySession.studyTimer.totalPausedTime;
-    const minutes = Math.floor(elapsed / 60000);
-    const seconds = Math.floor((elapsed % 60000) / 1000);
-
-    document.querySelector("#studyTime").textContent = `${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-
-    // Update cards per minute
-    const cardsReviewed = currentStudySession.currentCardIndex;
-    const minutesStudied = Math.max(1, minutes + seconds / 60);
-    const cardsPerMinute = (cardsReviewed / minutesStudied).toFixed(1);
-    document.querySelector("#cardsPerMinute").textContent = cardsPerMinute;
-
-    // Schedule next update
-    setTimeout(updateStudyTimer, 1000);
-  }
-
-  function initializeStudyTimer() {
-    const pauseBtn = document.querySelector("#pauseBtn");
-    pauseBtn.addEventListener("click", () => {
-      if (currentStudySession.studyTimer.isPaused) {
-        resumeStudyTimer();
-        pauseBtn.innerHTML = '<i class="fas fa-pause"></i> Pause';
-      } else {
-        pauseStudyTimer();
-        pauseBtn.innerHTML = '<i class="fas fa-play"></i> Resume';
-      }
-    });
-  }
-
-  function initializeStudyEventListeners() {
-    // Previous button
-    document.querySelector("#prevBtn").addEventListener("click", () => {
-      if (currentStudySession.currentCardIndex > 0) {
-        currentStudySession.currentCardIndex--;
-        showNextCard();
-      }
-    });
-
-    // Next button
-    document.querySelector("#nextBtn").addEventListener("click", () => {
-      if (
-        currentStudySession.currentCardIndex <
-        currentStudySession.cards.length - 1
-      ) {
-        currentStudySession.currentCardIndex++;
-        showNextCard();
-      }
-    });
-
-    // Shuffle button
-    document.querySelector("#shuffleBtn").addEventListener("click", () => {
-      // Fisher-Yates shuffle algorithm
-      for (let i = currentStudySession.cards.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [currentStudySession.cards[i], currentStudySession.cards[j]] = [
-          currentStudySession.cards[j],
-          currentStudySession.cards[i],
-        ];
-      }
-      currentStudySession.currentCardIndex = 0;
-      showNextCard();
-    });
-
-    // Performance buttons (Know/Don't Know)
-    document
-      .querySelectorAll(".performance-buttons button")
-      .forEach((button) => {
-        button.addEventListener("click", () => {
-          const performance = parseInt(button.dataset.performance);
-          recordCardPerformance(performance);
-        });
-      });
-
-    // Keyboard shortcuts
-    document.addEventListener("keydown", (e) => {
-      if (!currentStudySession) return;
-
-      switch (e.key) {
-        case "ArrowLeft":
-          if (currentStudySession.currentCardIndex > 0) {
-            currentStudySession.currentCardIndex--;
-            showNextCard();
-          }
-          break;
-        case "ArrowRight":
-          if (
-            currentStudySession.currentCardIndex <
-            currentStudySession.cards.length - 1
-          ) {
-            currentStudySession.currentCardIndex++;
-            showNextCard();
-          }
-          break;
-        case " ": // Space bar
-          e.preventDefault();
-          const flipButton = document.querySelector("#flipCard");
-          if (flipButton.style.display !== "none") {
-            flipButton.click();
-          } else {
-            document.querySelector('[data-performance="5"]').click(); // Mark as "I know it!"
-          }
-          break;
-        case "1":
-          if (
-            document.querySelector(".performance-buttons").style.display !==
-            "none"
-          ) {
-            document.querySelector('[data-performance="1"]').click(); // Mark as "Unfamiliar"
-          }
-          break;
-        case "r":
-          document.querySelector("#shuffleBtn").click(); // Shuffle cards
-          break;
-      }
-    });
-  }
-
-  function showNextCard() {
-    const { currentCardIndex, cards } = currentStudySession;
-    if (currentCardIndex >= cards.length) {
-      endStudySession();
-      return;
-    }
-
-    const card = cards[currentCardIndex];
-    document.querySelector(".card-front").textContent = card.front;
-    document.querySelector(".card-back").textContent = card.back;
-    document.querySelector(".card-back").style.display = "none";
-    document.querySelector(".performance-buttons").style.display = "none";
-    document.querySelector("#flipCard").style.display = "block";
-
-    // Update navigation buttons
-    document.querySelector("#prevBtn").disabled = currentCardIndex === 0;
-    document.querySelector("#nextBtn").disabled =
-      currentCardIndex === cards.length - 1;
-
-    // Update progress
-    const progress = ((currentCardIndex + 1) / cards.length) * 100;
-    document.querySelector(".progress-bar").style.width = `${progress}%`;
-    document.querySelector("#cardsReviewed").textContent = currentCardIndex + 1;
-    document.querySelector("#totalCards").textContent = cards.length;
-  }
-
-  function recordCardPerformance(performance) {
-    const { currentCardIndex, cards, sessionStats } = currentStudySession;
-    const card = cards[currentCardIndex];
-
-    // Record time spent on this card
-    const timeSpent = Date.now() - sessionStats.lastCardTime;
-    sessionStats.cardTimes.push(timeSpent);
-    sessionStats.lastCardTime = Date.now();
-
-    // Update session stats
-    if (performance >= 4) {
-      sessionStats.correct++;
-      sessionStats.streak++;
-      sessionStats.cardsByDifficulty.easy++;
-    } else if (performance >= 2) {
-      sessionStats.incorrect++;
-      sessionStats.streak = 0;
-      sessionStats.cardsByDifficulty.medium++;
-    } else {
-      sessionStats.incorrect++;
-      sessionStats.streak = 0;
-      sessionStats.cardsByDifficulty.hard++;
-    }
-
-    // Update longest streak
-    sessionStats.longestStreak = Math.max(
-      sessionStats.longestStreak,
-      sessionStats.streak
-    );
-
-    // Update accuracy
-    sessionStats.accuracy = Math.round(
-      (sessionStats.correct / (sessionStats.correct + sessionStats.incorrect)) *
-        100
-    );
-
-    // Update UI
-    document.querySelector("#currentStreak").textContent = sessionStats.streak;
-    document.querySelector(
-      "#studyAccuracy"
-    ).textContent = `${sessionStats.accuracy}%`;
-    document.querySelector("#easyCount").textContent =
-      sessionStats.cardsByDifficulty.easy;
-    document.querySelector("#mediumCount").textContent =
-      sessionStats.cardsByDifficulty.medium;
-    document.querySelector("#hardCount").textContent =
-      sessionStats.cardsByDifficulty.hard;
-
-    // Update spaced repetition data
-    if (
-      spacedRepetition &&
-      typeof spacedRepetition.calculateNextReview === "function"
-    ) {
-      const nextReview = spacedRepetition.calculateNextReview(
-        card.id,
-        performance
-      );
-      if (currentUser) {
-        saveStudyProgress(card.id, performance);
-      }
-    }
-
-    // Move to next card
-    currentStudySession.currentCardIndex++;
-    showNextCard();
-
-    // Update Study Now button
-    updateStudyNowButton();
-  }
-
-  function endStudySession() {
-    const { sessionStats, studyTimer } = currentStudySession;
-    const duration = Math.round(
-      (Date.now() - studyTimer.startTime - studyTimer.totalPausedTime) / 1000
-    );
-
-    // Update session complete stats
-    document.querySelector("#sessionCorrect").textContent =
-      sessionStats.correct;
-    document.querySelector("#sessionIncorrect").textContent =
-      sessionStats.incorrect;
-    document.querySelector(
-      "#sessionAccuracy"
-    ).textContent = `${sessionStats.accuracy}%`;
-    document.querySelector("#sessionStreak").textContent =
-      sessionStats.longestStreak;
-
-    // Format duration
-    const minutes = Math.floor(duration / 60);
-    const seconds = duration % 60;
-    document.querySelector("#sessionDuration").textContent = `${minutes
-      .toString()
-      .padStart(2, "0")}:${seconds.toString().padStart(2, "0")}`;
-
-    // Calculate and display cards per minute
-    const cardsPerMinute =
-      (sessionStats.correct + sessionStats.incorrect) /
-      Math.max(1, duration / 60).toFixed(1);
-    document.querySelector("#sessionCardsPerMinute").textContent =
-      cardsPerMinute;
-
-    // Show completion screen
-    document.querySelector(".study-card").style.display = "none";
-    document.querySelector(".study-progress").style.display = "none";
-    document.querySelector(".study-complete").style.display = "block";
-
-    // Save session data
-    if (currentUser) {
-      saveStudySessionData();
-    }
-
-    // Update overall stats
-    updateStudyStats();
-  }
-
-  async function saveStudySessionData() {
-    if (!currentUser || !currentStudySession) return;
-
-    try {
-      const sessionRef = doc(
-        collection(db, "users", currentUser.uid, "studySessions")
-      );
-      const sessionData = {
-        deckId: currentStudySession.deck.id,
-        deckName: currentStudySession.deck.name,
-        startTime: currentStudySession.studyTimer.startTime,
-        duration:
-          Date.now() -
-          currentStudySession.studyTimer.startTime -
-          currentStudySession.studyTimer.totalPausedTime,
-        stats: currentStudySession.sessionStats,
-        cardsStudied: currentStudySession.cards.length,
-        userId: currentUser.uid,
-        timestamp: new Date(),
-      };
-
-      await setDoc(sessionRef, sessionData);
-    } catch (error) {
-      console.error("Error saving study session:", error);
-    }
-  }
-
-  function updateStudyNowButton() {
-    const $studyNowBtn = $("#studyNowBtn");
-    const $dueCount = $studyNowBtn.find(".due-count");
-    const stats = spacedRepetition.getStudyStats();
-
-    if (stats.cardsDue > 0) {
-      $studyNowBtn.show();
-      $dueCount.text(`${stats.cardsDue} due`);
-    } else {
-      $studyNowBtn.hide();
-    }
-  }
-
-  function updateStudyStats() {
-    const stats = spacedRepetition.getStudyStats();
-    document.querySelector("#studyAccuracy").textContent = `${stats.accuracy}%`;
-    document.querySelector("#studyStreak").textContent = stats.studyStreak;
-    document.querySelector("#cardsRemaining").textContent = stats.cardsDue;
-  }
-
-  function showStudyHistory() {
-    document.querySelector(".deck-management").style.display = "none";
-    document.querySelector(".study-interface").style.display = "none";
-    document.querySelector(".study-history").style.display = "block";
-
-    const stats = spacedRepetition.getStudyStats();
-    const history = spacedRepetition.getStudyHistory();
-    const difficulty = spacedRepetition.getDifficultyDistribution();
-
-    // Update overall stats
-    document.querySelector("#totalReviews").textContent = stats.totalReviews;
-    document.querySelector(
-      "#overallAccuracy"
-    ).textContent = `${stats.accuracy}%`;
-    document.querySelector("#longestStreak").textContent = stats.studyStreak;
-
-    // Create study history chart
-    const ctx = document.querySelector("#studyHistoryChart").getContext("2d");
-    new Chart(ctx, {
-      type: "line",
-      data: {
-        labels: history.map((day) => day.date.toLocaleDateString()),
-        datasets: [
-          {
-            label: "Cards Reviewed",
-            data: history.map((day) => day.reviews),
-            borderColor: "rgb(75, 192, 192)",
-            tension: 0.1,
-          },
-          {
-            label: "Accuracy",
-            data: history.map((day) =>
-              day.reviews > 0 ? (day.correct / day.reviews) * 100 : 0
-            ),
-            borderColor: "rgb(255, 99, 132)",
-            tension: 0.1,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-          },
-        },
-      },
-    });
-
-    // Create difficulty distribution chart
-    const diffCtx = document.querySelector("#difficultyChart").getContext("2d");
-    new Chart(diffCtx, {
-      type: "doughnut",
-      data: {
-        labels: ["Easy", "Medium", "Hard"],
-        datasets: [
-          {
-            data: [difficulty.easy, difficulty.medium, difficulty.hard],
-            backgroundColor: [
-              "rgb(75, 192, 192)",
-              "rgb(255, 205, 86)",
-              "rgb(255, 99, 132)",
-            ],
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-      },
-    });
-  }
-
-  // Event Listeners
-  document.addEventListener("DOMContentLoaded", () => {
-    // ... existing event listeners ...
-
-    // Study session event listeners
-    document.querySelector("#flipCard").addEventListener("click", flipCard);
-    document
-      .querySelectorAll(".performance-buttons button")
-      .forEach((button) => {
-        button.addEventListener("click", () => {
-          const performance = parseInt(button.dataset.performance);
-          recordCardPerformance(performance);
-        });
-      });
-
-    document.querySelector("#restartSession").addEventListener("click", () => {
-      if (currentStudySession) {
-        currentStudySession.currentCardIndex = 0;
-        currentStudySession.sessionStats = {
-          correct: 0,
-          incorrect: 0,
-          total: currentStudySession.cards.length,
-        };
-        document.querySelector(".study-card").style.display = "block";
-        document.querySelector(".study-progress").style.display = "block";
-        document.querySelector(".study-complete").style.display = "none";
-        showNextCard();
-      }
-    });
-
-    document.querySelector("#endSession").addEventListener("click", () => {
-      document.querySelector(".deck-management").style.display = "block";
-      document.querySelector(".study-interface").style.display = "none";
-      document.querySelector(".study-history").style.display = "none";
-      currentStudySession = null;
-    });
-
-    // Add study button to deck cards
-    document.querySelector(".saved-decks").addEventListener("click", (e) => {
-      if (e.target.matches(".study-deck")) {
-        const deckId = e.target.closest(".deck-card").dataset.deckId;
-        const deck =
-          currentStudySession?.deck.id === deckId
-            ? currentStudySession.deck
-            : deckManager.getDeck(deckId);
-
-        if (deck) {
-          initializeStudySession(deck);
-        }
-      }
-    });
-  });
-
-  // Add file handling initialization function
-  function initializeFileHandling() {
-    const dropzone = document.getElementById("dropzone");
-    const fileInput = document.getElementById("fileInput");
-
-    // Handle file selection
-    dropzone.addEventListener("click", () => fileInput.click());
-    fileInput.addEventListener("change", (e) => {
-      if (e.target.files.length > 0) {
-        validateAndProcessFile(e.target.files[0]);
-      }
-    });
-
-    // Handle drag and drop
-    dropzone.addEventListener("dragover", (e) => {
-      e.preventDefault();
-      dropzone.classList.add("dragover");
-    });
-
-    dropzone.addEventListener("dragleave", () => {
-      dropzone.classList.remove("dragover");
-    });
-
-    dropzone.addEventListener("drop", (e) => {
-      e.preventDefault();
-      dropzone.classList.remove("dragover");
-      if (e.dataTransfer.files.length > 0) {
-        validateAndProcessFile(e.dataTransfer.files[0]);
-      }
-    });
-  }
-
-  // Add reset function for new file upload
-  function resetGenerationUI() {
-    window.uploadedFile = null;
-    $("#fileInput").show();
-    $("#dropzone").show();
-    $("#cardTypeSelection").hide();
-    $("#textInput").val("");
-    $("#cardType").val("");
-    $("#cardCount").val("10");
-  }
-
-  // Add click handler for new file upload with confirmation
-  $("#newFileBtn").on("click", function () {
-    // Only show confirmation if there are flashcards or a file is uploaded
-    if (flashcards.length > 0 || window.uploadedFile) {
-      if (
-        confirm(
-          "Are you sure you want to upload a new file? This will clear your current flashcards."
-        )
-      ) {
-        resetGenerationUI();
-      }
-    } else {
-      resetGenerationUI();
-    }
-  });
-
-  function updateFlashcardViewer(flashcards) {
-    if (!flashcards || flashcards.length === 0) {
-      showFlashcardViewer(false);
-      updateStudyNowButton(); // Update Study Now button
-      return;
-    }
-
-    // Reset card state
-    currentCardIndex = 0;
-    isFlipped = false;
-
-    // Update card content
-    const card = flashcards[currentCardIndex];
-    $("#frontText").text(card.front);
-    $("#backText").text(card.back);
-
-    // Reset card state
-    $(".card-back").hide();
-    $("#showAnswerBtn").show();
-    $(".performance-buttons").hide();
-
-    // Update navigation state
-    $("#prevBtn").prop("disabled", currentCardIndex === 0);
-    $("#nextBtn").prop("disabled", currentCardIndex === flashcards.length - 1);
-
-    // Update counter
-    $("#cardCounter").text(`${currentCardIndex + 1} / ${flashcards.length}`);
-
-    // Update progress and Study Now button
-    updateProgress();
-    updateStudyNowButton();
-
-    // Show the viewer
-    showFlashcardViewer(true);
-  }
-
-  function updateStudyNowButton() {
-    const $studyNowBtn = $("#studyNowBtn");
-    const $dueCount = $studyNowBtn.find(".due-count");
-    const stats = spacedRepetition.getStudyStats();
-
-    if (stats.cardsDue > 0) {
-      $studyNowBtn.show();
-      $dueCount.text(`${stats.cardsDue} due`);
-    } else {
-      $studyNowBtn.hide();
-    }
-  }
-
-  // Camera and OCR handling
-  let cameraStream = null;
-  let isProcessing = false;
-
-  // Initialize camera functionality
-  function initializeCamera() {
-    const startCameraBtn = document.getElementById("startCameraBtn");
-    const captureBtn = document.getElementById("captureBtn");
-    const retakeBtn = document.getElementById("retakeBtn");
-    const processImageBtn = document.getElementById("processImageBtn");
-    const cameraFeed = document.getElementById("cameraFeed");
-    const cameraCanvas = document.getElementById("cameraCanvas");
-    const cameraStatus = document.getElementById("cameraStatus");
-    const capturedImage = document.getElementById("capturedImage");
-    const capturedImageContainer = document.querySelector(".captured-image");
-
-    // Tab switching
-    document.querySelectorAll(".input-tabs .tab-btn").forEach((button) => {
-      button.addEventListener("click", () => {
-        const tab = button.dataset.tab;
-        document
-          .querySelectorAll(".input-tabs .tab-btn")
-          .forEach((btn) => btn.classList.remove("active"));
-        document
-          .querySelectorAll(".input-tab-content")
-          .forEach((content) => content.classList.remove("active"));
-        button.classList.add("active");
-        document.getElementById(`${tab}Tab`).classList.add("active");
-
-        // Stop camera when switching away from camera tab
-        if (tab !== "camera" && cameraStream) {
-          stopCamera();
-        }
-      });
-    });
-
-    // Start camera
-    startCameraBtn.addEventListener("click", async () => {
-      try {
-        cameraStream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: "environment",
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-          },
-        });
-        cameraFeed.srcObject = cameraStream;
-        startCameraBtn.disabled = true;
-        captureBtn.disabled = false;
-        cameraStatus.textContent = "Camera started";
-        cameraStatus.style.color = "var(--success-color)";
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        cameraStatus.textContent = "Error accessing camera: " + error.message;
-        cameraStatus.style.color = "var(--error-color)";
-      }
-    });
-
-    // Capture image
-    captureBtn.addEventListener("click", () => {
-      if (!cameraStream) return;
-
-      const context = cameraCanvas.getContext("2d");
-      cameraCanvas.width = cameraFeed.videoWidth;
-      cameraCanvas.height = cameraFeed.videoHeight;
-      context.drawImage(cameraFeed, 0, 0);
-
-      // Convert canvas to image
-      const imageData = cameraCanvas.toDataURL("image/jpeg", 0.8);
-      capturedImage.src = imageData;
-      capturedImageContainer.style.display = "block";
-      cameraFeed.style.display = "none";
-      captureBtn.style.display = "none";
-      retakeBtn.style.display = "inline-block";
-      processImageBtn.style.display = "inline-block";
-    });
-
-    // Retake photo
-    retakeBtn.addEventListener("click", () => {
-      capturedImageContainer.style.display = "none";
-      cameraFeed.style.display = "block";
-      captureBtn.style.display = "inline-block";
-      retakeBtn.style.display = "none";
-      processImageBtn.style.display = "none";
-    });
-
-    // Process image
-    processImageBtn.addEventListener("click", async () => {
-      if (isProcessing) return;
-      isProcessing = true;
-
-      try {
-        showLoading(true);
-        updateLoadingMessage("Processing handwritten notes...");
-
-        // Get the image data
-        const imageData = capturedImage.src;
-
-        // Send to server for OCR processing
-        const response = await fetch(
-          "http://localhost:12345/api/process-handwriting",
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-              image: imageData,
-              userId: currentUser?.uid,
-              isPremium: subscriptionManager.isPremium(),
-            }),
-          }
-        );
-
-        if (!response.ok) {
-          throw new Error("Failed to process image");
-        }
-
-        const data = await response.json();
-
-        // Process the extracted text
-        if (data.text) {
-          // Pre-fill the text input
-          document.getElementById("textInput").value = data.text;
-
-          // Switch to text tab
-          document.querySelector('[data-tab="text"]').click();
-
-          showSuccessMessage(
-            "Notes processed successfully! Review and generate flashcards."
-          );
-        } else {
-          throw new Error("No text could be extracted from the image");
-        }
-      } catch (error) {
-        console.error("Error processing image:", error);
-        showErrorMessage("Failed to process image: " + error.message);
-      } finally {
-        isProcessing = false;
-        showLoading(false);
-      }
-    });
-  }
-
-  // Stop camera
-  function stopCamera() {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-      cameraStream = null;
-    }
-
-    const cameraFeed = document.getElementById("cameraFeed");
-    const startCameraBtn = document.getElementById("startCameraBtn");
-    const captureBtn = document.getElementById("captureBtn");
-    const cameraStatus = document.getElementById("cameraStatus");
-
-    cameraFeed.srcObject = null;
-    startCameraBtn.disabled = false;
-    captureBtn.disabled = true;
-    cameraStatus.textContent = "Camera not started";
-    cameraStatus.style.color = "var(--text-secondary)";
-  }
-
-  // Add touch gesture support for camera
-  function initializeCameraGestures() {
-    const cameraFeed = document.getElementById("cameraFeed");
-    const captureBtn = document.getElementById("captureBtn");
-    let touchStartY = 0;
-    let touchEndY = 0;
-    const SWIPE_THRESHOLD = 100;
-
-    // Add flash element
-    const flash = document.createElement("div");
-    flash.className = "camera-flash";
-    document.body.appendChild(flash);
-
-    // Add gesture hint
-    const hint = document.createElement("div");
-    hint.className = "camera-gesture-hint";
-    hint.textContent = "Swipe up to capture";
-    cameraFeed.parentElement.appendChild(hint);
-
-    // Handle touch events for swipe to capture
-    cameraFeed.addEventListener(
-      "touchstart",
-      (e) => {
-        touchStartY = e.touches[0].clientY;
-      },
-      { passive: true }
-    );
-
-    cameraFeed.addEventListener(
-      "touchmove",
-      (e) => {
-        touchEndY = e.touches[0].clientY;
-      },
-      { passive: true }
-    );
-
-    cameraFeed.addEventListener(
-      "touchend",
-      () => {
-        const swipeDistance = touchStartY - touchEndY;
-        if (swipeDistance > SWIPE_THRESHOLD && !isProcessing) {
-          // Trigger capture
-          captureBtn.click();
-          // Show flash animation
-          flash.classList.add("active");
-          setTimeout(() => flash.classList.remove("active"), 300);
-        }
-      },
-      { passive: true }
-    );
-
-    // Double tap to switch camera
-    let lastTap = 0;
-    cameraFeed.addEventListener(
-      "touchend",
-      (e) => {
-        const currentTime = new Date().getTime();
-        const tapLength = currentTime - lastTap;
-        if (tapLength < 300 && tapLength > 0) {
-          // Double tap detected - switch camera
-          switchCamera();
-        }
-        lastTap = currentTime;
-      },
-      { passive: true }
-    );
-  }
-
-  // Switch between front and back camera
-  async function switchCamera() {
-    if (!cameraStream) return;
-
-    const currentFacingMode = cameraStream
-      .getVideoTracks()[0]
-      .getSettings().facingMode;
-    const newFacingMode = currentFacingMode === "user" ? "environment" : "user";
-
-    try {
-      // Stop current stream
-      cameraStream.getTracks().forEach((track) => track.stop());
-
-      // Get new stream
-      cameraStream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode: newFacingMode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
-      });
-
-      // Update video element
-      const cameraFeed = document.getElementById("cameraFeed");
-      cameraFeed.srcObject = cameraStream;
-    } catch (error) {
-      console.error("Error switching camera:", error);
-      showErrorMessage("Failed to switch camera");
-    }
-  }
-
-  // Update camera initialization
-  function initializeCamera() {
-    // ... existing camera initialization code ...
-
-    // Initialize touch gestures
-    initializeCameraGestures();
-
-    // ... rest of the existing code ...
-  }
-
-  // Handle window resize
-  let resizeTimeout;
-  window.addEventListener("resize", () => {
-    // Debounce resize events
-    clearTimeout(resizeTimeout);
-    resizeTimeout = setTimeout(() => {
-      if (currentUser) {
-        // Update desktop view
-        const userMenu = document.getElementById("userMenu");
-        const showLoginBtn = document.getElementById("showLoginBtn");
-        const userEmail = document.getElementById("userEmail");
-
-        // Update mobile view
-        const mobileUserEmail = document.getElementById("mobileUserEmail");
-        const mobileShowLoginBtn =
-          document.getElementById("mobileShowLoginBtn");
-        const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-
-        if (window.innerWidth > 768) {
-          // Desktop view
-          if (userMenu) userMenu.style.display = "flex";
-          if (showLoginBtn) showLoginBtn.style.display = "none";
-          if (userEmail) userEmail.textContent = currentUser.email;
-        } else {
-          // Mobile view
-          if (mobileUserEmail) mobileUserEmail.textContent = currentUser.email;
-          if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "none";
-          if (mobileLogoutBtn) mobileLogoutBtn.style.display = "block";
-        }
-      }
-    }, 250); // Wait 250ms after the last resize event
+    updateCardCountOptions();
   });
 
   // Update the card type selection handler to show card count options
   $("#cameraCardType, #fileCardType").on("change", function () {
     const $select = $(this);
-    const $cardCountGroup = $select.closest('.input-tab-content').find('.card-count-group');
+    const $cardCountGroup = $select
+      .closest(".input-tab-content")
+      .find(".card-count-group");
     if ($select.val()) {
       $cardCountGroup.show();
       updateCardCountOptions(); // Update options when shown
@@ -3345,21 +1226,27 @@ $(document).ready(function () {
 
   // Update card count options
   function updateCardCountOptions() {
-    const isPremium = subscriptionManager.isPremium();
-    const $cardCountSelects = $("#cameraCardCount, #fileCardCount");
-    
-    $cardCountSelects.each(function () {
-      const $select = $(this);
-      const $premiumOptions = $select.find(".premium-option");
-      
-      if (isPremium) {
-        $premiumOptions.show();
-      } else {
-        $premiumOptions.hide();
-        // Reset to max free tier value if premium option was selected
-        if (parseInt($select.val()) > 10) {
-          $select.val("10");
-        }
+    const isLoggedIn = !!currentUser;
+    const isPremium =
+      isLoggedIn &&
+      subscriptionManager &&
+      subscriptionManager.isPremium &&
+      subscriptionManager.isPremium();
+    const allowedCounts = isPremium
+      ? [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]
+      : [5, 10];
+    ["cardCount", "fileCardCount"].forEach((id) => {
+      const select = document.getElementById(id);
+      if (select) {
+        // Remove all options
+        select.innerHTML = "";
+        allowedCounts.forEach((count) => {
+          const option = document.createElement("option");
+          option.value = count;
+          option.textContent = count;
+          if (count === 10) option.selected = true;
+          select.appendChild(option);
+        });
       }
     });
   }
@@ -3369,7 +1256,7 @@ $(document).ready(function () {
     const activeTab = $(".input-tab-content.active");
     const cardType = activeTab.find("select[id$='CardType']").val();
     const cardCount = parseInt(activeTab.find("select[id$='CardCount']").val());
-    
+
     if (!cardType) {
       showErrorMessage("Please select a card type");
       return;
@@ -3396,7 +1283,9 @@ $(document).ready(function () {
     try {
       const activeTab = $(".input-tab-content.active");
       const cardType = activeTab.find("select[id$='CardType']").val();
-      const cardCount = parseInt(activeTab.find("select[id$='CardCount']").val());
+      const cardCount = parseInt(
+        activeTab.find("select[id$='CardCount']").val()
+      );
 
       // Rest of the processText function code...
     } catch (error) {
@@ -3408,12 +1297,19 @@ $(document).ready(function () {
   }
 
   // Update loading indicator references
-  const fileUploadLoadingIndicator = document.getElementById("fileUploadLoadingIndicator");
-  const flashcardViewerLoadingIndicator = document.getElementById("flashcardViewerLoadingIndicator");
+  const fileUploadLoadingIndicator = document.getElementById(
+    "fileUploadLoadingIndicator"
+  );
+  const flashcardViewerLoadingIndicator = document.getElementById(
+    "flashcardViewerLoadingIndicator"
+  );
 
   // Function to show loading indicator
-  function showLoadingIndicator(context = 'fileUpload') {
-    const indicator = context === 'fileUpload' ? fileUploadLoadingIndicator : flashcardViewerLoadingIndicator;
+  function showLoadingIndicator(context = "fileUpload") {
+    const indicator =
+      context === "fileUpload"
+        ? fileUploadLoadingIndicator
+        : flashcardViewerLoadingIndicator;
     if (indicator) {
       indicator.style.display = "flex";
       indicator.style.opacity = "1";
@@ -3421,8 +1317,11 @@ $(document).ready(function () {
   }
 
   // Function to hide loading indicator
-  function hideLoadingIndicator(context = 'fileUpload') {
-    const indicator = context === 'fileUpload' ? fileUploadLoadingIndicator : flashcardViewerLoadingIndicator;
+  function hideLoadingIndicator(context = "fileUpload") {
+    const indicator =
+      context === "fileUpload"
+        ? fileUploadLoadingIndicator
+        : flashcardViewerLoadingIndicator;
     if (indicator) {
       indicator.style.opacity = "0";
       setTimeout(() => {
@@ -3434,21 +1333,267 @@ $(document).ready(function () {
   // Update any existing loading indicator references to use the new functions
   // For example, in your file upload handler:
   async function handleFileUpload() {
-    showLoadingIndicator('fileUpload');
+    showLoadingIndicator("fileUpload");
     try {
       // Your file upload logic here
     } finally {
-      hideLoadingIndicator('fileUpload');
+      hideLoadingIndicator("fileUpload");
     }
   }
 
   // And in your flashcard generation handler:
   async function generateFlashcards() {
-    showLoadingIndicator('flashcardViewer');
+    showLoadingIndicator("flashcardViewer");
     try {
       // Your flashcard generation logic here
     } finally {
-      hideLoadingIndicator('flashcardViewer');
+      hideLoadingIndicator("flashcardViewer");
     }
+  }
+
+  // Add updateDeckList function
+  function updateDeckList(decks = []) {
+    const deckList = document.querySelector(".saved-decks");
+    if (!deckList) {
+      console.warn("Deck list container not found");
+      return;
+    }
+
+    if (!decks || decks.length === 0) {
+      deckList.innerHTML = `
+        <div class="no-decks-message">
+          <p>No saved decks yet. Create your first deck to get started!</p>
+        </div>
+      `;
+      return;
+    }
+
+    deckList.innerHTML = decks
+      .map(
+        (deck) => `
+      <div class="deck-card" data-deck-id="${deck.id}">
+        <div class="deck-header">
+          <h3>${deck.name}</h3>
+          <div class="deck-actions">
+            <button class="btn btn-primary study-deck" title="Study Deck">
+              <i class="fas fa-graduation-cap"></i> Study
+            </button>
+            <button class="btn btn-secondary export-deck" title="Export Deck">
+              <i class="fas fa-download"></i> Export
+            </button>
+            <button class="btn btn-danger delete-deck" title="Delete Deck">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
+        </div>
+        <div class="deck-info">
+          <span><i class="fas fa-cards"></i> ${deck.cards.length} cards</span>
+          <span><i class="fas fa-clock"></i> Created ${new Date(
+            deck.createdAt
+          ).toLocaleDateString()}</span>
+        </div>
+      </div>
+    `
+      )
+      .join("");
+
+    // Add event listeners for deck actions
+    deckList.querySelectorAll(".study-deck").forEach((button) => {
+      button.addEventListener("click", (e) => {
+        const deckId = e.target.closest(".deck-card").dataset.deckId;
+        const deck = decks.find((d) => d.id === deckId);
+        if (deck) {
+          initializeStudySession(deck);
+        }
+      });
+    });
+
+    deckList.querySelectorAll(".export-deck").forEach((button) => {
+      button.addEventListener("click", (e) => {
+        const deckId = e.target.closest(".deck-card").dataset.deckId;
+        const deck = decks.find((d) => d.id === deckId);
+        if (deck) {
+          exportDeck(deck);
+        }
+      });
+    });
+
+    deckList.querySelectorAll(".delete-deck").forEach((button) => {
+      button.addEventListener("click", async (e) => {
+        const deckCard = e.target.closest(".deck-card");
+        const deckId = deckCard.dataset.deckId;
+        if (
+          confirm(
+            "Are you sure you want to delete this deck? This action cannot be undone."
+          )
+        ) {
+          try {
+            await deckManager.deleteDeck(deckId);
+            deckCard.remove();
+            showSuccessMessage("Deck deleted successfully");
+            // If no decks left, show the no decks message
+            if (deckList.children.length === 0) {
+              updateDeckList([]);
+            }
+          } catch (error) {
+            console.error("Error deleting deck:", error);
+            showErrorMessage("Failed to delete deck");
+          }
+        }
+      });
+    });
+  }
+
+  function initializeFileHandling() {
+    const dropzone = document.getElementById("dropzone");
+    const fileInput = document.getElementById("fileInput");
+
+    if (!dropzone || !fileInput) return;
+
+    // Click on dropzone triggers file input
+    dropzone.addEventListener("click", () => fileInput.click());
+
+    // Drag and drop support
+    dropzone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropzone.classList.add("dragover");
+    });
+    dropzone.addEventListener("dragleave", () => {
+      dropzone.classList.remove("dragover");
+    });
+    dropzone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropzone.classList.remove("dragover");
+      if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        validateAndProcessFile(e.dataTransfer.files[0]);
+      }
+    });
+
+    // Process file immediately on selection
+    fileInput.addEventListener("change", (e) => {
+      if (e.target.files.length > 0) {
+        validateAndProcessFile(e.target.files[0]);
+      }
+    });
+  }
+
+  function validateAndProcessFile(file) {
+    if (!file) {
+      showErrorMessage("No file selected.");
+      return;
+    }
+
+    // Only allow .txt, .pdf, .docx files
+    if (!file.name.match(/\.(txt|pdf|docx)$/i)) {
+      showErrorMessage(
+        "Unsupported file type. Please upload a .txt, .pdf, or .docx file."
+      );
+      return;
+    }
+
+    // Show the file name
+    const fileNameDisplay = document.getElementById("selectedFileName");
+    const fileNameText = document.getElementById("fileNameText");
+    if (fileNameDisplay && fileNameText) {
+      fileNameText.textContent = file.name;
+      fileNameDisplay.style.display = "flex";
+    }
+
+    // Enable the Generate Flashcards button
+    const processBtn = document.getElementById("processFileBtn");
+    if (processBtn) processBtn.disabled = false;
+
+    // Store the file for later processing
+    window.uploadedFile = file;
+  }
+
+  // Handle Generate Flashcards button click for file upload
+  $(document).on("click", "#processFileBtn", async function () {
+    const file = window.uploadedFile;
+    if (!file) {
+      showErrorMessage("No file selected.");
+      return;
+    }
+    let extractedText = "";
+    if (file.name.match(/\.txt$/i)) {
+      // TXT: Read as text
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        extractedText = e.target.result;
+        processText(extractedText);
+      };
+      reader.readAsText(file);
+      return;
+    } else if (file.name.match(/\.pdf$/i)) {
+      // PDF: Use pdf.js
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        const typedarray = new Uint8Array(e.target.result);
+        try {
+          const pdf = await pdfjsLib.getDocument({ data: typedarray }).promise;
+          let textContent = "";
+          for (let i = 1; i <= pdf.numPages; i++) {
+            const page = await pdf.getPage(i);
+            const content = await page.getTextContent();
+            textContent +=
+              content.items.map((item) => item.str).join(" ") + "\n";
+          }
+          processText(textContent);
+        } catch (err) {
+          showErrorMessage("Failed to read PDF file.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+    } else if (file.name.match(/\.docx$/i)) {
+      // DOCX: Use mammoth.js
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        try {
+          const result = await mammoth.extractRawText({
+            arrayBuffer: e.target.result,
+          });
+          processText(result.value);
+        } catch (err) {
+          showErrorMessage("Failed to read DOCX file.");
+        }
+      };
+      reader.readAsArrayBuffer(file);
+      return;
+    }
+  });
+
+  // Enforce before generating cards
+  function getSelectedCardCount() {
+    const activeTab = document.querySelector(".input-tab-content.active");
+    if (!activeTab) return 10;
+    const select = activeTab.querySelector(".card-count-select");
+    if (!select) return 10;
+    return parseInt(select.value, 10);
+  }
+
+  $(document).on("click", "#generateBtn, #processFileBtn", async function () {
+    const cardCount = getSelectedCardCount();
+    const isLoggedIn = !!currentUser;
+    const isPremium =
+      isLoggedIn &&
+      subscriptionManager &&
+      subscriptionManager.isPremium &&
+      subscriptionManager.isPremium();
+    if (!isPremium && cardCount > 10) {
+      showErrorMessage(
+        "Free users can only generate up to 10 cards. Please log in and upgrade to premium for more."
+      );
+      return;
+    }
+    // ... existing code for generating flashcards ...
+  });
+
+  function showFlashcardViewer(show) {
+    const viewer = document.getElementById("flashcardViewer");
+    const placeholder = document.getElementById("flashcardViewerPlaceholder");
+    if (viewer) viewer.style.display = show ? "block" : "none";
+    if (placeholder) placeholder.style.display = show ? "none" : "flex";
   }
 });
