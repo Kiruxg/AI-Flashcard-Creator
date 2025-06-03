@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pricing - Note2Flash</title>
+    <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    </script>
+    <!-- Stripe -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Other Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <!-- Pricing Page Specific Styles -->
+    <style>
+      /* Ensure initial state - hide all prices on load, JS will show appropriate ones */
+      .price {
+        display: none !important;
+      }
+
+      /* Only show active prices */
+      .price.active {
+        display: block !important;
+      }
+
+      /* Ensure billing options are properly styled */
+      .billing-option {
+        transition: all 0.2s ease;
+      }
+
+      .billing-option.active {
+        background-color: var(--primary-500) !important;
+        color: white !important;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation will be loaded here -->
+    <div id="nav-placeholder"></div>
+
+    <div class="container">
+      <!-- Pricing Hero Section -->
+      <div class="pricing-hero">
+        <h1>Turn any content into flashcards in seconds</h1>
+        <div class="billing-toggle">
+          <button class="billing-option active" data-billing="monthly">
+            Monthly
+          </button>
+          <button class="billing-option" data-billing="yearly">Yearly</button>
+          <span class="save-badge">Save $35.88 with annual billing</span>
+        </div>
+      </div>
+
+      <!-- Pricing Options -->
+      <div
+        class="pricing-options"
+        style="grid-template-columns: repeat(2, 1fr); max-width: 800px"
+      >
+        <!-- Basic (Free) Tier -->
+        <div class="pricing-card">
+          <h3>Free</h3>
+          <div class="price-container">
+            <div class="price monthly active">$0<span>/month</span></div>
+            <div class="price yearly">$0<span>/month</span></div>
+          </div>
+          <p class="tier-description">
+            Perfect for trying out AI-powered flashcard generation
+          </p>
+          <ul class="features">
+            <li>5 flashcard decks per month</li>
+            <li>Basic card types (Term & Definition)</li>
+            <li>1 download/export per month</li>
+          </ul>
+          <button
+            class="btn btn-secondary"
+            onclick="window.location.href='index.html'"
+          >
+            Get Started Free
+          </button>
+        </div>
+
+        <!-- Premium Tier -->
+        <div class="pricing-card featured">
+          <div class="popular-badge">Most Popular</div>
+          <h3>Premium</h3>
+          <div class="price-container">
+            <div class="price monthly active">$14.99<span>/month</span></div>
+            <div class="price yearly">
+              $12<span>/month</span>
+              <div class="billing-note">Billed annually at $144.00</div>
+            </div>
+          </div>
+          <p class="tier-description">
+            Unlimited AI flashcards with all the power features you need
+          </p>
+          <ul class="features">
+            <li>100 flashcard decks per month</li>
+            <li>All card types (Q&A, Cloze, Multiple Choice)</li>
+            <li>1,000 AI image occlusions per month</li>
+            <li>Up to 100 pages per document</li>
+            <li>Up to 100,000 characters per document</li>
+            <li>File uploads (PDF, images, documents)</li>
+            <li>Advanced study analytics</li>
+            <li>Unlimited deck management</li>
+            <li>All export formats</li>
+            <li>Priority support</li>
+            <li>Early access to new features</li>
+          </ul>
+          <button class="btn btn-primary" id="premiumSubBtn">
+            Upgrade to Premium
+          </button>
+        </div>
+      </div>
+
+      <!-- FAQ Section -->
+      <div class="faq-section">
+        <h2>Frequently Asked Questions</h2>
+        <div class="faq-grid">
+          <div class="faq-item">
+            <h3>What's included in the Free plan?</h3>
+            <p>
+              The Free plan includes 5 flashcard generations per month, basic
+              card types (Term & Definition), limited web content extraction,
+              and basic deck management. Perfect for trying out the service!
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What payment methods do you accept?</h3>
+            <p>
+              We accept all major credit cards (Visa, Mastercard, American
+              Express) through our secure payment processor, Stripe.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>Can I cancel my subscription?</h3>
+            <p>
+              Yes, you can cancel your Premium subscription at any time. You'll
+              continue to have access to premium features until the end of your
+              billing period, then automatically return to the Free plan.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What happens if I exceed my Free plan limits?</h3>
+            <p>
+              You'll be notified when you're close to your limits. You can
+              upgrade to Premium at any time to get unlimited flashcard
+              generation and access to all features.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>How much do I save with annual billing?</h3>
+            <p>
+              With annual billing, you pay $144/year instead of $179.88 (monthly
+              rate × 12), saving you $35.88 per year!
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script type="module">
+      import { initializeNavigation } from "./nav-template.js";
+      // Initialize navigation as soon as the DOM is ready
+      document.addEventListener("DOMContentLoaded", initializeNavigation);
+    </script>
+
+    <script>
+      // Pricing page specific functionality
+      document.addEventListener("DOMContentLoaded", function () {
+        // Billing toggle functionality - FIXED VERSION
+        const billingOptions = document.querySelectorAll(".billing-option");
+        const monthlyPrices = document.querySelectorAll(".price.monthly");
+        const yearlyPrices = document.querySelectorAll(".price.yearly");
+
+        // Set initial visibility state on page load
+        function initializePriceVisibility() {
+          // Hide all prices first
+          monthlyPrices.forEach((price) => {
+            price.style.display = "none";
+            price.classList.remove("active");
+          });
+          yearlyPrices.forEach((price) => {
+            price.style.display = "none";
+            price.classList.remove("active");
+          });
+
+          // Show monthly by default (since monthly option has 'active' class in HTML)
+          monthlyPrices.forEach((price) => {
+            price.style.display = "block";
+            price.classList.add("active");
+          });
+
+          // Set body attribute for CSS targeting
+          document.body.setAttribute("data-billing", "monthly");
+        }
+
+        // Initialize price visibility immediately
+        initializePriceVisibility();
+
+        billingOptions.forEach((option) => {
+          option.addEventListener("click", () => {
+            console.log(
+              "Billing option clicked:",
+              option.getAttribute("data-billing")
+            );
+
+            // Remove active class from all options
+            billingOptions.forEach((opt) => opt.classList.remove("active"));
+            // Add active class to clicked option
+            option.classList.add("active");
+
+            const billing = option.getAttribute("data-billing");
+
+            // Update body attribute for CSS targeting
+            document.body.setAttribute("data-billing", billing);
+
+            if (billing === "monthly") {
+              monthlyPrices.forEach((price) => {
+                price.style.display = "block";
+                price.classList.add("active");
+              });
+              yearlyPrices.forEach((price) => {
+                price.style.display = "none";
+                price.classList.remove("active");
+              });
+            } else if (billing === "yearly") {
+              monthlyPrices.forEach((price) => {
+                price.style.display = "none";
+                price.classList.remove("active");
+              });
+              yearlyPrices.forEach((price) => {
+                price.style.display = "block";
+                price.classList.add("active");
+              });
+            }
+          });
+        });
+
+        // Premium subscription button - simplified version
+        // Full auth and subscription logic should be handled in app.js
+        document
+          .getElementById("premiumSubBtn")
+          ?.addEventListener("click", async () => {
+            // Trigger auth modal if not logged in, handle subscription logic in app.js
+            const authModal = document.getElementById("authModal");
+            if (
+              authModal &&
+              typeof window.handlePremiumSubscription === "function"
+            ) {
+              window.handlePremiumSubscription();
+            } else {
+              // Fallback - show auth modal
+              if (authModal) {
+                authModal.style.display = "block";
+              }
+            }
+          });
+      });
+    </script>
+
+    <script type="module">
+      import { initializeFooter } from "./footer-template.js";
+      // Initialize footer
+      document.addEventListener("DOMContentLoaded", initializeFooter);
+    </script>
+  </body>
+</html>

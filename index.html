@@ -1,0 +1,1004 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#2a7f62" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
+    <meta name="format-detection" content="telephone=no" />
+    <meta
+      http-equiv="Cross-Origin-Opener-Policy"
+      content="same-origin-allow-popups"
+    />
+    <title>Note2Flash - AI-Powered Flashcard Generator</title>
+    <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Stripe -->
+    <script src="https://js.stripe.com/v3/"></script>
+    <!-- Other Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <!-- PDF.js -->
+    <script
+      src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+      defer
+    ></script>
+    <script>
+      // Initialize PDF.js worker
+      window.addEventListener("load", function () {
+        pdfjsLib.GlobalWorkerOptions.workerSrc =
+          "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      });
+    </script>
+    <!-- mammoth.js for DOCX processing -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
+    <!-- File type detection -->
+    <script src="https://cdn.jsdelivr.net/npm/file-type@18.7.1/browser.min.js"></script>
+    <!-- Firebase SDK -->
+    <script type="module">
+      // Import the functions you need from the SDKs you need
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./spacedRepetition.js"></script>
+    <script type="module" src="./deckManager.js"></script>
+    <script type="module" src="./app.js"></script>
+  </head>
+  <body>
+    <!-- Navigation will be loaded here -->
+    <div id="nav-placeholder"></div>
+
+    <!-- Password Reset Modal -->
+    <div id="resetPasswordModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Reset Password</h2>
+        <form id="resetPasswordForm" class="auth-form">
+          <div class="form-group">
+            <input
+              type="email"
+              id="resetEmail"
+              placeholder="Enter your email"
+              required
+              autocomplete="email"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Send Reset Link</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <h1>Transform Your Notes into Smart Flashcards</h1>
+        <p class="hero-subtitle">
+          Create effective flashcards in seconds using AI. Perfect for students,
+          professionals, and lifelong learners.
+        </p>
+        <div class="hero-cta">
+          <a href="#create-cards" class="btn btn-primary btn-large"
+            >Create Free Flashcards</a
+          >
+          <a href="#how-it-works" class="btn btn-secondary btn-large"
+            >See How It Works</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="how-it-works">
+      <h2>Why Choose Note2Flash?</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="fas fa-magic"></i>
+          </div>
+          <h3>AI-Powered Generation</h3>
+          <p>
+            Our advanced AI analyzes your content and creates optimized
+            flashcards automatically.
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="fas fa-bolt"></i>
+          </div>
+          <h3>Lightning Fast</h3>
+          <p>
+            Create decks in seconds, not hours. Save time and focus on learning.
+          </p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="fas fa-brain"></i>
+          </div>
+          <h3>Smart Learning</h3>
+          <p>Adaptive spaced repetition helps you learn more effectively.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <i class="fas fa-share-alt"></i>
+          </div>
+          <h3>Share & Collaborate</h3>
+          <p>
+            Share decks with classmates or discover community-created content.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- How It Works Section -->
+    <section class="how-it-works">
+      <h2>How It Works</h2>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <div class="step-content">
+            <h3>Upload Your Content</h3>
+            <p>Paste your notes, upload documents, or import from web pages.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <div class="step-content">
+            <h3>AI Processing</h3>
+            <p>Our AI analyzes your content and identifies key concepts.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <div class="step-content">
+            <h3>Review & Customize</h3>
+            <p>Edit cards as needed and organize them into decks.</p>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <div class="step-content">
+            <h3>Start Learning</h3>
+            <p>Study with our smart spaced repetition system.</p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section class="cta-section" id="create-cards">
+      <div class="cta-content">
+        <h2>Ready to Transform Your Learning?</h2>
+        <p>
+          Join thousands of students and professionals who are learning smarter
+          with Note2Flash.
+        </p>
+        <div class="cta-buttons">
+          <a href="#input-section" class="btn btn-primary btn-large"
+            >Start Creating Free</a
+          >
+          <a href="pricing.html" class="btn btn-secondary btn-large"
+            >View Premium Plans</a
+          >
+        </div>
+      </div>
+    </section>
+
+    <div class="container">
+      <!-- Quota Tracker for Free Users -->
+      <div
+        id="quotaTracker"
+        class="quota-tracker"
+        style="display: none; margin-bottom: 1rem"
+      >
+        <span id="flashcardQuotaText"></span>
+        <span id="occlusionQuotaText" style="margin-left: 1.5rem"></span>
+        <button
+          id="upgradeBtn"
+          class="btn btn-sm btn-primary"
+          style="margin-left: 2rem"
+        >
+          Upgrade for more
+        </button>
+      </div>
+
+      <!-- Study Interface -->
+      <div class="study-interface" style="display: none">
+        <div class="study-header">
+          <h2>Study Session</h2>
+          <div class="study-stats">
+            <span class="stat-item">
+              <i class="fas fa-chart-line"></i>
+              <span class="stat-value" id="studyAccuracy">0%</span>
+              <span class="stat-label">Accuracy</span>
+            </span>
+            <span class="stat-item">
+              <i class="fas fa-fire"></i>
+              <span class="stat-value" id="studyStreak">0</span>
+              <span class="stat-label">Day Streak</span>
+            </span>
+            <span class="stat-item">
+              <i class="fas fa-clock"></i>
+              <span class="stat-value" id="cardsRemaining">0</span>
+              <span class="stat-label">Cards Left</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="study-card">
+          <div class="card-content">
+            <div class="card-front"></div>
+            <div class="card-back" style="display: none"></div>
+          </div>
+          <div class="card-controls">
+            <button class="btn btn-secondary" id="flipCard">
+              <i class="fas fa-sync-alt"></i> Flip Card
+            </button>
+            <div class="performance-buttons" style="display: none">
+              <button class="btn btn-danger" data-performance="1">
+                <i class="fas fa-times"></i> Unfamiliar
+              </button>
+              <button class="btn btn-success" data-performance="5">
+                <i class="fas fa-star"></i> I know it!
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="study-progress">
+          <div class="progress-container">
+            <div class="progress-bar" style="width: 0%"></div>
+          </div>
+          <div class="progress-stats">
+            <span id="cardsReviewed">0</span> /
+            <span id="totalCards">0</span> cards
+          </div>
+        </div>
+
+        <div class="study-complete" style="display: none">
+          <h3>Study Session Complete!</h3>
+          <div class="session-stats">
+            <div class="stat-card">
+              <i class="fas fa-check-circle"></i>
+              <span class="stat-value" id="sessionCorrect">0</span>
+              <span class="stat-label">Correct</span>
+            </div>
+            <div class="stat-card">
+              <i class="fas fa-times-circle"></i>
+              <span class="stat-value" id="sessionIncorrect">0</span>
+              <span class="stat-label">Incorrect</span>
+            </div>
+            <div class="stat-card">
+              <i class="fas fa-percentage"></i>
+              <span class="stat-value" id="sessionAccuracy">0%</span>
+              <span class="stat-label">Accuracy</span>
+            </div>
+          </div>
+          <div class="session-actions">
+            <button class="btn btn-primary" id="restartSession">
+              <i class="fas fa-redo"></i> Restart Session
+            </button>
+            <button class="btn btn-secondary" id="endSession">
+              <i class="fas fa-home"></i> Return to Decks
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Study History -->
+      <div class="study-history" style="display: none">
+        <h3>Study History</h3>
+        <div class="history-chart">
+          <canvas id="studyHistoryChart"></canvas>
+        </div>
+        <div class="history-stats">
+          <div class="stat-group">
+            <h4>Overall Statistics</h4>
+            <div class="stat-grid">
+              <div class="stat-item">
+                <span class="stat-value" id="totalReviews">0</span>
+                <span class="stat-label">Total Reviews</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="overallAccuracy">0%</span>
+                <span class="stat-label">Overall Accuracy</span>
+              </div>
+              <div class="stat-item">
+                <span class="stat-value" id="longestStreak">0</span>
+                <span class="stat-label">Longest Streak</span>
+              </div>
+            </div>
+          </div>
+          <div class="stat-group">
+            <h4>Card Difficulty</h4>
+            <div class="difficulty-chart">
+              <canvas id="difficultyChart"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Input Section -->
+      <div id="input-section">
+        <div class="card">
+          <h2>Create Flashcards</h2>
+          <div class="input-tabs">
+            <button class="tab-btn active" data-tab="ai-text">
+              AI-Assisted Input
+            </button>
+            <button class="tab-btn" data-tab="content">Content Upload</button>
+            <button class="tab-btn" data-tab="url">Web Content</button>
+          </div>
+
+          <!-- AI-Assisted Input Tab -->
+          <div class="input-tab-content active" id="ai-textTab">
+            <form id="aiTextForm">
+              <div class="ai-input-container">
+                <textarea
+                  id="textInput"
+                  rows="4"
+                  placeholder="Start typing or paste your content here... Our AI will help you create effective flashcards."
+                ></textarea>
+                <div class="ai-suggestions">
+                  <div class="suggestion-header">
+                    <i class="fas fa-lightbulb"></i>
+                    <span>AI Suggestions</span>
+                  </div>
+                  <div id="aiSuggestions" class="suggestion-content">
+                    <p class="placeholder-text">
+                      AI will analyze your content and suggest improvements...
+                    </p>
+                  </div>
+                </div>
+              </div>
+              <div class="generation-options">
+                <select id="cardType" class="select-input">
+                  <option value="term">Term & Definition</option>
+                  <option value="qa">Question & Answer</option>
+                  <option value="cloze">Cloze</option>
+                  <option value="image-occlusion">Image Occlusion</option>
+                  <option value="multiple-choice">Multiple Choice</option>
+                  <option value="contextual">Contextual/Scenario-based</option>
+                </select>
+                <select id="cardCount" class="select-input">
+                  <option value="5">5 cards</option>
+                  <option value="10">10 cards</option>
+                  <option value="15" class="premium-option">15 cards</option>
+                  <option value="20" class="premium-option">20 cards</option>
+                  <option value="25" class="premium-option">25 cards</option>
+                  <option value="30" class="premium-option">30 cards</option>
+                  <option value="35" class="premium-option">35 cards</option>
+                  <option value="40" class="premium-option">40 cards</option>
+                  <option value="45" class="premium-option">45 cards</option>
+                  <option value="50" class="premium-option">50 cards</option>
+                </select>
+              </div>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-magic"></i> Generate Flashcards
+              </button>
+            </form>
+          </div>
+
+          <!-- Content Upload Tab -->
+          <div class="input-tab-content" id="contentTab">
+            <form id="uploadForm">
+              <div id="dropzone" class="dropzone">
+                <input
+                  type="file"
+                  id="fileInput"
+                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.webp"
+                  style="display: none"
+                />
+                <div class="upload-icon">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <p>Drag and drop your content here or click to browse</p>
+                <p class="file-types">
+                  Supported formats: PDF, DOC, DOCX, TXT, Images (JPG, PNG, GIF,
+                  WebP)
+                </p>
+                <div class="upload-options">
+                  <button
+                    type="button"
+                    id="cameraBtn"
+                    class="btn btn-secondary"
+                  >
+                    <i class="fas fa-camera"></i> Take Photo
+                  </button>
+                </div>
+              </div>
+
+              <!-- Camera Preview (hidden by default) -->
+              <div
+                id="cameraPreview"
+                class="camera-container"
+                style="display: none"
+              >
+                <div class="camera-preview">
+                  <video id="cameraFeed" autoplay playsinline></video>
+                  <canvas id="cameraCanvas" style="display: none"></canvas>
+                  <div class="camera-overlay">
+                    <div class="camera-guide"></div>
+                  </div>
+                </div>
+                <div class="camera-controls">
+                  <button id="captureBtn" class="btn btn-primary" disabled>
+                    <i class="fas fa-camera-retro"></i> Capture
+                  </button>
+                  <button
+                    id="retakeBtn"
+                    class="btn btn-secondary"
+                    style="display: none"
+                  >
+                    <i class="fas fa-redo"></i> Retake
+                  </button>
+                  <button
+                    id="processImageBtn"
+                    class="btn btn-success"
+                    style="display: none"
+                  >
+                    <i class="fas fa-magic"></i> Process Notes
+                  </button>
+                </div>
+                <div class="camera-status">
+                  <p id="cameraStatus">Camera not started</p>
+                </div>
+                <div class="captured-image" style="display: none">
+                  <img id="capturedImage" alt="Captured notes" />
+                </div>
+              </div>
+
+              <div id="cardTypeSelection" style="display: none">
+                <div class="form-group">
+                  <label for="uploadCardType">Card Type</label>
+                  <select id="uploadCardType" class="select-input">
+                    <option value="term">Term & Definition</option>
+                    <option value="qa">Question & Answer</option>
+                    <option value="cloze">Cloze</option>
+                    <option value="image-occlusion">Image Occlusion</option>
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="contextual">
+                      Contextual/Scenario-based
+                    </option>
+                  </select>
+                </div>
+                <div class="form-actions">
+                  <button
+                    type="button"
+                    id="generateCardsBtn"
+                    class="btn btn-primary"
+                  >
+                    <i class="fas fa-magic"></i> Generate Flashcards
+                  </button>
+                  <button
+                    type="button"
+                    id="newFileBtn"
+                    class="btn btn-secondary"
+                  >
+                    <i class="fas fa-file-upload"></i> Upload New File
+                  </button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <!-- Web Content Tab -->
+          <div class="input-tab-content" id="urlTab">
+            <form id="urlForm">
+              <div class="url-input-container">
+                <div class="url-input-wrapper">
+                  <input
+                    type="url"
+                    id="urlInput"
+                    placeholder="https://example.com/article or 10.1234/example.doi"
+                    class="url-input"
+                  />
+                </div>
+                <div id="urlPreview" class="url-preview" style="display: none">
+                  <div class="preview-header">
+                    <h3 id="previewTitle">Content Preview</h3>
+                    <div class="preview-actions">
+                      <button
+                        type="button"
+                        id="editContentBtn"
+                        class="btn btn-secondary"
+                      >
+                        <i class="fas fa-edit"></i> Edit
+                      </button>
+                      <button
+                        type="button"
+                        id="regenerateBtn"
+                        class="btn btn-secondary"
+                      >
+                        <i class="fas fa-sync"></i> Regenerate
+                      </button>
+                    </div>
+                  </div>
+                  <div id="previewContent" class="preview-content"></div>
+                </div>
+                <div class="generation-options">
+                  <select id="urlCardType" class="select-input">
+                    <option value="term">Term & Definition</option>
+                    <option value="qa">Question & Answer</option>
+                    <option value="cloze">Cloze</option>
+                    <option value="image-occlusion">Image Occlusion</option>
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="contextual">
+                      Contextual/Scenario-based
+                    </option>
+                  </select>
+                  <select id="urlCardCount" class="select-input">
+                    <option value="5">5 cards</option>
+                    <option value="10">10 cards</option>
+                    <option value="15" class="premium-option">15 cards</option>
+                    <option value="20" class="premium-option">20 cards</option>
+                    <option value="25" class="premium-option">25 cards</option>
+                    <option value="30" class="premium-option">30 cards</option>
+                    <option value="35" class="premium-option">35 cards</option>
+                    <option value="40" class="premium-option">40 cards</option>
+                    <option value="45" class="premium-option">45 cards</option>
+                    <option value="50" class="premium-option">50 cards</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  id="generateFromUrlBtn"
+                  disabled
+                >
+                  <i class="fas fa-magic"></i> Generate Flashcards
+                </button>
+              </div>
+              <p class="url-help">
+                Supports academic papers (DOI), Wikipedia articles, blog posts,
+                YouTube links, and more.
+                <br /><small
+                  ><strong>Note:</strong> YouTube transcript extraction requires
+                  manual setup. For YouTube videos, try copying the
+                  auto-generated transcript (CC → More → Transcript) or upload a
+                  text file instead.</small
+                >
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flashcard Viewer Grid -->
+      <div class="grid">
+        <!-- Left Column - Upload Section -->
+        <div class="upload-section">
+          <div class="card">
+            <h2>Flashcard Viewer</h2>
+            <div
+              id="loadingIndicator"
+              class="loading-overlay"
+              style="display: none"
+            >
+              <div class="loading-content">
+                <div class="spinner"></div>
+                <div class="loading-message">
+                  <h3>Generating Flashcards</h3>
+                  <p class="loading-subtitle">This may take a few moments...</p>
+                </div>
+              </div>
+            </div>
+            <div id="flashcardContainer" class="flashcard-container">
+              <div id="emptyState" class="empty-state">
+                <div class="icon">📝</div>
+                <p>Upload a file or enter text to generate flashcards</p>
+                <button
+                  id="studyNowBtn"
+                  class="btn btn-primary"
+                  style="display: none"
+                >
+                  <i class="fas fa-play"></i> Study Now
+                  <span class="due-count"></span>
+                </button>
+              </div>
+              <div
+                id="flashcardViewer"
+                class="flashcard-viewer"
+                style="display: none"
+              >
+                <div class="progress-container">
+                  <div class="progress-bar">
+                    <div id="progressBar" class="progress"></div>
+                  </div>
+                  <span id="progressText">0/0 cards reviewed</span>
+                </div>
+                <div id="flashcard" class="flashcard">
+                  <div class="card-front">
+                    <p id="frontText"></p>
+                  </div>
+                  <div class="card-back">
+                    <p id="backText"></p>
+                  </div>
+                </div>
+                <div class="card-controls">
+                  <div class="navigation-buttons">
+                    <button id="prevCardBtn" class="btn btn-secondary">
+                      <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button id="shuffleBtn" class="btn btn-secondary">
+                      <i class="fas fa-random"></i>
+                    </button>
+                    <button id="nextCardBtn" class="btn btn-secondary">
+                      <i class="fas fa-chevron-right"></i>
+                    </button>
+                  </div>
+                  <button id="showAnswerBtn" class="btn btn-primary">
+                    <i class="fas fa-eye"></i> Show Answer
+                  </button>
+
+                  <div class="performance-buttons">
+                    <button class="btn btn-danger" data-performance="1">
+                      <i class="fas fa-times"></i> Unfamiliar
+                    </button>
+                    <button class="btn btn-success" data-performance="5">
+                      <i class="fas fa-star"></i> I know it!
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Premium Modal -->
+    <div id="premiumModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Upgrade to Premium</h2>
+
+        <!-- Free Tier Features -->
+        <div class="tier-features free">
+          <h3>Free Tier</h3>
+          <ul>
+            <li>✓ 20 flashcards per month</li>
+            <li>✓ 3 saved decks</li>
+            <li>✓ Basic card types</li>
+            <li>✓ 1 export per month</li>
+          </ul>
+        </div>
+
+        <!-- Premium Features -->
+        <div class="premium-features">
+          <h3>Premium Features</h3>
+          <ul>
+            <li>✨ Unlimited flashcard generation</li>
+            <li>💾 Save unlimited decks</li>
+            <li>📱 Access on all devices</li>
+            <li>🎯 All card types</li>
+            <li>📊 Detailed study statistics</li>
+            <li>👥 Priority support</li>
+          </ul>
+        </div>
+
+        <!-- Pricing Options -->
+        <div class="pricing-options">
+          <div class="pricing-card">
+            <h3>Monthly</h3>
+            <p class="price">$14.99/month</p>
+            <ul class="features">
+              <li>✓ All premium features</li>
+              <li>✓ Unlimited exports</li>
+              <li>✓ Priority support</li>
+              <li>✓ Advanced analytics</li>
+            </ul>
+            <button
+              class="btn btn-primary"
+              id="monthlySubBtn"
+              data-price-id="${process.env.STRIPE_PRICE_MONTHLY}"
+            >
+              Subscribe
+            </button>
+          </div>
+
+          <div class="pricing-card featured">
+            <div class="best-value">Best Value</div>
+            <h3>Yearly</h3>
+            <p class="price">$149.99/year</p>
+            <p class="save">Save 17%</p>
+            <ul class="features">
+              <li>✓ All premium features</li>
+              <li>✓ Unlimited exports</li>
+              <li>✓ Priority support</li>
+              <li>✓ Advanced analytics</li>
+              <li>✓ Early access to new features</li>
+            </ul>
+            <button
+              class="btn btn-primary"
+              id="yearlySubBtn"
+              data-price-id="${process.env.STRIPE_PRICE_YEARLY}"
+            >
+              Subscribe
+            </button>
+          </div>
+        </div>
+
+        <!-- Current Subscription Status -->
+        <div
+          class="subscription-status"
+          id="subscriptionStatus"
+          style="display: none"
+        >
+          <h3>Current Subscription</h3>
+          <p id="currentPlan"></p>
+          <p id="nextBillingDate"></p>
+          <button class="btn btn-secondary" id="cancelSubBtn">
+            Cancel Subscription
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./spacedRepetition.js"></script>
+    <script type="module" src="./deckManager.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script type="module">
+      import { initializeNavigation } from "./nav-template.js";
+      // Initialize navigation as soon as the DOM is ready
+      document.addEventListener("DOMContentLoaded", initializeNavigation);
+    </script>
+
+    <script type="module">
+      import { initializeFooter } from "./footer-template.js";
+      // Initialize footer
+      document.addEventListener("DOMContentLoaded", initializeFooter);
+    </script>
+
+    <!-- Add card type specific UI elements -->
+    <div id="cardTypeOptions" class="card-type-options" style="display: none">
+      <!-- Term & Definition options -->
+      <div class="card-type-option" data-type="term">
+        <div class="option-group">
+          <label>
+            <input
+              type="checkbox"
+              name="termOptions"
+              value="includePronunciation"
+            />
+            Include pronunciation guides
+          </label>
+          <label>
+            <input type="checkbox" name="termOptions" value="includeExamples" />
+            Include usage examples
+          </label>
+        </div>
+      </div>
+
+      <!-- Question & Answer options -->
+      <div class="card-type-option" data-type="qa">
+        <div class="option-group">
+          <label>
+            <input
+              type="checkbox"
+              name="qaOptions"
+              value="includeExplanation"
+            />
+            Include detailed explanations
+          </label>
+          <label>
+            <input type="checkbox" name="qaOptions" value="includeExamples" />
+            Include examples
+          </label>
+        </div>
+      </div>
+
+      <!-- Cloze options -->
+      <div class="card-type-option" data-type="cloze">
+        <div class="option-group">
+          <label>
+            <input type="checkbox" name="clozeOptions" value="includeHints" />
+            Include hints
+          </label>
+          <label>
+            <input type="checkbox" name="clozeOptions" value="multipleBlanks" />
+            Allow multiple blanks
+          </label>
+        </div>
+      </div>
+
+      <!-- Image Occlusion options -->
+      <div class="card-type-option" data-type="image-occlusion">
+        <div class="option-group">
+          <label>
+            <input type="file" name="occlusionImage" accept="image/*" />
+            Upload image
+          </label>
+          <div class="occlusion-editor" style="display: none">
+            <canvas id="occlusionCanvas"></canvas>
+            <div class="occlusion-controls">
+              <button type="button" id="addOcclusion">Add Occlusion</button>
+              <button type="button" id="removeOcclusion">
+                Remove Selected
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Multiple Choice options -->
+      <div class="card-type-option" data-type="multiple-choice">
+        <div class="option-group">
+          <label>
+            <input type="number" name="optionCount" min="2" max="6" value="4" />
+            Number of options
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              name="mcOptions"
+              value="includeExplanation"
+            />
+            Include explanations
+          </label>
+        </div>
+      </div>
+
+      <!-- Contextual options -->
+      <div class="card-type-option" data-type="contextual">
+        <div class="option-group">
+          <label>
+            <input
+              type="checkbox"
+              name="contextOptions"
+              value="includeRealWorld"
+            />
+            Include real-world scenarios
+          </label>
+          <label>
+            <input
+              type="checkbox"
+              name="contextOptions"
+              value="includeExamples"
+            />
+            Include examples
+          </label>
+        </div>
+      </div>
+    </div>
+
+    <!-- Update the card preview section -->
+    <div id="cardPreview" class="card-preview" style="display: none">
+      <div class="preview-controls">
+        <button type="button" id="prevCard">Previous</button>
+        <span id="cardCounter">Card 1 of 1</span>
+        <button type="button" id="nextCard">Next</button>
+      </div>
+      <div id="previewContainer" class="preview-container">
+        <!-- Cards will be rendered here -->
+      </div>
+    </div>
+
+    <!-- Add necessary scripts -->
+    <script type="module">
+      import { CardTypeManager } from "./cardTypeManager.js";
+
+      // Initialize card type manager
+      const cardTypeManager = new CardTypeManager();
+
+      // Card type selection handler
+      document.getElementById("cardType").addEventListener("change", (e) => {
+        const selectedType = e.target.value;
+        const optionsContainer = document.getElementById("cardTypeOptions");
+        const typeOptions =
+          optionsContainer.querySelectorAll(".card-type-option");
+
+        // Hide all options first
+        typeOptions.forEach((opt) => (opt.style.display = "none"));
+        optionsContainer.style.display = "none";
+
+        // Show relevant options
+        const selectedOption = optionsContainer.querySelector(
+          `[data-type="${selectedType}"]`
+        );
+        if (selectedOption) {
+          selectedOption.style.display = "block";
+          optionsContainer.style.display = "block";
+        }
+
+        // Special handling for image occlusion
+        if (selectedType === "image-occlusion") {
+          initializeImageOcclusionEditor();
+        }
+      });
+
+      // Image occlusion editor initialization
+      function initializeImageOcclusionEditor() {
+        const canvas = document.getElementById("occlusionCanvas");
+        const ctx = canvas.getContext("2d");
+        let isDrawing = false;
+        let currentOcclusion = null;
+        let occlusions = [];
+
+        // Set up canvas
+        function setupCanvas(image) {
+          canvas.width = image.width;
+          canvas.height = image.height;
+          ctx.drawImage(image, 0, 0);
+        }
+
+        // Handle image upload
+        document
+          .querySelector('input[name="occlusionImage"]')
+          .addEventListener("change", (e) => {
+            const file = e.target.files[0];
+            if (file) {
+              const reader = new FileReader();
+              reader.onload = (event) => {
+                const img = new Image();
+                img.onload = () => {
+                  setupCanvas(img);
+                  document.querySelector(".occlusion-editor").style.display =
+                    "block";
+                };
+                img.src = event.target.result;
+              };
+              reader.readAsDataURL(file);
+            }
+          });
+
+        // Drawing handlers
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("mouseup", endDrawing);
+        canvas.addEventListener("mouseout", endDrawing);
+
+        function startDrawing(e) {
+          isDrawing = true;
+          const rect = canvas.getBoundingClientRect();
+          currentOcclusion = {
+            x: e.clientX - rect.left,
+            y: e.clientY - rect.top,
+            width: 0,
+            height: 0,
+          };
+        }
+
+        function draw(e) {
+          if (!isDrawing) return;
+          const rect = canvas.getBoundingClientRect();
+          currentOcclusion.width = e.clientX - rect.left - currentOcclusion.x;
+          currentOcclusion.height = e.clientY - rect.top - currentOcclusion.y;
+
+          // Redraw canvas with current occlusion
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0);
+          ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
+          ctx.fillRect(
+            currentOcclusion.x,
+            currentOcclusion.y,
+            currentOcclusion.width,
+            currentOcclusion.height
+          );
+        }
+
+        function endDrawing() {
+          isDrawing = false;
+          occlusions.push(currentOcclusion);
+          currentOcclusion = null;
+        }
+      }
+    </script>
+  </body>
+</html>

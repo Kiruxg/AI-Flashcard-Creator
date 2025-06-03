@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Shared Decks - Note2Flash</title>
+    <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    </script>
+    <!-- Other Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <!-- Navigation will be loaded here -->
+    <div id="nav-placeholder"></div>
+
+    <div class="container">
+      <!-- Knowledge Hub -->
+      <div class="knowledge-hub">
+        <div class="hub-header">
+          <h2>Knowledge Hub</h2>
+          <p class="hub-description">
+            Access specialized flashcard decks for your field of study
+          </p>
+        </div>
+
+        <div class="category-tabs">
+          <button class="category-tab active" data-category="all">
+            All Decks
+          </button>
+          <button class="category-tab" data-category="medical">Medical</button>
+          <button class="category-tab" data-category="law">Law</button>
+          <button class="category-tab" data-category="language">
+            Languages
+          </button>
+          <button class="category-tab" data-category="certification">
+            Certifications
+          </button>
+        </div>
+
+        <div class="hub-controls">
+          <div class="search-box">
+            <input
+              type="text"
+              id="deckSearch"
+              placeholder="Search decks..."
+              class="search-input"
+            />
+            <i class="fas fa-search search-icon"></i>
+          </div>
+          <div class="hub-actions">
+            <button id="createDeckBtn" class="btn btn-primary">
+              <i class="fas fa-plus"></i> Create Deck
+            </button>
+            <button id="importDeckBtn" class="btn btn-secondary">
+              <i class="fas fa-file-import"></i> Import
+            </button>
+          </div>
+        </div>
+
+        <div class="deck-filters">
+          <select id="sortDeck" class="filter-select">
+            <option value="recent">Most Recent</option>
+            <option value="popular">Most Popular</option>
+            <option value="cards">Most Cards</option>
+            <option value="rating">Highest Rated</option>
+          </select>
+          <select id="filterLevel" class="filter-select">
+            <option value="all">All Levels</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
+
+        <div id="savedDecks" class="deck-grid">
+          <!-- Decks will be dynamically loaded here -->
+        </div>
+
+        <!-- Create Deck Modal -->
+        <div id="createDeckModal" class="modal" style="display: none">
+          <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Create New Deck</h2>
+            <form id="createDeckForm">
+              <div class="form-group">
+                <label for="newDeckName">Deck Name</label>
+                <input
+                  type="text"
+                  id="newDeckName"
+                  required
+                  placeholder="Enter deck name"
+                />
+              </div>
+              <div class="form-group">
+                <label for="deckCategory">Category</label>
+                <select id="deckCategory" required>
+                  <option value="medical">Medical</option>
+                  <option value="law">Law</option>
+                  <option value="language">Language</option>
+                  <option value="certification">Certification</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="deckLevel">Difficulty Level</label>
+                <select id="deckLevel" required>
+                  <option value="beginner">Beginner</option>
+                  <option value="intermediate">Intermediate</option>
+                  <option value="advanced">Advanced</option>
+                </select>
+              </div>
+              <div class="form-group">
+                <label for="deckDescription">Description</label>
+                <textarea
+                  id="deckDescription"
+                  placeholder="Describe your deck..."
+                  rows="3"
+                ></textarea>
+              </div>
+              <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                  Create Deck
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary"
+                  onclick="hideModal('createDeckModal')"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./deckManager.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script type="module">
+      import { initializeNavigation } from "./nav-template.js";
+      // Initialize navigation as soon as the DOM is ready
+      document.addEventListener("DOMContentLoaded", initializeNavigation);
+    </script>
+
+    <script>
+      // Shared decks page specific functionality
+      document.addEventListener("DOMContentLoaded", () => {
+        // Initialize category tabs
+        const categoryTabs = document.querySelectorAll(".category-tab");
+        categoryTabs.forEach((tab) => {
+          tab.addEventListener("click", () => {
+            categoryTabs.forEach((t) => t.classList.remove("active"));
+            tab.classList.add("active");
+            // Add your category filtering logic here
+          });
+        });
+
+        // Initialize search functionality
+        const searchInput = document.getElementById("deckSearch");
+        if (searchInput) {
+          searchInput.addEventListener("input", (e) => {
+            // Add your search logic here
+          });
+        }
+
+        // Initialize deck filters
+        const sortSelect = document.getElementById("sortDeck");
+        const levelSelect = document.getElementById("filterLevel");
+        if (sortSelect) {
+          sortSelect.addEventListener("change", () => {
+            // Add your sorting logic here
+          });
+        }
+        if (levelSelect) {
+          levelSelect.addEventListener("change", () => {
+            // Add your level filtering logic here
+          });
+        }
+
+        // Initialize create deck modal
+        const createDeckBtn = document.getElementById("createDeckBtn");
+        const createDeckModal = document.getElementById("createDeckModal");
+        if (createDeckBtn && createDeckModal) {
+          createDeckBtn.addEventListener("click", () => {
+            createDeckModal.style.display = "block";
+          });
+        }
+
+        // Close modal functionality (for page-specific modals only)
+        const closeButtons = document.querySelectorAll(".close");
+        closeButtons.forEach((button) => {
+          button.addEventListener("click", () => {
+            const modal = button.closest(".modal");
+            // Only handle non-auth modals here, auth modal handled in app.js
+            if (modal && !modal.id.includes("auth")) {
+              modal.style.display = "none";
+            }
+          });
+        });
+
+        // Close modal when clicking outside (for page-specific modals only)
+        window.addEventListener("click", (e) => {
+          const modals = document.querySelectorAll(".modal");
+          modals.forEach((modal) => {
+            // Only handle non-auth modals here, auth modal handled in app.js
+            if (e.target === modal && !modal.id.includes("auth")) {
+              modal.style.display = "none";
+            }
+          });
+        });
+      });
+    </script>
+
+    <script type="module">
+      import { initializeFooter } from "./footer-template.js";
+      // Initialize footer
+      document.addEventListener("DOMContentLoaded", initializeFooter);
+    </script>
+  </body>
+</html>

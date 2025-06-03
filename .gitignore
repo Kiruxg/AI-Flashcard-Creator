@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+/.pnp
+.pnp.js
+
+# Testing
+/coverage
+
+# Production
+/build
+/dist
+
+# Environment variables and keys
+.env
+.env*.local
+serviceAccountKey.json
+
+# IDE files
+.vscode/
+.idea/
+*.code-workspace
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Misc
+*.zip
+*.lnk
+*.png
+*.docx
+*.pdf
+*.xml
+
+# Ignore everything outside this directory
+../*
+../../*
+/**/../../*
+
+# vercel
+.vercel
