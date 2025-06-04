@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Helper functions
     function isAuthenticated() {
-      return request.auth != null;
+      return request.auth != null && request.auth.token.email_verified == true;
     }
     
     function isOwner(userId) {
@@ -13,7 +13,7 @@ service cloud.firestore {
     // Users collection
     match /users/{userId} {
       allow read: if isAuthenticated() && isOwner(userId);
-      allow create: if isAuthenticated() && isOwner(userId);
+      allow create: if request.auth != null && isOwner(userId);  // Allow creation even if email not verified
       allow update: if isAuthenticated() && isOwner(userId);
       allow delete: if isAuthenticated() && isOwner(userId);
     }
@@ -30,6 +30,16 @@ service cloud.firestore {
     match /studyProgress/{userId}/cards/{cardId} {
       allow read: if isAuthenticated() && isOwner(userId);
       allow write: if isAuthenticated() && isOwner(userId);
+    }
+
+    // Shared decks collection - publicly readable
+    match /sharedDecks/{deckId} {
+      allow read: if true;  // Anyone can read shared decks
+      allow create: if isAuthenticated();  // Authenticated users can share decks
+      allow update: if isAuthenticated() && 
+        (resource.data.sharedBy == request.auth.uid || 
+         resource.data.sharedBy == "system@note2flash.com");
+      allow delete: if isAuthenticated() && resource.data.sharedBy == request.auth.uid;
     }
   }
 } 

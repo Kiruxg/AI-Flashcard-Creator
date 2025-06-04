@@ -1,51 +1,51 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
-const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
-const admin = require("firebase-admin");
-const OpenAI = require("openai");
-const rateLimit = require("express-rate-limit");
-const helmet = require("helmet");
-const xss = require("xss-clean");
-const sanitizeHtml = require("sanitize-html");
-const pdfjsLib = require("pdfjs-dist");
-const multer = require("multer");
-const cheerio = require("cheerio");
-const axios = require("axios");
-const path = require("path");
-const fs = require("fs");
-const {
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import Stripe from "stripe";
+import admin from "firebase-admin";
+import { OpenAI } from "openai";
+import rateLimit from "express-rate-limit";
+import helmet from "helmet";
+import xss from "xss-clean";
+import sanitizeHtml from "sanitize-html";
+import * as pdfjsLib from "pdfjs-dist";
+import multer from "multer";
+import * as cheerio from "cheerio";
+import axios from "axios";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
+import { promises as fs } from "fs";
+import {
   extractTextFromPDF,
   performOCR,
-  enhanceWithImageUnderstanding,
-  transcribeAudio,
-  processVideo,
-  combineVideoContent,
   detectContentType,
-  medicalTerminologyProcessor,
-  medicalComplianceChecker,
-  medicalDiagramProcessor,
-  legalTerminologyProcessor,
-  legalComplianceChecker,
-  legalCaseProcessor,
   technicalTerminologyProcessor,
   technicalDiagramProcessor,
-  codeExampleProcessor,
-} = require("./utils/contentProcessing");
-const { CardTypeManager } = require("./cardTypeManager.js");
+} from "./utils/contentProcessing.js";
+import { CardTypeManager } from "./cardTypeManager.js";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 // Load environment variables and initialize Firebase
 dotenv.config();
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY);
+
+// Read service account file
+const serviceAccount = JSON.parse(
+  await fs.readFile(new URL("./serviceAccountKey.json", import.meta.url))
+);
+
 admin.initializeApp({
-  credential: admin.credential.cert(require("./serviceAccountKey.json")),
+  credential: admin.credential.cert(serviceAccount),
 });
 
 const app = express();
 
 // Create uploads directory if it doesn't exist
-const uploadsDir = path.join(__dirname, "uploads");
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir);
+const uploadsDir = join(__dirname, "uploads");
+if (!fs.access(uploadsDir)) {
+  fs.mkdir(uploadsDir);
 }
 
 // Configure multer storage
@@ -146,6 +146,8 @@ app.use(
           "https://js.stripe.com",
           "https://*.google.com",
           "https://hooks.stripe.com",
+          "https://*.firebaseapp.com",
+          "https://*.firebaseusercontent.com",
         ],
         objectSrc: ["'none'"],
         fontSrc: [
@@ -300,26 +302,15 @@ app.post(
   }
 );
 
-// Domain-specific processing
+// Update domain processors object for trades
 const domainProcessors = {
-  medical: {
-    terminology: medicalTerminologyProcessor,
-    compliance: medicalComplianceChecker,
-    visualLearning: medicalDiagramProcessor,
-  },
-  legal: {
-    terminology: legalTerminologyProcessor,
-    compliance: legalComplianceChecker,
-    caseStudy: legalCaseProcessor,
-  },
   technical: {
     terminology: technicalTerminologyProcessor,
-    diagrams: technicalDiagramProcessor,
-    codeExamples: codeExampleProcessor,
+    visualLearning: technicalDiagramProcessor,
   },
 };
 
-// Enhanced file processing
+// Enhanced file processing for trades content
 async function processContent(input) {
   const processors = {
     pdf: async (file) => {
@@ -327,16 +318,7 @@ async function processContent(input) {
       return extractTextFromPDF(pdf);
     },
     image: async (file) => {
-      const text = await performOCR(file);
-      return enhanceWithImageUnderstanding(text, file);
-    },
-    audio: async (file) => {
-      const transcript = await transcribeAudio(file);
-      return enhanceTranscript(transcript);
-    },
-    video: async (file) => {
-      const { transcript, frames } = await processVideo(file);
-      return combineVideoContent(transcript, frames);
+      return performOCR(file);
     },
   };
 
@@ -843,7 +825,7 @@ async function processDocument(file) {
     // For now, we'll just read text files directly
     // In a production environment, you might want to use a library like mammoth
     // for DOCX files or other document processing libraries
-    const text = await fs.promises.readFile(file.path, "utf-8");
+    const text = await fs.readFile(file.path, "utf-8");
     return text;
   } catch (error) {
     console.error("Error processing document:", error);

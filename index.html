@@ -92,7 +92,7 @@
           professionals, and lifelong learners.
         </p>
         <div class="hero-cta">
-          <a href="#create-cards" class="btn btn-primary btn-large"
+          <a href="create-deck.html" class="btn btn-primary btn-large"
             >Create Free Flashcards</a
           >
           <a href="#how-it-works" class="btn btn-secondary btn-large"
@@ -337,163 +337,86 @@
         <div class="card">
           <h2>Create Flashcards</h2>
           <div class="input-tabs">
-            <button class="tab-btn active" data-tab="ai-text">
-              AI-Assisted Input
-            </button>
+            <button class="tab-btn active" data-tab="text">Text Input</button>
             <button class="tab-btn" data-tab="content">Content Upload</button>
             <button class="tab-btn" data-tab="url">Web Content</button>
           </div>
 
-          <!-- AI-Assisted Input Tab -->
-          <div class="input-tab-content active" id="ai-textTab">
-            <form id="aiTextForm">
-              <div class="ai-input-container">
-                <textarea
-                  id="textInput"
-                  rows="4"
-                  placeholder="Start typing or paste your content here... Our AI will help you create effective flashcards."
-                ></textarea>
-                <div class="ai-suggestions">
-                  <div class="suggestion-header">
-                    <i class="fas fa-lightbulb"></i>
-                    <span>AI Suggestions</span>
-                  </div>
-                  <div id="aiSuggestions" class="suggestion-content">
-                    <p class="placeholder-text">
-                      AI will analyze your content and suggest improvements...
-                    </p>
-                  </div>
-                </div>
-              </div>
+          <!-- Text Input Tab -->
+          <div class="input-tab-content active" id="textTab">
+            <div class="text-input-container">
+              <textarea
+                id="textInput"
+                class="text-area-input"
+                placeholder="Enter or paste your text here... 
+Examples:
+- Class notes
+- Important concepts
+- Step-by-step procedures
+- Technical specifications"
+                rows="10"
+              ></textarea>
+
               <div class="generation-options">
-                <select id="cardType" class="select-input">
+                <select id="textCardType" class="select-input">
                   <option value="term">Term & Definition</option>
                   <option value="qa">Question & Answer</option>
                   <option value="cloze">Cloze</option>
-                  <option value="image-occlusion">Image Occlusion</option>
                   <option value="multiple-choice">Multiple Choice</option>
                   <option value="contextual">Contextual/Scenario-based</option>
                 </select>
-                <select id="cardCount" class="select-input">
+                <select id="textCardCount" class="select-input">
                   <option value="5">5 cards</option>
                   <option value="10">10 cards</option>
                   <option value="15" class="premium-option">15 cards</option>
                   <option value="20" class="premium-option">20 cards</option>
-                  <option value="25" class="premium-option">25 cards</option>
-                  <option value="30" class="premium-option">30 cards</option>
-                  <option value="35" class="premium-option">35 cards</option>
-                  <option value="40" class="premium-option">40 cards</option>
-                  <option value="45" class="premium-option">45 cards</option>
-                  <option value="50" class="premium-option">50 cards</option>
                 </select>
               </div>
-              <button type="submit" class="btn btn-primary">
+
+              <button
+                type="submit"
+                class="btn btn-primary"
+                id="generateFromTextBtn"
+              >
                 <i class="fas fa-magic"></i> Generate Flashcards
               </button>
-            </form>
+            </div>
           </div>
 
           <!-- Content Upload Tab -->
           <div class="input-tab-content" id="contentTab">
-            <form id="uploadForm">
-              <div id="dropzone" class="dropzone">
-                <input
-                  type="file"
-                  id="fileInput"
-                  accept=".pdf,.doc,.docx,.txt,.jpg,.jpeg,.png,.gif,.webp"
-                  style="display: none"
-                />
-                <div class="upload-icon">
-                  <i class="fas fa-cloud-upload-alt"></i>
-                </div>
-                <p>Drag and drop your content here or click to browse</p>
-                <p class="file-types">
-                  Supported formats: PDF, DOC, DOCX, TXT, Images (JPG, PNG, GIF,
-                  WebP)
-                </p>
-                <div class="upload-options">
-                  <button
-                    type="button"
-                    id="cameraBtn"
-                    class="btn btn-secondary"
-                  >
-                    <i class="fas fa-camera"></i> Take Photo
-                  </button>
-                </div>
-              </div>
-
-              <!-- Camera Preview (hidden by default) -->
-              <div
-                id="cameraPreview"
-                class="camera-container"
+            <div class="dropzone" id="dropzone">
+              <i class="fas fa-cloud-upload-alt upload-icon"></i>
+              <p>Drag & drop files here or click to upload</p>
+              <p class="file-types">
+                Supported files: PDF, DOCX, TXT, JPG, PNG
+              </p>
+              <input
+                type="file"
+                id="fileInput"
+                accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"
                 style="display: none"
-              >
-                <div class="camera-preview">
-                  <video id="cameraFeed" autoplay playsinline></video>
-                  <canvas id="cameraCanvas" style="display: none"></canvas>
-                  <div class="camera-overlay">
-                    <div class="camera-guide"></div>
-                  </div>
-                </div>
-                <div class="camera-controls">
-                  <button id="captureBtn" class="btn btn-primary" disabled>
-                    <i class="fas fa-camera-retro"></i> Capture
-                  </button>
-                  <button
-                    id="retakeBtn"
-                    class="btn btn-secondary"
-                    style="display: none"
-                  >
-                    <i class="fas fa-redo"></i> Retake
-                  </button>
-                  <button
-                    id="processImageBtn"
-                    class="btn btn-success"
-                    style="display: none"
-                  >
-                    <i class="fas fa-magic"></i> Process Notes
-                  </button>
-                </div>
-                <div class="camera-status">
-                  <p id="cameraStatus">Camera not started</p>
-                </div>
-                <div class="captured-image" style="display: none">
-                  <img id="capturedImage" alt="Captured notes" />
-                </div>
-              </div>
+              />
+            </div>
 
-              <div id="cardTypeSelection" style="display: none">
-                <div class="form-group">
-                  <label for="uploadCardType">Card Type</label>
-                  <select id="uploadCardType" class="select-input">
-                    <option value="term">Term & Definition</option>
-                    <option value="qa">Question & Answer</option>
-                    <option value="cloze">Cloze</option>
-                    <option value="image-occlusion">Image Occlusion</option>
-                    <option value="multiple-choice">Multiple Choice</option>
-                    <option value="contextual">
-                      Contextual/Scenario-based
-                    </option>
-                  </select>
-                </div>
-                <div class="form-actions">
-                  <button
-                    type="button"
-                    id="generateCardsBtn"
-                    class="btn btn-primary"
-                  >
-                    <i class="fas fa-magic"></i> Generate Flashcards
-                  </button>
-                  <button
-                    type="button"
-                    id="newFileBtn"
-                    class="btn btn-secondary"
-                  >
-                    <i class="fas fa-file-upload"></i> Upload New File
-                  </button>
-                </div>
-              </div>
-            </form>
+            <!-- Card Type Selection -->
+            <div id="cardTypeSelection" style="display: none">
+              <select id="uploadCardType" class="select-input">
+                <option value="">Select Card Type</option>
+                <option value="basic">Basic</option>
+                <option value="cloze">Cloze</option>
+                <option value="qa">Question & Answer</option>
+              </select>
+              <select id="uploadCardCount" class="select-input">
+                <option value="5">5 cards</option>
+                <option value="10">10 cards</option>
+                <option value="15">15 cards (Premium)</option>
+                <option value="20">20 cards (Premium)</option>
+              </select>
+              <button id="generateCardsBtn" class="btn btn-primary">
+                Generate Cards
+              </button>
+            </div>
           </div>
 
           <!-- Web Content Tab -->

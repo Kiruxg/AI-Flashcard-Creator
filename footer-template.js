@@ -8,8 +8,8 @@ export const footerTemplate = `
                 <h3>Note2Flash</h3>
             </div>
             <p class="company-description">
-                Transform your notes into smart flashcards with AI. Perfect for students, 
-                professionals, and lifelong learners who want to study more effectively.
+                Transform your study materials into smart flashcards with AI. Perfect for trades professionals, 
+                apprentices, and certification candidates who want to study more effectively.
             </p>
             <div class="contact-info">
                 <p><strong>Contact us:</strong></p>
@@ -29,13 +29,13 @@ export const footerTemplate = `
         </div>
 
         <div class="footer-section">
-            <h4>Community</h4>
+            <h4>Trade Categories</h4>
             <ul class="footer-links">
-                <li><a href="shared-decks.html">Browse Decks</a></li>
-                <li><a href="shared-decks.html?category=medical">Medical</a></li>
-                <li><a href="shared-decks.html?category=law">Law</a></li>
-                <li><a href="shared-decks.html?category=language">Languages</a></li>
-                <li><a href="shared-decks.html?category=certification">Certifications</a></li>
+                <li><a href="shared-decks.html">All Trades</a></li>
+                <li><a href="shared-decks.html?category=electrician">Electricians</a></li>
+                <li><a href="shared-decks.html?category=hvac">HVAC/Refrigeration</a></li>
+                <li><a href="shared-decks.html?category=safety">Safety & OSHA</a></li>
+                <li><a href="shared-decks.html?category=heavy-equipment">Heavy Equipment</a></li>
             </ul>
         </div>
 
@@ -52,7 +52,7 @@ export const footerTemplate = `
     <div class="footer-bottom">
         <div class="footer-bottom-content">
             <p>&copy; 2025 Note2Flash. All rights reserved.</p>
-            <p class="made-with">Made with ❤️ for learners everywhere</p>
+            <p class="made-with">Made with ❤️ for trades professionals</p>
         </div>
     </div>
 </footer>

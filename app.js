@@ -37,6 +37,21 @@ import {
   hideAuthModal,
 } from "./auth-modal.js";
 
+// Import utilities and dependencies
+import {
+  showNotification,
+  autoSaveInterval,
+  startAutoSave,
+  initializeSessionRecovery,
+  saveSession,
+  restoreSession,
+} from "./utils.js";
+
+// Declare global variables
+let currentUser = null;
+let deckManager = null;
+let userDecks = [];
+
 // Initialize Firebase and auth modal
 document.addEventListener("DOMContentLoaded", function () {
   // Initialize the centralized auth modal
@@ -46,16 +61,36 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 $(document).ready(function () {
+  // Load PDF.js worker
+  loadScript(
+    "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"
+  )
+    .then(() => {
+      pdfjsLib.GlobalWorkerOptions.workerSrc =
+        "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+      console.log("PDF.js loaded successfully");
+    })
+    .catch((err) => console.error("Error loading PDF.js:", err));
+
+  // Initialize file handling
+  initializeFileHandling();
+
+  // Initialize other components
+  initializeTabSwitching();
+  initializeSessionRecovery();
+  initializeMobileMenu();
+  initializeUserMenuDropdown();
+
+  // Initialize subscription manager
+  const subscriptionManager = new SubscriptionManager();
+  subscriptionManager.initialize();
+
   // Initialize variables
   let flashcards = [];
   let currentCardIndex = 0;
   let isFlipped = false;
-  let currentUser = null;
-  let userDecks = [];
   let monthlyCardCount = 0;
   let spacedRepetition = new SpacedRepetition();
-  let deckManager = null;
-  let autoSaveInterval = null;
   let lastSavedState = null;
   let isGenerating = false;
   let networkStatus = {
@@ -67,12 +102,12 @@ $(document).ready(function () {
   let lastGenerationTime = null;
   const FREE_TIER_COOLDOWN = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
 
+  // Expose necessary variables to window object for saveSession
+  window.flashcards = flashcards;
+  window.currentCardIndex = currentCardIndex;
+
   // Initialize Google Auth Provider
   const googleProvider = new GoogleAuthProvider();
-
-  // Initialize subscription manager
-  const subscriptionManager = new SubscriptionManager();
-  subscriptionManager.initialize();
 
   // Override isPremium for testing
   subscriptionManager.isPremium = () => true;
@@ -87,31 +122,47 @@ $(document).ready(function () {
 
   // Initialize deck manager when user logs in
   onAuthStateChanged(auth, async (user) => {
+    // Expose currentUser to window object
+    window.currentUser = user;
+    console.log(
+      "Auth state changed, user:",
+      user ? user.email : "not logged in"
+    );
+
+    // Get UI elements
+    const userMenuBtn = document.getElementById("userMenuBtn");
+    const showLoginBtn = document.getElementById("showLoginBtn");
+    const userEmail = document.getElementById("userEmail");
+    const authLoading = document.querySelector(".auth-loading");
+
+    // Hide loading spinner
+    if (authLoading) {
+      authLoading.style.display = "none";
+    }
+
     if (user) {
       currentUser = user;
+
+      // Check email verification
+      if (!user.emailVerified) {
+        showVerificationRequired();
+        await signOut(auth);
+        return;
+      }
+
       deckManager = new DeckManager(user.uid);
 
+      // Initialize KnowledgeHub with the deckManager instance
+      await KnowledgeHub.init(deckManager);
+      console.log("KnowledgeHub.init() completed, calling initialize()...");
+      KnowledgeHub.initialize();
+
       // Update desktop view
-      const userMenu = document.getElementById("userMenu");
-      const showLoginBtn = document.getElementById("showLoginBtn");
-      const userEmail = document.getElementById("userEmail");
-
-      // Update mobile view
-      const mobileUserEmail = document.getElementById("mobileUserEmail");
-      const mobileShowLoginBtn = document.getElementById("mobileShowLoginBtn");
-      const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-
-      if (window.innerWidth > 768) {
-        // Desktop view
-        if (userMenu) userMenu.style.display = "flex";
-        if (showLoginBtn) showLoginBtn.style.display = "none";
-        if (userEmail) userEmail.textContent = user.email;
-      } else {
-        // Mobile view
-        if (mobileUserEmail) mobileUserEmail.textContent = user.email;
-        if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "none";
-        if (mobileLogoutBtn) mobileLogoutBtn.style.display = "block";
+      if (userMenuBtn) {
+        userMenuBtn.style.display = "flex";
+        userEmail.textContent = user.email;
       }
+      if (showLoginBtn) showLoginBtn.style.display = "none";
 
       await loadUserDecks();
       await loadStudyProgress();
@@ -125,32 +176,13 @@ $(document).ready(function () {
       await updateCardTypesForUserTier();
     } else {
       currentUser = null;
+      window.currentUser = null;
       deckManager = null;
 
       // Update desktop view
-      const userMenu = document.getElementById("userMenu");
-      const showLoginBtn = document.getElementById("showLoginBtn");
-      const userEmail = document.getElementById("userEmail");
-
-      // Update mobile view
-      const mobileUserEmail = document.getElementById("mobileUserEmail");
-      const mobileShowLoginBtn = document.getElementById("mobileShowLoginBtn");
-      const mobileLogoutBtn = document.getElementById("mobileLogoutBtn");
-
-      if (window.innerWidth > 768) {
-        // Desktop view
-        if (userMenu) userMenu.style.display = "none";
-        if (showLoginBtn) showLoginBtn.style.display = "block";
-        if (userEmail) userEmail.textContent = "";
-      } else {
-        // Mobile view
-        if (mobileUserEmail) mobileUserEmail.textContent = "";
-        if (mobileShowLoginBtn) mobileShowLoginBtn.style.display = "block";
-        if (mobileLogoutBtn) mobileLogoutBtn.style.display = "none";
-      }
-
-      userDecks = [];
-      updateDeckList();
+      if (userMenuBtn) userMenuBtn.style.display = "none";
+      if (showLoginBtn) showLoginBtn.style.display = "block";
+      if (userEmail) userEmail.textContent = "";
     }
   });
 
@@ -255,7 +287,10 @@ $(document).ready(function () {
 
     try {
       await sendEmailVerification(currentUser);
-      alert("Verification email has been sent. Please check your inbox.");
+      showNotification(
+        "Verification email has been sent. Please check your inbox.",
+        "success"
+      );
     } catch (error) {
       showAuthError(
         AUTH_ERROR_MESSAGES[error.code] || "Error sending verification email.",
@@ -347,8 +382,14 @@ $(document).ready(function () {
         emailVerified: false,
       });
 
+      // Sign out the user since email is not verified
+      await signOut(auth);
+
       hideModal("authModal");
-      alert("Account created! Please check your email to verify your account.");
+      showNotification(
+        "Account created! Please check your email to verify your account.",
+        "success"
+      );
     } catch (error) {
       showAuthError(
         AUTH_ERROR_MESSAGES[error.code] || "An error occurred during signup.",
@@ -404,8 +445,11 @@ $(document).ready(function () {
 
     try {
       await sendPasswordResetEmail(auth, email);
+      showNotification(
+        "Password reset link has been sent to your email.",
+        "success"
+      );
       hideModal("resetPasswordModal");
-      alert("Password reset link has been sent to your email.");
     } catch (error) {
       showAuthError(
         AUTH_ERROR_MESSAGES[error.code] ||
@@ -423,7 +467,7 @@ $(document).ready(function () {
       updateAuthUI();
     } catch (error) {
       console.error("Error signing out:", error);
-      alert("Error signing out. Please try again.");
+      showNotification("Error signing out. Please try again.", "error");
     }
   });
 
@@ -436,7 +480,7 @@ $(document).ready(function () {
       updateDeckList(userDecks);
     } catch (error) {
       console.error("Error loading decks:", error);
-      alert("Failed to load decks: " + error.message);
+      showNotification("Failed to load decks: " + error.message, "error");
     }
   }
 
@@ -498,7 +542,7 @@ $(document).ready(function () {
           showFlashcardViewer(true);
         } catch (error) {
           console.error("Error loading deck:", error);
-          alert("Failed to load deck: " + error.message);
+          showNotification("Failed to load deck: " + error.message, "error");
         } finally {
           showLoading(false);
         }
@@ -516,7 +560,7 @@ $(document).ready(function () {
           await loadUserDecks();
         } catch (error) {
           console.error("Error deleting deck:", error);
-          alert("Failed to delete deck: " + error.message);
+          showNotification("Failed to delete deck: " + error.message, "error");
         } finally {
           showLoading(false);
         }
@@ -531,7 +575,7 @@ $(document).ready(function () {
           exportDeck(deck);
         } catch (error) {
           console.error("Error exporting deck:", error);
-          alert("Failed to export deck: " + error.message);
+          showNotification("Failed to export deck: " + error.message, "error");
         }
       });
     });
@@ -845,7 +889,8 @@ $(document).ready(function () {
 
   // Check URL input on page load in case there's already content
   $(document).ready(function () {
-    const url = $("#urlInput").val().trim();
+    const urlInput = $("#urlInput").val();
+    const url = urlInput ? urlInput.trim() : "";
     const isValidUrl =
       url &&
       (url.startsWith("http://") ||
@@ -1676,7 +1721,7 @@ $(document).ready(function () {
       }
 
       await updateSubscriptionUI();
-      alert("Your subscription has been reactivated!");
+      showNotification("Your subscription has been reactivated!", "success");
     } catch (error) {
       console.error("Error reactivating subscription:", error);
       showSubscriptionError(
@@ -1692,7 +1737,6 @@ $(document).ready(function () {
   async function updateSubscriptionUI() {
     const subscriptionDetails = subscriptionManager.getSubscriptionDetails();
     const $subscriptionStatus = $("#subscriptionStatus");
-    const $pricingOptions = $(".pricing-options");
     const $currentPlan = $("#currentPlan");
     const $nextBillingDate = $("#nextBillingDate");
     const $cancelSubBtn = $("#cancelSubBtn");
@@ -1700,7 +1744,6 @@ $(document).ready(function () {
 
     if (subscriptionDetails.isPremium) {
       $subscriptionStatus.show();
-      $pricingOptions.hide();
 
       // Update plan details
       $currentPlan.text(`Current Plan: ${subscriptionDetails.planName}`);
@@ -1745,7 +1788,6 @@ $(document).ready(function () {
       }
     } else {
       $subscriptionStatus.hide();
-      $pricingOptions.show();
     }
 
     // Update pricing buttons based on current subscription
@@ -2327,72 +2369,19 @@ $(document).ready(function () {
 
   // Add session recovery and auto-save functions
   function initializeSessionRecovery() {
-    // Check for saved session
-    const savedSession = localStorage.getItem("flashcardSession");
+    // Restore previous session if exists
+    const savedSession = localStorage.getItem("studySession");
     if (savedSession) {
       try {
         const session = JSON.parse(savedSession);
-        if (
-          session.timestamp &&
-          Date.now() - session.timestamp < 24 * 60 * 60 * 1000
-        ) {
-          // 24 hours
-          if (confirm("Would you like to restore your last session?")) {
-            restoreSession(session);
-          } else {
-            localStorage.removeItem("flashcardSession");
-          }
-        } else {
-          localStorage.removeItem("flashcardSession");
-        }
+        restoreSession(session);
       } catch (error) {
         console.error("Error restoring session:", error);
-        localStorage.removeItem("flashcardSession");
+        localStorage.removeItem("studySession");
       }
     }
 
-    // Setup auto-save
-    startAutoSave();
-
-    // Setup network monitoring
-    window.addEventListener("online", handleNetworkChange);
-    window.addEventListener("offline", handleNetworkChange);
-  }
-
-  function startAutoSave() {
-    if (autoSaveInterval) {
-      clearInterval(autoSaveInterval);
-    }
-
-    autoSaveInterval = setInterval(() => {
-      if (flashcards.length > 0 && !isGenerating) {
-        saveSession();
-      }
-    }, 30000); // Auto-save every 30 seconds
-  }
-
-  function saveSession() {
-    const session = {
-      flashcards,
-      currentCardIndex,
-      deckName: $("#deckName").val(),
-      timestamp: Date.now(),
-      textInput: $("#textInput").val(),
-    };
-
-    lastSavedState = session;
-    localStorage.setItem("flashcardSession", JSON.stringify(session));
-  }
-
-  function restoreSession(session) {
-    flashcards = session.flashcards;
-    currentCardIndex = session.currentCardIndex;
-    $("#deckName").val(session.deckName);
-    $("#textInput").val(session.textInput);
-
-    updateFlashcard();
-    showFlashcardViewer(true);
-    showSuccessMessage("Session restored successfully");
+    startAutoSave(); // Use the imported startAutoSave from utils.js
   }
 
   function handleNetworkChange() {
@@ -2530,165 +2519,19 @@ $(document).ready(function () {
 
   // Initialize tab switching
   function initializeTabSwitching() {
-    document.querySelectorAll(".input-tabs .tab-btn").forEach((button) => {
-      button.addEventListener("click", () => {
-        const tab = button.dataset.tab;
+    $(".input-tabs .tab-btn").on("click", function () {
+      const tab = $(this).data("tab");
 
-        // Update tab buttons
-        document.querySelectorAll(".input-tabs .tab-btn").forEach((btn) => {
-          btn.classList.remove("active");
-        });
-        button.classList.add("active");
-
-        // Update tab content
-        document.querySelectorAll(".input-tab-content").forEach((content) => {
-          content.classList.remove("active");
-        });
-        document.getElementById(`${tab}Tab`).classList.add("active");
-
-        // Stop camera when switching away from camera tab
-        if (tab !== "camera" && cameraStream) {
-          stopCamera();
-        }
-      });
+      // Switch tabs
+      $(".input-tabs .tab-btn").removeClass("active");
+      $(this).addClass("active");
+      $(".input-tab-content").hide();
+      $(`#${tab}Tab`).show();
     });
   }
 
   // Camera handling functions
-  let cameraStream = null;
-  let capturedImage = null;
-
-  async function initializeCamera() {
-    const cameraPreview = document.getElementById("cameraPreview");
-    const cameraFeed = document.getElementById("cameraFeed");
-    const cameraStatus = document.getElementById("cameraStatus");
-    const captureBtn = document.getElementById("captureBtn");
-    const retakeBtn = document.getElementById("retakeBtn");
-    const processImageBtn = document.getElementById("processImageBtn");
-    const capturedImage = document.getElementById("capturedImage");
-    const cameraContainer = document.getElementById("cameraPreview");
-
-    if (
-      !cameraPreview ||
-      !cameraFeed ||
-      !cameraStatus ||
-      !captureBtn ||
-      !retakeBtn ||
-      !processImageBtn ||
-      !capturedImage
-    ) {
-      console.warn(
-        "Some camera elements are missing. Camera functionality may be limited."
-      );
-      return;
-    }
-
-    // Handle camera button click
-    document
-      .getElementById("cameraBtn")
-      ?.addEventListener("click", async () => {
-        try {
-          // Show camera preview
-          cameraContainer.style.display = "block";
-          document.getElementById("dropzone").style.display = "none";
-
-          // Request camera access
-          cameraStream = await navigator.mediaDevices.getUserMedia({
-            video: { facingMode: "environment" },
-            audio: false,
-          });
-
-          // Set up video stream
-          cameraFeed.srcObject = cameraStream;
-          cameraStatus.textContent = "Camera ready";
-          captureBtn.disabled = false;
-
-          // Wait for video to be ready
-          await new Promise((resolve) => {
-            cameraFeed.onloadedmetadata = resolve;
-          });
-
-          // Start playing the video
-          await cameraFeed.play();
-        } catch (error) {
-          console.error("Error accessing camera:", error);
-          cameraStatus.textContent = "Error accessing camera: " + error.message;
-          showErrorMessage(
-            "Could not access camera. Please ensure camera permissions are granted."
-          );
-        }
-      });
-
-    // Handle capture button
-    captureBtn.addEventListener("click", () => {
-      const canvas = document.getElementById("cameraCanvas");
-      const context = canvas.getContext("2d");
-
-      // Set canvas size to match video
-      canvas.width = cameraFeed.videoWidth;
-      canvas.height = cameraFeed.videoHeight;
-
-      // Draw current video frame to canvas
-      context.drawImage(cameraFeed, 0, 0, canvas.width, canvas.height);
-
-      // Convert canvas to image
-      capturedImage.src = canvas.toDataURL("image/jpeg");
-      document.querySelector(".captured-image").style.display = "block";
-
-      // Update UI
-      captureBtn.style.display = "none";
-      retakeBtn.style.display = "block";
-      processImageBtn.style.display = "block";
-      cameraStatus.textContent = "Image captured";
-    });
-
-    // Handle retake button
-    retakeBtn.addEventListener("click", () => {
-      // Reset UI
-      document.querySelector(".captured-image").style.display = "none";
-      captureBtn.style.display = "block";
-      retakeBtn.style.display = "none";
-      processImageBtn.style.display = "none";
-      cameraStatus.textContent = "Camera ready";
-    });
-
-    // Handle process image button
-    processImageBtn.addEventListener("click", async () => {
-      try {
-        showLoading(true);
-        cameraStatus.textContent = "Processing image...";
-
-        // Convert captured image to blob
-        const response = await fetch(capturedImage.src);
-        const blob = await response.blob();
-
-        // Process the image as a file
-        await validateAndProcessFile(blob);
-
-        // Clean up
-        stopCamera();
-        cameraContainer.style.display = "none";
-        document.getElementById("dropzone").style.display = "flex";
-      } catch (error) {
-        console.error("Error processing image:", error);
-        cameraStatus.textContent = "Error processing image: " + error.message;
-        showErrorMessage("Failed to process image. Please try again.");
-      } finally {
-        showLoading(false);
-      }
-    });
-  }
-
-  function stopCamera() {
-    if (cameraStream) {
-      cameraStream.getTracks().forEach((track) => track.stop());
-      cameraStream = null;
-    }
-    const cameraFeed = document.getElementById("cameraFeed");
-    if (cameraFeed) {
-      cameraFeed.srcObject = null;
-    }
-  }
+  // ... existing code ...
 
   // Initialize everything when document is ready
   $(document).ready(function () {
@@ -2705,7 +2548,7 @@ $(document).ready(function () {
     initializeMobileMenu();
 
     // Initialize camera functionality
-    initializeCamera();
+    // ... existing code ...
 
     // Initialize billing toggle
     function initializeBillingToggle() {
@@ -2830,16 +2673,34 @@ $(document).ready(function () {
 
     // Stop camera when leaving page
     window.addEventListener("beforeunload", () => {
-      stopCamera();
+      // ... existing code ...
     });
+
+    // Add 'Coming Soon' tooltip to Import button and disable it
+    const importBtn = document.getElementById("importDeckBtn");
+    if (importBtn) {
+      importBtn.setAttribute("title", "Import feature coming soon!");
+      importBtn.setAttribute("disabled", "disabled");
+      importBtn.style.cursor = "not-allowed";
+      importBtn.addEventListener("click", function (e) {
+        e.preventDefault();
+        showSuccessMessage("Import feature is coming soon!");
+      });
+    }
   });
 
   // ... existing code ...
 
-  // Add file handling initialization function
+  // Initialize file handling
   function initializeFileHandling() {
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("fileInput");
+    const contentTab = document.getElementById("contentTab");
+
+    // Only initialize if we're on a page with file upload functionality
+    if (!contentTab || !contentTab.classList.contains("active")) {
+      return;
+    }
 
     if (!dropzone || !fileInput) {
       console.warn(
@@ -2875,105 +2736,27 @@ $(document).ready(function () {
     });
   }
 
-  // ... existing code ...
-
-  // Knowledge Hub Initialization
-  function initializeKnowledgeHub() {
-    const categoryTabs = document.querySelectorAll(".category-tab");
-    const searchInput = document.getElementById("deckSearch");
-    const sortSelect = document.getElementById("sortDeck");
-    const levelFilter = document.getElementById("filterLevel");
-    const createDeckBtn = document.getElementById("createDeckBtn");
-    const createDeckModal = document.getElementById("createDeckModal");
-    const createDeckForm = document.getElementById("createDeckForm");
-    const closeModalBtn = createDeckModal.querySelector(".close");
-
-    // Initialize category tabs
-    categoryTabs.forEach((tab) => {
-      tab.addEventListener("click", () => {
-        categoryTabs.forEach((t) => t.classList.remove("active"));
-        tab.classList.add("active");
-        filterDecks();
-      });
-    });
-
-    // Initialize search
-    let searchTimeout;
-    searchInput.addEventListener("input", (e) => {
-      clearTimeout(searchTimeout);
-      searchTimeout = setTimeout(() => {
-        filterDecks();
-      }, 300);
-    });
-
-    // Initialize filters
-    sortSelect.addEventListener("change", filterDecks);
-    levelFilter.addEventListener("change", filterDecks);
-
-    // Initialize create deck modal
-    createDeckBtn.addEventListener("click", () => {
-      createDeckModal.style.display = "block";
-    });
-
-    closeModalBtn.addEventListener("click", () => {
-      createDeckModal.style.display = "none";
-    });
-
-    window.addEventListener("click", (e) => {
-      if (e.target === createDeckModal) {
-        createDeckModal.style.display = "none";
-      }
-    });
-
-    // Handle deck creation
-    createDeckForm.addEventListener("submit", async (e) => {
-      e.preventDefault();
-      const deckName = document.getElementById("newDeckName").value;
-      const category = document.getElementById("deckCategory").value;
-      const level = document.getElementById("deckLevel").value;
-      const description = document.getElementById("deckDescription").value;
-
-      try {
-        const deck = {
-          name: deckName,
-          category,
-          level,
-          description,
-          cards: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          createdBy: currentUser.uid,
-          stats: {
-            views: 0,
-            favorites: 0,
-            downloads: 0,
-          },
-        };
-
-        await deckManager.createDeck(deck);
-        createDeckModal.style.display = "none";
-        createDeckForm.reset();
-        await loadDecks();
-        showNotification("Deck created successfully!", "success");
-      } catch (error) {
-        console.error("Error creating deck:", error);
-        showNotification("Failed to create deck. Please try again.", "error");
-      }
-    });
-
-    // Initial load of decks
-    loadDecks();
-  }
+  // Initialize file handling if content tab is active by default
+  $(document).ready(function () {
+    const contentTab = document.getElementById("contentTab");
+    if (contentTab && contentTab.classList.contains("active")) {
+      initializeFileHandling();
+    }
+  });
 
   // Filter and sort decks
   async function filterDecks() {
     const activeCategory = document.querySelector(".category-tab.active")
-      .dataset.category;
-    const searchQuery = document
-      .getElementById("deckSearch")
-      .value.toLowerCase();
-    const sortBy = document.getElementById("sortDeck").value;
-    const levelFilter = document.getElementById("filterLevel").value;
+      ?.dataset.category;
+    const searchQuery =
+      document.getElementById("deckSearch")?.value.toLowerCase() || "";
+    const sortBy = document.getElementById("sortDeck")?.value || "recent";
+    const levelFilter = document.getElementById("filterLevel")?.value || "all";
+
+    if (!activeCategory) {
+      console.warn("No active category found");
+      return;
+    }
 
     try {
       let decks = await deckManager.getDecks();
@@ -3017,8 +2800,18 @@ $(document).ready(function () {
   }
 
   // Display decks in the grid
-  function displayDecks(decks) {
+  function displayDecks(decks, isLoading = false) {
     const deckGrid = document.getElementById("savedDecks");
+    if (!deckGrid) {
+      console.warn("Deck grid element not found");
+      return;
+    }
+
+    if (isLoading) {
+      showDecksLoadingPlaceholder();
+      return;
+    }
+
     deckGrid.innerHTML = "";
 
     if (decks.length === 0) {
@@ -3026,7 +2819,7 @@ $(document).ready(function () {
         <div class="no-decks-message">
           <i class="fas fa-search"></i>
           <p>No decks found matching your criteria</p>
-          <button class="btn btn-primary" onclick="document.getElementById('createDeckBtn').click()">
+          <button class="btn btn-primary" onclick="document.getElementById('createDeckBtn')?.click()">
             Create Your First Deck
           </button>
         </div>
@@ -3049,13 +2842,13 @@ $(document).ready(function () {
         }</p>
         <div class="deck-card-stats">
           <span class="deck-card-stat">
-            <i class="fas fa-eye"></i> ${deck.stats.views || 0} views
+            <i class="fas fa-eye"></i> ${deck.stats?.views || 0} views
           </span>
           <span class="deck-card-stat">
-            <i class="fas fa-heart"></i> ${deck.stats.favorites || 0} favorites
+            <i class="fas fa-heart"></i> ${deck.stats?.favorites || 0} favorites
           </span>
           <span class="deck-card-stat">
-            <i class="fas fa-cards"></i> ${deck.cards.length} cards
+            <i class="fas fa-cards"></i> ${deck.cards?.length || 0} cards
           </span>
         </div>
         <div class="deck-card-actions">
@@ -3066,46 +2859,33 @@ $(document).ready(function () {
             <i class="fas fa-edit"></i> Edit
           </button>
         </div>
-        <span class="deck-card-level ${deck.level}">${deck.level}</span>
+        <span class="deck-card-level ${deck.level || "beginner"}">${
+        deck.level || "beginner"
+      }</span>
       `;
       deckGrid.appendChild(deckCard);
     });
   }
 
-  // Open a deck for studying
-  async function openDeck(deckId) {
-    try {
-      const deck = await deckManager.getDeck(deckId);
-      if (!deck) {
-        throw new Error("Deck not found");
-      }
-
-      // Update deck stats
-      deck.stats.views = (deck.stats.views || 0) + 1;
-      await deckManager.updateDeck(deckId, { stats: deck.stats });
-
-      // Navigate to study page
-      window.location.href = `study.html?deck=${deckId}`;
-    } catch (error) {
-      console.error("Error opening deck:", error);
-      showNotification("Failed to open deck. Please try again.", "error");
-    }
+  // Global functions for deck actions (accessible from displayDecks)
+  function openDeck(deckId) {
+    console.log("Opening shared deck:", deckId);
+    showNotification(
+      "Shared deck study feature coming soon! Deck ID: " + deckId,
+      "info"
+    );
   }
 
-  // Edit a deck
-  async function editDeck(deckId) {
-    try {
-      const deck = await deckManager.getDeck(deckId);
-      if (!deck) {
-        throw new Error("Deck not found");
-      }
-
-      // Navigate to edit page
-      window.location.href = `edit.html?deck=${deckId}`;
-    } catch (error) {
-      console.error("Error editing deck:", error);
-      showNotification("Failed to edit deck. Please try again.", "error");
+  function editDeck(deckId) {
+    if (!window.currentUser) {
+      showNotification("Please log in to edit decks.", "warning");
+      return;
     }
+    console.log("Editing deck:", deckId);
+    showNotification(
+      "Deck editing feature coming soon! Deck ID: " + deckId,
+      "info"
+    );
   }
 
   // Initialize Knowledge Hub when document is ready
@@ -3660,4 +3440,388 @@ $(document).ready(function () {
     console.log("Image data:", imageData);
     console.log("Options:", options);
   }
+
+  // showDecksLoadingPlaceholder function moved to KnowledgeHub module
 });
+
+// Knowledge Hub Module
+const KnowledgeHub = {
+  deckManager: null,
+
+  async init(deckManagerInstance) {
+    this.deckManager = deckManagerInstance;
+    return this;
+  },
+
+  // Show loading placeholder for decks
+  showDecksLoadingPlaceholder() {
+    const deckGrid = document.getElementById("savedDecks");
+    if (!deckGrid) {
+      console.warn("Deck grid element not found");
+      return;
+    }
+
+    // Create 6 skeleton cards for loading state
+    const skeletonCards = Array(6)
+      .fill()
+      .map(
+        () => `
+      <div class="deck-card loading-placeholder">
+        <div class="skeleton-title"></div>
+        <div class="skeleton-category"></div>
+        <div class="skeleton-description"></div>
+        <div class="deck-card-stats">
+          <div class="skeleton-stat"></div>
+          <div class="skeleton-stat"></div>
+          <div class="skeleton-stat"></div>
+        </div>
+        <div class="deck-card-actions">
+          <div class="skeleton-button"></div>
+          <div class="skeleton-button"></div>
+        </div>
+      </div>
+    `
+      )
+      .join("");
+
+    deckGrid.innerHTML = skeletonCards;
+  },
+
+  // Display decks in the grid
+  displayDecks(decks, isLoading = false) {
+    const deckGrid = document.getElementById("savedDecks");
+    if (!deckGrid) {
+      console.warn("Deck grid element not found");
+      return;
+    }
+
+    if (isLoading) {
+      this.showDecksLoadingPlaceholder();
+      return;
+    }
+
+    deckGrid.innerHTML = "";
+
+    if (decks.length === 0) {
+      deckGrid.innerHTML = `
+        <div class="no-decks-message">
+          <i class="fas fa-search"></i>
+          <p>No decks found matching your criteria</p>
+          <button class="btn btn-primary" onclick="document.getElementById('createDeckBtn')?.click()">
+            Create Your First Deck
+          </button>
+        </div>
+      `;
+      return;
+    }
+
+    decks.forEach((deck) => {
+      const deckCard = document.createElement("div");
+      deckCard.className = "deck-card";
+      deckCard.innerHTML = `
+        <div class="deck-card-header">
+          <h3 class="deck-card-title">${deck.name}</h3>
+          <span class="deck-card-category ${deck.category}">${
+        deck.category
+      }</span>
+        </div>
+        <p class="deck-card-description">${
+          deck.description || "No description provided"
+        }</p>
+        <div class="deck-card-stats">
+          <span class="deck-card-stat">
+            <i class="fas fa-eye"></i> ${deck.stats?.views || 0} views
+          </span>
+          <span class="deck-card-stat">
+            <i class="fas fa-heart"></i> ${deck.stats?.favorites || 0} favorites
+          </span>
+          <span class="deck-card-stat">
+            <i class="fas fa-cards"></i> ${deck.cards?.length || 0} cards
+          </span>
+        </div>
+        <div class="deck-card-actions">
+          <button class="btn btn-primary" onclick="KnowledgeHub.openDeck('${
+            deck.id
+          }')">
+            <i class="fas fa-play"></i> Study
+          </button>
+          <button class="btn btn-secondary" onclick="KnowledgeHub.editDeck('${
+            deck.id
+          }')">
+            <i class="fas fa-edit"></i> Edit
+          </button>
+        </div>
+        <span class="deck-card-level ${deck.level || "beginner"}">${
+        deck.level || "beginner"
+      }</span>
+      `;
+      deckGrid.appendChild(deckCard);
+    });
+  },
+
+  // Filter and sort decks
+  async filterDecks() {
+    console.log("KnowledgeHub.filterDecks() called");
+
+    const activeCategory = document.querySelector(".category-tab.active")
+      ?.dataset.category;
+    const searchQuery =
+      document.getElementById("deckSearch")?.value.toLowerCase() || "";
+    const sortBy = document.getElementById("sortDeck")?.value || "recent";
+    const levelFilter = document.getElementById("filterLevel")?.value || "all";
+
+    if (!activeCategory) {
+      console.warn("No active category found");
+      return;
+    }
+
+    // Show loading state
+    this.displayDecks([], true);
+
+    try {
+      let decks = await getSharedDecks();
+      console.log("Fetched shared decks from Firestore:", decks);
+      console.log("Active category:", activeCategory);
+
+      // Apply filters
+      decks = decks.filter((deck) => {
+        const matchesCategory =
+          activeCategory === "all" || deck.category === activeCategory;
+        const matchesSearch =
+          deck.name?.toLowerCase().includes(searchQuery) ||
+          deck.description?.toLowerCase().includes(searchQuery);
+        const matchesLevel =
+          levelFilter === "all" || deck.level === levelFilter;
+        return matchesCategory && matchesSearch && matchesLevel;
+      });
+      console.log("Filtered decks to display:", decks);
+
+      // Apply sorting
+      decks.sort((a, b) => {
+        switch (sortBy) {
+          case "recent":
+            return new Date(b.updatedAt) - new Date(a.updatedAt);
+          case "popular":
+            return b.stats.views - a.stats.views;
+          case "cards":
+            return b.cards.length - a.cards.length;
+          case "rating":
+            return (
+              b.stats.favorites / (b.stats.views || 1) -
+              a.stats.favorites / (a.stats.views || 1)
+            );
+          default:
+            return 0;
+        }
+      });
+
+      // Display decks with loading state false
+      this.displayDecks(decks, false);
+    } catch (error) {
+      console.error("Error filtering decks:", error);
+      showNotification("Failed to load decks. Please try again.", "error");
+      // Show empty state on error
+      this.displayDecks([], false);
+    }
+  },
+
+  // Deck actions
+  openDeck(deckId) {
+    console.log("Opening shared deck:", deckId);
+    showNotification(
+      "Shared deck study feature coming soon! Deck ID: " + deckId,
+      "info"
+    );
+  },
+
+  editDeck(deckId) {
+    if (!window.currentUser) {
+      showNotification("Please log in to edit decks.", "warning");
+      return;
+    }
+    console.log("Editing deck:", deckId);
+    showNotification(
+      "Deck editing feature coming soon! Deck ID: " + deckId,
+      "info"
+    );
+  },
+
+  // Initialize Knowledge Hub
+  initialize() {
+    console.log("KnowledgeHub.initialize() called");
+    if (!this.deckManager) {
+      console.log(
+        "No DeckManager (user not logged in) - shared decks only mode"
+      );
+    }
+
+    const categoryTabs = document.querySelectorAll(".category-tab");
+    const searchInput = document.getElementById("deckSearch");
+    const sortSelect = document.getElementById("sortDeck");
+    const levelFilter = document.getElementById("filterLevel");
+    console.log("Elements found:", {
+      categoryTabs: categoryTabs.length,
+      searchInput: !!searchInput,
+      sortSelect: !!sortSelect,
+      levelFilter: !!levelFilter,
+    });
+
+    if (!categoryTabs.length) {
+      console.warn(
+        "Knowledge Hub elements not found. Make sure you're on the correct page."
+      );
+      return;
+    }
+
+    // Initialize category tabs
+    categoryTabs.forEach((tab) => {
+      tab.addEventListener("click", () => {
+        categoryTabs.forEach((t) => t.classList.remove("active"));
+        tab.classList.add("active");
+        this.filterDecks();
+      });
+    });
+
+    // Initialize search
+    let searchTimeout;
+    if (searchInput) {
+      searchInput.addEventListener("input", (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+          this.filterDecks();
+        }, 300);
+      });
+    }
+
+    // Initialize filters
+    if (sortSelect) {
+      sortSelect.addEventListener("change", () => this.filterDecks());
+    }
+    if (levelFilter) {
+      levelFilter.addEventListener("change", () => this.filterDecks());
+    }
+
+    // Only initialize deck creation features if user is logged in
+    if (this.deckManager) {
+      const createDeckBtn = document.getElementById("createDeckBtn");
+      const createDeckModal = document.getElementById("createDeckModal");
+      const createDeckForm = document.getElementById("createDeckForm");
+      const closeModalBtn = createDeckModal?.querySelector(".close");
+
+      // Initialize create deck modal
+      if (createDeckBtn && createDeckModal) {
+        createDeckBtn.addEventListener("click", () => {
+          createDeckModal.style.display = "block";
+        });
+
+        if (closeModalBtn) {
+          closeModalBtn.addEventListener("click", () => {
+            createDeckModal.style.display = "none";
+          });
+        }
+
+        window.addEventListener("click", (e) => {
+          if (e.target === createDeckModal) {
+            createDeckModal.style.display = "none";
+          }
+        });
+
+        // Handle deck creation
+        if (createDeckForm) {
+          createDeckForm.addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const deckName = document.getElementById("newDeckName").value;
+            const category = document.getElementById("deckCategory").value;
+            const level = document.getElementById("deckLevel").value;
+            const description =
+              document.getElementById("deckDescription").value;
+
+            try {
+              const deck = {
+                name: deckName,
+                category,
+                level,
+                description,
+                cards: [],
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                createdBy: currentUser.uid,
+                stats: {
+                  views: 0,
+                  favorites: 0,
+                  downloads: 0,
+                },
+              };
+
+              await this.deckManager.createDeck(deck);
+              createDeckModal.style.display = "none";
+              createDeckForm.reset();
+              await this.filterDecks();
+              showNotification("Deck created successfully!", "success");
+            } catch (error) {
+              console.error("Error creating deck:", error);
+              showNotification(
+                "Failed to create deck. Please try again.",
+                "error"
+              );
+            }
+          });
+        }
+      }
+    } else {
+      // Hide create deck button for non-logged-in users
+      const createDeckBtn = document.getElementById("createDeckBtn");
+      if (createDeckBtn) {
+        createDeckBtn.style.display = "none";
+      }
+    }
+
+    // Initial load of decks
+    console.log("Calling initial filterDecks()...");
+    this.filterDecks();
+  },
+};
+
+// Minimal function to fetch shared decks
+async function getSharedDecks() {
+  const sharedDecksRef = collection(db, "sharedDecks");
+  const snapshot = await getDocs(sharedDecksRef);
+  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+}
+
+function initializeUserMenuDropdown() {
+  const userMenuBtn = document.getElementById("userMenuBtn");
+  const dropdownContent = document.querySelector(".dropdown-content");
+
+  if (userMenuBtn && dropdownContent) {
+    // Toggle dropdown on button click
+    userMenuBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      userMenuBtn.classList.toggle("active");
+      dropdownContent.classList.toggle("show");
+    });
+
+    // Close dropdown when clicking outside
+    document.addEventListener("click", (e) => {
+      if (!userMenuBtn.contains(e.target)) {
+        userMenuBtn.classList.remove("active");
+        dropdownContent.classList.remove("show");
+      }
+    });
+
+    // Handle logout button click
+    const logoutBtn = document.getElementById("logoutBtn");
+    if (logoutBtn) {
+      logoutBtn.addEventListener("click", async () => {
+        try {
+          await signOut(auth);
+          showNotification("Logged out successfully", "success");
+          window.location.href = "/";
+        } catch (error) {
+          console.error("Error signing out:", error);
+          showNotification("Error signing out. Please try again.", "error");
+        }
+      });
+    }
+  }
+}

@@ -16,6 +16,10 @@ export class DeckManager {
 
   async loadDecks() {
     try {
+      if (!this.userId) {
+        throw new Error("User not authenticated");
+      }
+
       const snapshot = await getDocs(this.decksCollection);
       return snapshot.docs.map((doc) => ({
         id: doc.id,
@@ -23,7 +27,13 @@ export class DeckManager {
       }));
     } catch (error) {
       console.error("Error loading decks:", error);
-      throw new Error("Failed to load decks");
+      if (error.code === "permission-denied") {
+        throw new Error("Please verify your email to access decks");
+      } else if (error.code === "unauthenticated") {
+        throw new Error("Please log in to access your decks");
+      } else {
+        throw new Error("Failed to load decks: " + error.message);
+      }
     }
   }
 

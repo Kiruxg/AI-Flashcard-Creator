@@ -162,6 +162,22 @@ export class SpacedRepetitionConfig {
 
     this.currentConfig = { ...this.presets.standard };
     this.userCustomizations = {};
+
+    // Domain configurations
+    this.domainConfigs = {
+      technical: {
+        name: "Technical Studies",
+        description: "Optimized for technical concepts and code",
+        // ... rest of technical config
+      },
+      // ... other non-legal domains
+    };
+
+    // Domain mappings
+    this.domainMappings = {
+      "technical-studies": "technical",
+      // ... other non-legal mappings
+    };
   }
 
   // Apply a preset configuration

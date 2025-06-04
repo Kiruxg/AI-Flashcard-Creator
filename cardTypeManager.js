@@ -2,43 +2,47 @@
 export class CardTypeManager {
   constructor() {
     this.cardTypes = {
-      term: {
-        name: "Term & Definition",
-        validate: (card) => this.validateTermCard(card),
-        render: (card, container) => this.renderTermCard(card, container),
-        generatePrompt: (content) => this.generateTermPrompt(content),
-      },
-      qa: {
-        name: "Question & Answer",
-        validate: (card) => this.validateQACard(card),
-        render: (card, container) => this.renderQACard(card, container),
-        generatePrompt: (content) => this.generateQAPrompt(content),
+      basic: {
+        name: "Basic",
+        description: "Simple front and back flashcards",
+        tiers: ["free", "premium"],
+        maxCards: {
+          free: 10,
+          premium: 100,
+        },
       },
       cloze: {
-        name: "Cloze",
-        validate: (card) => this.validateClozeCard(card),
-        render: (card, container) => this.renderClozeCard(card, container),
-        generatePrompt: (content) => this.generateClozePrompt(content),
+        name: "Cloze Deletion",
+        description: "Fill-in-the-blank style cards",
+        tiers: ["free", "premium"],
+        maxCards: {
+          free: 5,
+          premium: 50,
+        },
       },
-      "image-occlusion": {
-        name: "Image Occlusion",
-        validate: (card) => this.validateImageOcclusionCard(card),
-        render: (card, container) =>
-          this.renderImageOcclusionCard(card, container),
-        generatePrompt: (content) => this.generateImageOcclusionPrompt(content),
-      },
-      "multiple-choice": {
+      multipleChoice: {
         name: "Multiple Choice",
-        validate: (card) => this.validateMultipleChoiceCard(card),
-        render: (card, container) =>
-          this.renderMultipleChoiceCard(card, container),
-        generatePrompt: (content) => this.generateMultipleChoicePrompt(content),
+        description: "Question with multiple answer choices",
+        tiers: ["premium"],
+        maxCards: {
+          premium: 50,
+        },
       },
-      contextual: {
-        name: "Contextual/Scenario-based",
-        validate: (card) => this.validateContextualCard(card),
-        render: (card, container) => this.renderContextualCard(card, container),
-        generatePrompt: (content) => this.generateContextualPrompt(content),
+      imageOcclusion: {
+        name: "Image Occlusion",
+        description: "Hide parts of an image to test recall",
+        tiers: ["premium"],
+        maxCards: {
+          premium: 30,
+        },
+      },
+      conceptMap: {
+        name: "Concept Map",
+        description: "Visual representation of relationships between concepts",
+        tiers: ["premium"],
+        maxCards: {
+          premium: 20,
+        },
       },
     };
   }
@@ -371,54 +375,56 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
 
   // Add new methods for tier-based restrictions
   getAvailableCardTypes(userTier) {
-    switch (userTier) {
-      case "free":
-        return ["term"];
-      case "premium":
-        return [
-          "term",
-          "qa",
-          "cloze",
-          "image-occlusion",
-          "multiple-choice",
-          "contextual",
-        ];
-      default:
-        return ["term"]; // Default to free tier
-    }
+    return Object.entries(this.cardTypes)
+      .filter(([_, type]) => type.tiers.includes(userTier))
+      .map(([key, type]) => ({
+        id: key,
+        ...type,
+      }));
   }
 
   isCardTypeAvailable(cardType, userTier) {
-    const availableTypes = this.getAvailableCardTypes(userTier);
-    return availableTypes.includes(cardType);
+    return this.cardTypes[cardType]?.tiers.includes(userTier) || false;
+  }
+
+  getMaxCards(cardType, userTier) {
+    return this.cardTypes[cardType]?.maxCards[userTier] || 0;
   }
 
   updateCardTypeSelectors(userTier) {
     const availableTypes = this.getAvailableCardTypes(userTier);
+    const selectors = document.querySelectorAll('select[id$="CardType"]');
 
-    // Define selectors and their allowed types
-    const selectorsConfig = {
-      "#cardType": ["term", "qa", "cloze", "multiple-choice", "contextual"], // AI text input - no image occlusion
-      "#uploadCardType": availableTypes, // Content upload - all types including image occlusion
-      "#urlCardType": ["term", "qa", "cloze", "multiple-choice", "contextual"], // URL input - no image occlusion
-    };
+    selectors.forEach((select) => {
+      // Store current value
+      const currentValue = select.value;
 
-    Object.entries(selectorsConfig).forEach(([selector, allowedTypes]) => {
-      const select = document.querySelector(selector);
-      if (!select) return;
+      // Clear existing options
+      select.innerHTML = '<option value="">Select card type...</option>';
 
-      // Store all options
-      const options = Array.from(select.options);
-
-      // Remove all options
-      select.innerHTML = "";
-
-      // Add back only allowed options
-      options.forEach((option) => {
-        if (allowedTypes.includes(option.value)) {
-          select.appendChild(option.cloneNode(true));
-        }
+      // Add available options
+      availableTypes.forEach((type) => {
+        const option = document.createElement("option");
+        option.value = type.id;
+        option.textContent = type.name;
+        option.title = type.description;
+        select.appendChild(option);
       });
+
+      // Restore previous value if still available
+      if (currentValue && this.isCardTypeAvailable(currentValue, userTier)) {
+        select.value = currentValue;
+      }
+
+      // Add premium indicators
+      if (userTier === "free") {
+        select.querySelectorAll("option").forEach((option) => {
+          if (option.value && !this.isCardTypeAvailable(option.value, "free")) {
+            option.textContent += " (Premium)";
+            option.disabled = true;
+          }
+        });
+      }
     });
   }
 }

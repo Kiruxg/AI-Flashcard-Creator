@@ -38,15 +38,34 @@
 
         <div class="category-tabs">
           <button class="category-tab active" data-category="all">
-            All Decks
+            📂 All Trades
           </button>
-          <button class="category-tab" data-category="medical">Medical</button>
-          <button class="category-tab" data-category="law">Law</button>
-          <button class="category-tab" data-category="language">
-            Languages
+          <button class="category-tab" data-category="electrician">
+            🔌 Electricians
           </button>
-          <button class="category-tab" data-category="certification">
-            Certifications
+          <button class="category-tab" data-category="plumber">
+            🚿 Plumbers / Pipefitters
+          </button>
+          <button class="category-tab" data-category="hvac">
+            ❄️ HVAC / Refrigeration
+          </button>
+          <button class="category-tab" data-category="welder">
+            🔥 Welders
+          </button>
+          <button class="category-tab" data-category="carpenter">
+            🔨 Carpenters
+          </button>
+          <button class="category-tab" data-category="heavy-equipment">
+            🚜 Heavy Equipment
+          </button>
+          <button class="category-tab" data-category="sprinkler">
+            🚒 Sprinkler Fitters
+          </button>
+          <button class="category-tab" data-category="sheet-metal">
+            🛠️ Sheet Metal
+          </button>
+          <button class="category-tab" data-category="safety">
+            🧰 Safety & OSHA
           </button>
         </div>
 
@@ -64,7 +83,7 @@
             <button id="createDeckBtn" class="btn btn-primary">
               <i class="fas fa-plus"></i> Create Deck
             </button>
-            <button id="importDeckBtn" class="btn btn-secondary">
+            <button id="importDeckBtn" class="btn btn-secondary" disabled>
               <i class="fas fa-file-import"></i> Import
             </button>
           </div>
@@ -107,10 +126,16 @@
               <div class="form-group">
                 <label for="deckCategory">Category</label>
                 <select id="deckCategory" required>
-                  <option value="medical">Medical</option>
-                  <option value="law">Law</option>
-                  <option value="language">Language</option>
-                  <option value="certification">Certification</option>
+                  <option value="all">All Trades</option>
+                  <option value="electrician">Electricians</option>
+                  <option value="plumber">Plumbers / Pipefitters</option>
+                  <option value="hvac">HVAC / Refrigeration</option>
+                  <option value="welder">Welders</option>
+                  <option value="carpenter">Carpenters</option>
+                  <option value="heavy-equipment">Heavy Equipment</option>
+                  <option value="sprinkler">Sprinkler Fitters</option>
+                  <option value="sheet-metal">Sheet Metal</option>
+                  <option value="safety">Safety & OSHA</option>
                 </select>
               </div>
               <div class="form-group">

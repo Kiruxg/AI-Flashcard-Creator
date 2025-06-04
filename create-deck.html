@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Create Flashcards | Note2Flash</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="icon" href="favicon.ico" />
+    <script
+      src="https://kit.fontawesome.com/2b8e1e6e13.js"
+      crossorigin="anonymous"
+    ></script>
+    <style>
+      body.create-deck-bg {
+        background: linear-gradient(
+          135deg,
+          var(--primary-50) 0%,
+          var(--primary-100) 100%
+        );
+        min-height: 100vh;
+        position: relative;
+      }
+      body.create-deck-bg::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: radial-gradient(
+          circle at 50% 50%,
+          rgba(59, 130, 246, 0.07) 0%,
+          transparent 70%
+        );
+        pointer-events: none;
+        z-index: 0;
+      }
+      main.container {
+        position: relative;
+        z-index: 1;
+      }
+    </style>
+  </head>
+  <body class="create-deck-bg">
+    <!-- Navigation will be loaded here -->
+    <div id="nav-placeholder"></div>
+
+    <main class="container">
+      <!-- Input Section (copied from index.html) -->
+      <div id="input-section">
+        <div class="card">
+          <h2>Create Flashcards</h2>
+          <div class="input-tabs">
+            <button class="tab-btn active" data-tab="text">Text Input</button>
+            <button class="tab-btn" data-tab="content">Content Upload</button>
+            <button class="tab-btn" data-tab="url">Web Content</button>
+          </div>
+
+          <!-- Tab Content -->
+          <div class="input-tab-content active" id="textTab">
+            <div class="text-input-container">
+              <textarea
+                id="textInput"
+                class="text-area-input"
+                placeholder="Enter or paste your text here... 
+Examples:
+- Class notes
+- Important concepts
+- Step-by-step procedures
+- Technical specifications"
+                rows="10"
+              ></textarea>
+
+              <div class="generation-options">
+                <select id="textCardType" class="select-input">
+                  <option value="term">Term & Definition</option>
+                  <option value="qa">Question & Answer</option>
+                  <option value="cloze">Cloze</option>
+                  <option value="multiple-choice">Multiple Choice</option>
+                  <option value="contextual">Contextual/Scenario-based</option>
+                </select>
+                <select id="textCardCount" class="select-input">
+                  <option value="5">5 cards</option>
+                  <option value="10">10 cards</option>
+                  <option value="15" class="premium-option">15 cards</option>
+                  <option value="20" class="premium-option">20 cards</option>
+                </select>
+              </div>
+
+              <button
+                type="submit"
+                class="btn btn-primary"
+                id="generateFromTextBtn"
+              >
+                <i class="fas fa-magic"></i> Generate Flashcards
+              </button>
+            </div>
+          </div>
+
+          <!-- Content Upload Tab -->
+          <div class="input-tab-content" id="contentTab">
+            <div class="dropzone" id="dropzone">
+              <i class="fas fa-cloud-upload-alt upload-icon"></i>
+              <p>Drag & drop files here or click to upload</p>
+              <p class="file-types">
+                Supported files: PDF, DOCX, TXT, JPG, PNG
+              </p>
+              <input
+                type="file"
+                id="fileInput"
+                accept=".pdf,.docx,.txt,.jpg,.jpeg,.png"
+                style="display: none"
+              />
+            </div>
+
+            <!-- Card Type Selection -->
+            <div id="cardTypeSelection" style="display: none">
+              <select id="uploadCardType" class="select-input">
+                <option value="">Select Card Type</option>
+                <option value="basic">Basic</option>
+                <option value="cloze">Cloze</option>
+                <option value="qa">Question & Answer</option>
+              </select>
+              <select id="uploadCardCount" class="select-input">
+                <option value="5">5 cards</option>
+                <option value="10">10 cards</option>
+                <option value="15">15 cards (Premium)</option>
+                <option value="20">20 cards (Premium)</option>
+              </select>
+              <button id="generateCardsBtn" class="btn btn-primary">
+                Generate Cards
+              </button>
+            </div>
+          </div>
+
+          <!-- Web Content Tab -->
+          <div class="input-tab-content" id="urlTab">
+            <form id="urlForm">
+              <div class="url-input-container">
+                <div class="url-input-wrapper">
+                  <input
+                    type="url"
+                    id="urlInput"
+                    placeholder="https://example.com/article or 10.1234/example.doi"
+                    class="url-input"
+                  />
+                </div>
+                <div id="urlPreview" class="url-preview" style="display: none">
+                  <div class="preview-header">
+                    <h3 id="previewTitle">Content Preview</h3>
+                    <div class="preview-actions">
+                      <button
+                        type="button"
+                        id="editContentBtn"
+                        class="btn btn-secondary"
+                      >
+                        <i class="fas fa-edit"></i> Edit
+                      </button>
+                      <button
+                        type="button"
+                        id="regenerateBtn"
+                        class="btn btn-secondary"
+                      >
+                        <i class="fas fa-sync"></i> Regenerate
+                      </button>
+                    </div>
+                  </div>
+                  <div id="previewContent" class="preview-content"></div>
+                </div>
+                <div class="generation-options">
+                  <select id="urlCardType" class="select-input">
+                    <option value="term">Term & Definition</option>
+                    <option value="qa">Question & Answer</option>
+                    <option value="cloze">Cloze</option>
+                    <option value="image-occlusion">Image Occlusion</option>
+                    <option value="multiple-choice">Multiple Choice</option>
+                    <option value="contextual">
+                      Contextual/Scenario-based
+                    </option>
+                  </select>
+                  <select id="urlCardCount" class="select-input">
+                    <option value="5">5 cards</option>
+                    <option value="10">10 cards</option>
+                    <option value="15" class="premium-option">15 cards</option>
+                    <option value="20" class="premium-option">20 cards</option>
+                    <option value="25" class="premium-option">25 cards</option>
+                    <option value="30" class="premium-option">30 cards</option>
+                    <option value="35" class="premium-option">35 cards</option>
+                    <option value="40" class="premium-option">40 cards</option>
+                    <option value="45" class="premium-option">45 cards</option>
+                    <option value="50" class="premium-option">50 cards</option>
+                  </select>
+                </div>
+                <button
+                  type="submit"
+                  class="btn btn-primary"
+                  id="generateFromUrlBtn"
+                  disabled
+                >
+                  <i class="fas fa-magic"></i> Generate Flashcards
+                </button>
+              </div>
+              <p class="url-help">
+                Supports academic papers (DOI), Wikipedia articles, blog posts,
+                YouTube links, and more.
+                <br /><small
+                  ><strong>Note:</strong> YouTube transcript extraction requires
+                  manual setup. For YouTube videos, try copying the
+                  auto-generated transcript (CC → More → Transcript) or upload a
+                  text file instead.</small
+                >
+              </p>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <!-- Flashcard Viewer Grid (copied from index.html) -->
+      <div class="grid">
+        <div class="upload-section">
+          <div class="card">
+            <h2>Flashcard Viewer</h2>
+            <div
+              id="loadingIndicator"
+              class="loading-overlay"
+              style="display: none"
+            >
+              <div class="loading-content">
+                <div class="spinner"></div>
+                <div class="loading-message">
+                  <h3>Generating Flashcards</h3>
+                  <p class="loading-subtitle">This may take a few moments...</p>
+                </div>
+              </div>
+            </div>
+            <div id="flashcardContainer" class="flashcard-container">
+              <div id="emptyState" class="empty-state">
+                <div class="icon">📝</div>
+                <p>Upload a file or enter text to generate flashcards</p>
+                <button
+                  id="studyNowBtn"
+                  class="btn btn-primary"
+                  style="display: none"
+                >
+                  <i class="fas fa-play"></i> Study Now
+                  <span class="due-count"></span>
+                </button>
+              </div>
+              <div
+                id="flashcardViewer"
+                class="flashcard-viewer"
+                style="display: none"
+              >
+                <div class="progress-container">
+                  <div class="progress-bar">
+                    <div id="progressBar" class="progress"></div>
+                  </div>
+                  <span id="progressText">0/0 cards reviewed</span>
+                </div>
+                <div id="flashcard" class="flashcard">
+                  <div class="card-front">
+                    <p id="frontText"></p>
+                  </div>
+                  <div class="card-back">
+                    <p id="backText"></p>
+                  </div>
+                </div>
+                <div class="card-controls">
+                  <div class="navigation-buttons">
+                    <button id="prevCardBtn" class="btn btn-secondary">
+                      <i class="fas fa-chevron-left"></i>
+                    </button>
+                    <button id="shuffleBtn" class="btn btn-secondary">
+                      <i class="fas fa-random"></i>
+                    </button>
+                    <button id="nextCardBtn" class="btn btn-secondary">
+                      <i class="fas fa-chevron-right"></i>
+                    </button>
+                  </div>
+                  <button id="showAnswerBtn" class="btn btn-primary">
+                    <i class="fas fa-eye"></i> Show Answer
+                  </button>
+
+                  <div class="performance-buttons">
+                    <button class="btn btn-danger" data-performance="1">
+                      <i class="fas fa-times"></i> Unfamiliar
+                    </button>
+                    <button class="btn btn-success" data-performance="5">
+                      <i class="fas fa-star"></i> I know it!
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer with grid background -->
+    <footer class="footer">
+      <div class="footer-content">
+        <div class="footer-section company-info">
+          <div class="footer-logo">
+            <img
+              src="Note2Flash.png"
+              alt="Note2Flash"
+              class="footer-logo-img"
+            />
+            <h3>Note2Flash</h3>
+          </div>
+          <div class="company-description">
+            Transform your notes into smart, AI-powered flashcards. Study
+            faster, remember longer.
+          </div>
+          <div class="contact-info">
+            <p>
+              <strong>Email:</strong>
+              <a href="mailto:support@note2flash.com">support@note2flash.com</a>
+            </p>
+          </div>
+        </div>
+        <div class="footer-section">
+          <h4>Product</h4>
+          <ul class="footer-links">
+            <li><a href="/create-deck.html">Create Flashcards</a></li>
+            <li><a href="/shared-decks.html">Shared Decks</a></li>
+            <li><a href="/progress.html">Study Progress</a></li>
+            <li><a href="/pricing.html">Pricing</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Resources</h4>
+          <ul class="footer-links">
+            <li><a href="/faq.html">FAQ</a></li>
+            <li><a href="/about.html">About</a></li>
+            <li><a href="/contact.html">Contact</a></li>
+          </ul>
+        </div>
+        <div class="footer-section">
+          <h4>Legal</h4>
+          <ul class="footer-links">
+            <li><a href="/terms.html">Terms of Service</a></li>
+            <li><a href="/privacy.html">Privacy Policy</a></li>
+          </ul>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <div class="footer-bottom-content">
+          <p>&copy; 2024 Note2Flash. All rights reserved.</p>
+          <span class="made-with"
+            >Made with <span style="color: #e25555">&#10084;</span> for
+            learners.</span
+          >
+        </div>
+      </div>
+    </footer>
+
+    <script type="module">
+      import { initializeNavigation } from "./nav-template.js";
+      document.addEventListener("DOMContentLoaded", initializeNavigation);
+    </script>
+    <script type="module" src="./app.js"></script>
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        var tabBtns = document.querySelectorAll(".input-tabs .tab-btn");
+        var tabContents = document.querySelectorAll(".input-tab-content");
+        tabBtns.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var tab = btn.getAttribute("data-tab");
+            tabBtns.forEach(function (b) {
+              b.classList.remove("active");
+            });
+            tabContents.forEach(function (tc) {
+              tc.classList.remove("active");
+            });
+            btn.classList.add("active");
+            var tabContent = document.getElementById(tab + "Tab");
+            if (tabContent) tabContent.classList.add("active");
+          });
+        });
+      });
+    </script>
+  </body>
+</html>

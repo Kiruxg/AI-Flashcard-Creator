@@ -1,4 +1,4 @@
-import { auth, db, stripe, PRICES } from "./config.js";
+import { auth, db, initStripe, PRICES } from "./config.js";
 import {
   doc,
   updateDoc,
@@ -9,9 +9,13 @@ export class SubscriptionManager {
   constructor() {
     this.currentUser = null;
     this.subscriptionStatus = null;
+    this.stripe = null;
   }
 
   async initialize() {
+    // Initialize Stripe
+    this.stripe = await initStripe();
+
     auth.onAuthStateChanged(async (user) => {
       if (user) {
         this.currentUser = user;
@@ -60,8 +64,8 @@ export class SubscriptionManager {
 
       const session = await response.json();
 
-      // Redirect to Stripe Checkout
-      const result = await stripe.redirectToCheckout({
+      // Redirect to Stripe Checkout using initialized stripe instance
+      const result = await this.stripe.redirectToCheckout({
         sessionId: session.id,
       });
 

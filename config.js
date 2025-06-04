@@ -4,6 +4,9 @@ import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
+// Import Stripe from CDN
+import { loadStripe } from "https://cdn.jsdelivr.net/npm/@stripe/stripe-js@2.2.0/+esm";
+
 // Firebase configuration
 const firebaseConfig = {
   apiKey: "AIzaSyDppFcsquQOx2NL2OoDNUqYyscERAH3Buw",
@@ -37,9 +40,15 @@ const AUTH_ERROR_MESSAGES = {
 };
 
 // Initialize Stripe
-const stripe = Stripe(
-  "pk_live_51HQ5UXAOBzJpPKFIMThn5WLNohIfd1SeE6xDgrk5OFLe0u60VuHqewLOIBKJp7G1HGmmG4gOyo4BYKOZrQxzjm0200KBL0mUgb"
-);
+let stripe = null;
+const initStripe = async () => {
+  if (!stripe) {
+    stripe = await loadStripe(
+      "pk_live_51HQ5UXAOBzJpPKFIMThn5WLNohIfd1SeE6xDgrk5OFLe0u60VuHqewLOIBKJp7G1HGmmG4gOyo4BYKOZrQxzjm0200KBL0mUgb"
+    );
+  }
+  return stripe;
+};
 
 // Pricing configuration
 export const PRICES = {
@@ -128,7 +137,7 @@ export {
   analytics,
   auth,
   db,
-  stripe,
+  initStripe,
   AUTH_ERROR_MESSAGES,
   FEATURE_DESCRIPTIONS,
 };
