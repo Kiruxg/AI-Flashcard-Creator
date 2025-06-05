@@ -1,7 +1,12 @@
 // Import Firebase auth functions
-import { auth } from "./config.js";
-import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { AUTH_ERROR_MESSAGES } from "./config.js";
+import { auth, AUTH_ERROR_MESSAGES } from "./config.js";
+import {
+  sendPasswordResetEmail,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { showNotification } from "./utils.js";
 
 // Reusable Auth Modal Component
@@ -126,7 +131,7 @@ export function createAuthModal() {
   `;
 
   // Add the modals to the document
-  document.body.insertAdjacentHTML('beforeend', modalHTML);
+  document.body.insertAdjacentHTML("beforeend", modalHTML);
 }
 
 // Initialize auth modal on any page
@@ -134,15 +139,35 @@ export function initializeAuthModal() {
   // Create the auth modal
   createAuthModal();
 
+  // Check for redirect result on page load
+  getRedirectResult(auth)
+    .then((result) => {
+      if (result) {
+        hideAuthModal();
+        showNotification("Successfully signed in with Google!", "success");
+        window.location.reload();
+      }
+    })
+    .catch((error) => {
+      if (error.code !== "auth/no-redirect-event") {
+        console.error("Redirect sign-in error:", error);
+        showAuthError(
+          AUTH_ERROR_MESSAGES[error.code] || "Failed to sign in with Google",
+          "loginForm"
+        );
+      }
+    });
+
   // Add event listeners for auth modal
   const authModal = document.getElementById("authModal");
   const resetPasswordModal = document.getElementById("resetPasswordModal");
   const closeButtons = document.querySelectorAll(".modal .close");
   const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
   const resetPasswordForm = document.getElementById("resetPasswordForm");
+  const googleLoginBtn = document.getElementById("googleLoginBtn");
 
   // Close modals when clicking the close button
-  closeButtons.forEach(button => {
+  closeButtons.forEach((button) => {
     button.addEventListener("click", () => {
       const modal = button.closest(".modal");
       if (modal.id === "authModal") {
@@ -181,8 +206,43 @@ export function initializeAuthModal() {
         );
       } catch (error) {
         showAuthError(
-          AUTH_ERROR_MESSAGES[error.code] || "An error occurred while sending reset email.",
+          AUTH_ERROR_MESSAGES[error.code] ||
+            "An error occurred while sending reset email.",
           "resetPasswordForm"
+        );
+      }
+    });
+  }
+
+  // Handle Google login
+  if (googleLoginBtn) {
+    googleLoginBtn.addEventListener("click", async () => {
+      try {
+        const provider = new GoogleAuthProvider();
+        // Try popup first
+        try {
+          const result = await signInWithPopup(auth, provider);
+          hideAuthModal();
+          showNotification("Successfully signed in with Google!", "success");
+          window.location.reload();
+        } catch (popupError) {
+          // If popup fails (blocked), fall back to redirect
+          if (
+            popupError.code === "auth/popup-blocked" ||
+            popupError.code === "auth/popup-closed-by-user" ||
+            popupError.code === "auth/cancelled-popup-request"
+          ) {
+            console.log("Popup blocked or closed, trying redirect...");
+            await signInWithRedirect(auth, provider);
+          } else {
+            throw popupError;
+          }
+        }
+      } catch (error) {
+        console.error("Google sign-in error:", error);
+        showAuthError(
+          AUTH_ERROR_MESSAGES[error.code] || "Failed to sign in with Google",
+          "loginForm"
         );
       }
     });

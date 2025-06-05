@@ -28,6 +28,7 @@ import {
 import { SpacedRepetition } from "./spacedRepetition.js";
 import { SubscriptionManager } from "./subscription.js";
 import { DeckManager } from "./deckManager.js";
+import { CardTypeManager } from "./cardTypeManager.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -52,6 +53,12 @@ import {
 let currentUser = null;
 let deckManager = null;
 let userDecks = [];
+let cardTypeManager = new CardTypeManager();
+
+// Global variables for flashcard state
+let currentCardIndex = 0;
+let flashcards = [];
+let answerStartTime = null;
 
 // Initialize Firebase and auth modal
 document.addEventListener("DOMContentLoaded", function () {
@@ -87,9 +94,6 @@ $(document).ready(function () {
   subscriptionManager.initialize();
 
   // Initialize variables
-  let flashcards = [];
-  let currentCardIndex = 0;
-  let isFlipped = false;
   let monthlyCardCount = 0;
   let spacedRepetition = new SpacedRepetition();
   let lastSavedState = null;
@@ -327,69 +331,85 @@ $(document).ready(function () {
     } catch (error) {
       console.error("Login error:", error.code, error.message); // <-- Add this line
       let userMessage = "";
-      
+
       // Map Firebase error codes to user-friendly messages
       switch (error.code) {
         case "auth/invalid-credential":
-          userMessage = "The email or password you entered is incorrect. Please try again.";
+          userMessage =
+            "The email or password you entered is incorrect. Please try again.";
           break;
         case "auth/wrong-password":
-          userMessage = "Incorrect password. Please try again or use the 'Forgot Password' link below.";
+          userMessage =
+            "Incorrect password. Please try again or use the 'Forgot Password' link below.";
           break;
         case "auth/user-not-found":
-          userMessage = "No account found with this email. Please check your email or sign up for a new account.";
+          userMessage =
+            "No account found with this email. Please check your email or sign up for a new account.";
           break;
         case "auth/too-many-requests":
-          userMessage = "Too many failed login attempts. Please try again later or reset your password.";
+          userMessage =
+            "Too many failed login attempts. Please try again later or reset your password.";
           break;
         case "auth/network-request-failed":
-          userMessage = "Network error. Please check your internet connection and try again.";
+          userMessage =
+            "Network error. Please check your internet connection and try again.";
           break;
         case "auth/user-disabled":
-          userMessage = "This account has been disabled. Please contact support for assistance.";
+          userMessage =
+            "This account has been disabled. Please contact support for assistance.";
           break;
         case "auth/invalid-email":
           userMessage = "Please enter a valid email address.";
           break;
         case "auth/email-already-in-use":
-          userMessage = "An account with this email already exists. Please try logging in instead.";
+          userMessage =
+            "An account with this email already exists. Please try logging in instead.";
           break;
         case "auth/weak-password":
-          userMessage = "Password is too weak. Please use a stronger password (at least 6 characters).";
+          userMessage =
+            "Password is too weak. Please use a stronger password (at least 6 characters).";
           break;
         case "auth/operation-not-allowed":
-          userMessage = "This sign-in method is not enabled. Please try a different method or contact support.";
+          userMessage =
+            "This sign-in method is not enabled. Please try a different method or contact support.";
           break;
         default:
           userMessage = "An error occurred during login. Please try again.";
       }
 
       // Add helpful suggestions for common errors
-      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
-        userMessage += " <br><a href='#' id='triggerResetPassword' class='auth-link'>Forgot password?</a>";
+      if (
+        error.code === "auth/wrong-password" ||
+        error.code === "auth/invalid-credential"
+      ) {
+        userMessage +=
+          " <br><a href='#' id='triggerResetPassword' class='auth-link'>Forgot password?</a>";
       } else if (error.code === "auth/user-not-found") {
-        userMessage += " <br><span class='auth-link'>Check your email or <a href='#' id='triggerSignup'>sign up</a>.</span>";
+        userMessage +=
+          " <br><span class='auth-link'>Check your email or <a href='#' id='triggerSignup'>sign up</a>.</span>";
       } else if (error.code === "auth/too-many-requests") {
-        userMessage += " <br><span class='auth-link'>You can reset your password or try again later.</span>";
+        userMessage +=
+          " <br><span class='auth-link'>You can reset your password or try again later.</span>";
       } else if (error.code === "auth/network-request-failed") {
-        userMessage += " <br><span class='auth-link'>Check your internet connection and try again.</span>";
+        userMessage +=
+          " <br><span class='auth-link'>Check your internet connection and try again.</span>";
       }
 
       showAuthError(userMessage, "loginForm");
-      
+
       // Add click handler for reset password link
       setTimeout(() => {
-        const resetLink = document.getElementById('triggerResetPassword');
+        const resetLink = document.getElementById("triggerResetPassword");
         if (resetLink) {
-          resetLink.addEventListener('click', function(e) {
+          resetLink.addEventListener("click", function (e) {
             e.preventDefault();
-            hideModal('authModal');
+            hideModal("authModal");
             showResetPasswordModal();
           });
         }
-        const signupLink = document.getElementById('triggerSignup');
+        const signupLink = document.getElementById("triggerSignup");
         if (signupLink) {
-          signupLink.addEventListener('click', function(e) {
+          signupLink.addEventListener("click", function (e) {
             e.preventDefault();
             $("#authTabs .tab-btn").removeClass("active");
             $("#authTabs .tab-btn[data-tab='signup']").addClass("active");
@@ -469,7 +489,10 @@ $(document).ready(function () {
   $(document).on("click", "#googleLoginBtn", async function () {
     console.log("Google login button clicked");
     try {
-      console.log("Attempting signInWithPopup with googleProvider", googleProvider);
+      console.log(
+        "Attempting signInWithPopup with googleProvider",
+        googleProvider
+      );
       const result = await signInWithPopup(auth, googleProvider);
       console.log("signInWithPopup result:", result);
       // Check if user document exists, if not create it
@@ -489,7 +512,13 @@ $(document).ready(function () {
       }
       hideModal("authModal");
     } catch (error) {
-      console.error("Google login error:", error, error.code, error.message, error.stack);
+      console.error(
+        "Google login error:",
+        error,
+        error.code,
+        error.message,
+        error.stack
+      );
       showAuthError(
         AUTH_ERROR_MESSAGES[error.code] ||
           "An error occurred during Google login.",
@@ -786,11 +815,28 @@ $(document).ready(function () {
   });
 
   // Text form submission
-  $("#textForm").on("submit", function (e) {
+  $("#textForm").on("submit", async function (e) {
     e.preventDefault();
     const text = $("#textInput").val().trim();
-    if (text) {
-      processText(text);
+    const cardType = $("#textCardType").val();
+    const cardCount = parseInt($("#textCardCount").val());
+
+    if (!text) {
+      showErrorMessage("Please enter some text to generate flashcards.");
+      return;
+    }
+
+    showLoading(true);
+    try {
+      await processText(text, { cardType, cardCount });
+      showSuccessMessage("Flashcards generated successfully!");
+    } catch (error) {
+      console.error("Error generating flashcards:", error);
+      showErrorMessage(
+        error.message || "Failed to generate flashcards. Please try again."
+      );
+    } finally {
+      showLoading(false);
     }
   });
 
@@ -979,52 +1025,13 @@ $(document).ready(function () {
 
   // Flashcard navigation
   function initializeFlashcardControls() {
-    // Remove any existing event listeners first
+    // Remove any existing event listeners
     $("#prevCardBtn, #nextCardBtn").off("click");
     $("#shuffleBtn").off("click");
-    $("#showAnswerBtn, #flipCard").off("click");
+    $("#showAnswerBtn").off("click");
     $(".performance-buttons button").off("click");
-    $(document).off("keydown.flashcard");
 
-    // Keyboard navigation with enhanced options
-    $(document).on("keydown.flashcard", function (e) {
-      if (!$("#flashcardViewer").is(":visible")) return;
-
-      switch (e.key) {
-        case "ArrowLeft":
-          navigateCard("prev");
-          break;
-        case "ArrowRight":
-          navigateCard("next");
-          break;
-        case " ": // Space bar
-          e.preventDefault();
-          $("#showAnswerBtn, #flipCard").click();
-          break;
-        case "1":
-          if ($(".performance-buttons").is(":visible")) {
-            handlePerformanceAnswer(spacedRepetition.answerTypes.AGAIN);
-          }
-          break;
-        case "2":
-          if ($(".performance-buttons").is(":visible")) {
-            handlePerformanceAnswer(spacedRepetition.answerTypes.HARD);
-          }
-          break;
-        case "3":
-          if ($(".performance-buttons").is(":visible")) {
-            handlePerformanceAnswer(spacedRepetition.answerTypes.GOOD);
-          }
-          break;
-        case "4":
-          if ($(".performance-buttons").is(":visible")) {
-            handlePerformanceAnswer(spacedRepetition.answerTypes.EASY);
-          }
-          break;
-      }
-    });
-
-    // Navigation buttons - Fixed IDs
+    // Navigation buttons
     $("#prevCardBtn").on("click", function (e) {
       e.preventDefault();
       navigateCard("prev");
@@ -1035,96 +1042,25 @@ $(document).ready(function () {
       navigateCard("next");
     });
 
-    // Shuffle button
-    $("#shuffleBtn").on("click", function (e) {
-      e.preventDefault();
-      flashcards = flashcards.sort(() => Math.random() - 0.5);
-      currentCardIndex = 0;
-      updateFlashcard();
-      showSuccessMessage("Cards shuffled");
-    });
-
-    // Show Answer button with timing
-    let answerStartTime = null;
-    $("#showAnswerBtn, #flipCard").on("click", function (e) {
+    // Show answer button
+    $("#showAnswerBtn").on("click", function (e) {
       e.preventDefault();
       answerStartTime = Date.now();
 
-      const $btn = $(this);
-      const $cardBack = $btn
-        .closest(".card-controls")
-        .prev()
-        .find(".card-back");
-      const $performanceButtons = $btn
-        .closest(".card-controls")
-        .find(".performance-buttons");
-
-      if ($cardBack.length) {
-        $cardBack.slideDown(200);
-        $btn.hide();
-        $performanceButtons.slideDown(200);
-
-        // Update performance buttons with interval predictions
-        updatePerformanceButtonPreviews();
-      }
+      $(".card-back").slideDown(200);
+      $(this).hide();
+      $(".performance-buttons").slideDown(200);
     });
 
-    // Enhanced performance buttons with response time tracking
-    function handlePerformanceAnswer(answer) {
-      const card = flashcards[currentCardIndex];
-
-      // Calculate response time
-      const responseTime = answerStartTime
-        ? (Date.now() - answerStartTime) / 1000
-        : null;
-
-      // Ensure card has an ID for spaced repetition tracking
-      if (!card.id) {
-        card.id = `card_${Date.now()}_${Math.random()
-          .toString(36)
-          .substr(2, 9)}`;
-      }
-
-      // Use the advanced spaced repetition system
-      const updatedCard = spacedRepetition.answerCard(
-        card.id,
-        answer,
-        responseTime
-      );
-
-      // Update card metadata
-      if (!card.metadata) {
-        card.metadata = {};
-      }
-      card.metadata.markedAsUnfamiliar =
-        answer === spacedRepetition.answerTypes.AGAIN;
-      card.metadata.lastReviewed = new Date().toISOString();
-      card.metadata.spacedRepetitionData = updatedCard;
-
-      // Track study session for streak calculation
-      trackStudySession();
-
-      // Update progress immediately after marking
-      updateProgress();
-
-      // Update Study Now button with new due count
-      updateStudyNowButton();
-
-      // Show feedback based on answer
-      showAnswerFeedback(answer, updatedCard);
-
-      // Move to next card after a brief delay
-      setTimeout(() => {
-        navigateCard("next");
-      }, 1000);
-    }
-
-    // Bind performance buttons
+    // Performance buttons
     $(".performance-buttons button").on("click", function (e) {
       e.preventDefault();
       const answer = parseInt($(this).data("performance"));
       handlePerformanceAnswer(answer);
     });
+
+    // Initial progress update
+    updateProgress();
   }
 
   function navigateCard(direction) {
@@ -1148,12 +1084,41 @@ $(document).ready(function () {
     const card = flashcards[currentCardIndex];
     if (!card) return;
 
-    // Update card content
-    $("#frontText").text(card.front);
-    $("#backText").text(card.back);
+    // Get the flashcard container
+    const container = document.getElementById("flashcard");
+    container.innerHTML = ""; // Clear existing content
+
+    // Create a new instance of CardTypeManager
+    const cardManager = new CardTypeManager();
+
+    // Render the card using the appropriate renderer
+    cardManager.renderCard(card, card.type || "cloze", container);
+
+    // Add pronunciation buttons to front and back
+    const cardFront = container.querySelector(".card-front");
+    const cardBack = container.querySelector(".card-back");
+
+    // Add pronunciation button to front
+    const frontPronounceBtn = document.createElement("button");
+    frontPronounceBtn.className = "btn-pronounce";
+    frontPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    frontPronounceBtn.onclick = (e) => {
+      e.stopPropagation();
+      speakText(card.front);
+    };
+    cardFront.appendChild(frontPronounceBtn);
+
+    // Add pronunciation button to back
+    const backPronounceBtn = document.createElement("button");
+    backPronounceBtn.className = "btn-pronounce";
+    backPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    backPronounceBtn.onclick = (e) => {
+      e.stopPropagation();
+      speakText(card.back);
+    };
+    cardBack.appendChild(backPronounceBtn);
 
     // Reset card state
-    $(".card-back").hide();
     $("#showAnswerBtn").show();
     $(".performance-buttons").hide();
 
@@ -1168,21 +1133,246 @@ $(document).ready(function () {
     updateProgress();
   }
 
-  // Enhanced progress tracking
+  // Add text-to-speech function
+  function speakText(text) {
+    // Cancel any ongoing speech
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    // Configure for ESL
+    utterance.lang = "en-US";
+    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.pitch = 1;
+
+    window.speechSynthesis.speak(utterance);
+  }
+
+  // Enhanced progress tracking with practice/confident counts
   function updateProgress() {
     const totalCards = flashcards.length;
-    const markedCards = flashcards.filter(
-      (card) => card.metadata?.markedAsUnfamiliar
-    ).length;
-    const progress = (markedCards / totalCards) * 100;
+    const viewedCards = currentCardIndex + 1;
+    const progress = (viewedCards / totalCards) * 100;
 
+    // Update progress bar
     $("#progressBar").css("width", `${progress}%`);
-    // Show both current card position and marking progress
-    $("#progressText").text(
-      `Card ${
-        currentCardIndex + 1
-      }/${totalCards} • ${markedCards} marked as unfamiliar`
-    );
+    $("#progressText").text(`Card ${viewedCards}/${totalCards}`);
+
+    // Calculate practice/confident counts
+    let needPracticeCount = 0;
+    let confidentCount = 0;
+
+    flashcards.forEach((card) => {
+      if (card.metadata && card.metadata.performance) {
+        if (card.metadata.performance === 1) {
+          needPracticeCount++;
+        } else if (card.metadata.performance === 5) {
+          confidentCount++;
+        }
+      }
+    });
+
+    // Update or create counts display
+    let countsDisplay = $("#practiceConfidentCounts");
+    if (countsDisplay.length === 0) {
+      // Create the counts display if it doesn't exist
+      $("#progressText").after(`
+        <div id="practiceConfidentCounts" class="practice-confident-counts">
+          <span class="need-practice-count">
+            <i class="fas fa-exclamation-triangle"></i> 
+            Need Practice: <span class="count">0</span>
+          </span>
+          <span class="confident-count">
+            <i class="fas fa-check-circle"></i> 
+            Confident: <span class="count">0</span>
+          </span>
+        </div>
+      `);
+      countsDisplay = $("#practiceConfidentCounts");
+    }
+
+    // Update the counts
+    countsDisplay.find(".need-practice-count .count").text(needPracticeCount);
+    countsDisplay.find(".confident-count .count").text(confidentCount);
+
+    // Check if user has completed 80% of cards
+    if (progress >= 80 && !sessionStorage.getItem("quizPromptShown")) {
+      showQuizPrompt();
+      sessionStorage.setItem("quizPromptShown", "true");
+    }
+  }
+
+  function showQuizPrompt() {
+    const quizPrompt = $("<div>").addClass("quiz-prompt").html(`
+      <div class="quiz-prompt-content">
+        <h3><i class="fas fa-graduation-cap"></i> Ready to Test Your Knowledge?</h3>
+        <p>You've completed 80% of your flashcards! Would you like to take a quiz to reinforce your learning?</p>
+        <div class="quiz-prompt-actions">
+          <button class="btn btn-primary" id="startQuizBtn">
+            <i class="fas fa-check"></i> Start Quiz
+          </button>
+          <button class="btn btn-secondary" id="continuePracticeBtn">
+            <i class="fas fa-redo"></i> Continue Practice
+          </button>
+        </div>
+      </div>
+    `);
+
+    $("body").append(quizPrompt);
+    quizPrompt.fadeIn(200);
+
+    // Handle quiz prompt actions
+    $("#startQuizBtn").on("click", function () {
+      quizPrompt.fadeOut(200, function () {
+        $(this).remove();
+        startQuizMode();
+      });
+    });
+
+    $("#continuePracticeBtn").on("click", function () {
+      quizPrompt.fadeOut(200, function () {
+        $(this).remove();
+      });
+    });
+  }
+
+  function startQuizMode() {
+    // Convert flashcards to quiz format
+    const quizCards = flashcards.map((card) => {
+      // Generate 3 random incorrect options
+      const incorrectOptions = generateIncorrectOptions(card.back, flashcards);
+
+      return {
+        question: card.front,
+        options: shuffleArray([card.back, ...incorrectOptions]),
+        correctAnswer: card.back,
+        explanation: card.explanation || null,
+      };
+    });
+
+    // Initialize quiz interface
+    initializeQuizInterface(quizCards);
+  }
+
+  function generateIncorrectOptions(correctAnswer, allCards) {
+    // Filter out the correct answer and get unique incorrect options
+    const otherAnswers = allCards
+      .map((card) => card.back)
+      .filter((answer) => answer !== correctAnswer);
+
+    // Shuffle and take first 3
+    return shuffleArray(otherAnswers).slice(0, 3);
+  }
+
+  function shuffleArray(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
+    }
+    return array;
+  }
+
+  function initializeQuizInterface(quizCards) {
+    let currentQuizIndex = 0;
+    let score = 0;
+
+    function showQuizCard() {
+      const card = quizCards[currentQuizIndex];
+      const quizContainer = $("<div>").addClass("quiz-container").html(`
+        <div class="quiz-progress">Question ${currentQuizIndex + 1}/${
+        quizCards.length
+      }</div>
+        <div class="quiz-question">${card.question}</div>
+        <div class="quiz-options">
+          ${card.options
+            .map(
+              (option, index) => `
+            <button class="quiz-option" data-index="${index}">${option}</button>
+          `
+            )
+            .join("")}
+        </div>
+      `);
+
+      // Replace flashcard viewer with quiz container
+      $("#flashcard").hide();
+      $(".card-controls").hide();
+      $(".flashcard-container").append(quizContainer);
+
+      // Handle option selection
+      $(".quiz-option").on("click", function () {
+        const selectedAnswer = card.options[$(this).data("index")];
+        const isCorrect = selectedAnswer === card.correctAnswer;
+
+        // Update score
+        if (isCorrect) score++;
+
+        // Show feedback
+        $(this).addClass(isCorrect ? "correct" : "incorrect");
+        $(".quiz-option").prop("disabled", true);
+
+        // Show explanation if available
+        if (card.explanation) {
+          quizContainer.append(
+            `<div class="quiz-explanation">${card.explanation}</div>`
+          );
+        }
+
+        // Show next question button or finish quiz
+        setTimeout(() => {
+          if (currentQuizIndex < quizCards.length - 1) {
+            quizContainer.append(`
+              <button class="btn btn-primary next-question">Next Question</button>
+            `);
+            $(".next-question").on("click", () => {
+              currentQuizIndex++;
+              quizContainer.remove();
+              showQuizCard();
+            });
+          } else {
+            showQuizResults(score, quizCards.length);
+          }
+        }, 1000);
+      });
+    }
+
+    showQuizCard();
+  }
+
+  function showQuizResults(score, total) {
+    const percentage = Math.round((score / total) * 100);
+    const resultsContainer = $("<div>").addClass("quiz-results").html(`
+      <h2>Quiz Complete!</h2>
+      <div class="quiz-score">
+        <div class="score-circle">
+          <span class="score-number">${percentage}%</span>
+        </div>
+        <p>You got ${score} out of ${total} questions correct</p>
+      </div>
+      <div class="quiz-actions">
+        <button class="btn btn-primary" id="retryQuizBtn">
+          <i class="fas fa-redo"></i> Try Again
+        </button>
+        <button class="btn btn-secondary" id="returnToPracticeBtn">
+          <i class="fas fa-cards"></i> Return to Practice
+        </button>
+      </div>
+    `);
+
+    $(".flashcard-container").append(resultsContainer);
+
+    // Handle retry and return actions
+    $("#retryQuizBtn").on("click", () => {
+      resultsContainer.remove();
+      startQuizMode();
+    });
+
+    $("#returnToPracticeBtn").on("click", () => {
+      resultsContainer.remove();
+      $("#flashcard").show();
+      $(".card-controls").show();
+    });
   }
 
   // Flashcard flip
@@ -3898,7 +4088,85 @@ function initializeUserMenuDropdown() {
 }
 
 // Prevent modal from closing on overlay click
-$(window).off("click").on("click", function (event) {
-  // Only close if the X/cancel button is clicked, not overlay
-  // Do nothing here to prevent overlay click from closing modal
-});
+$(window)
+  .off("click")
+  .on("click", function (event) {
+    // Only close if the X/cancel button is clicked, not overlay
+    // Do nothing here to prevent overlay click from closing modal
+  });
+
+function showAnswerFeedback(answer, updatedCard) {
+  // Remove any existing feedback
+  $(".answer-feedback").remove();
+
+  // Create feedback element
+  const feedback = $("<div>").addClass("answer-feedback");
+
+  if (answer === 1) {
+    // Need Practice
+    feedback.addClass("feedback-danger").html(`
+        <i class="fas fa-tools"></i>
+        <span>Card marked for review</span>
+      `);
+  } else if (answer === 5) {
+    // Confident
+    feedback.addClass("feedback-success").html(`
+        <i class="fas fa-check-circle"></i>
+        <span>Great job! Card marked as confident</span>
+      `);
+  }
+
+  // Add to page and animate
+  $("body").append(feedback);
+  feedback.fadeIn(200);
+
+  // Update card's performance in metadata
+  const card = flashcards[currentCardIndex];
+  if (card && card.metadata) {
+    card.metadata.performance = answer;
+  }
+
+  // Remove feedback after delay
+  setTimeout(() => {
+    feedback.fadeOut(200, function () {
+      $(this).remove();
+    });
+  }, 2000);
+}
+
+function handlePerformanceAnswer(answer) {
+  const card = flashcards[currentCardIndex];
+
+  // Calculate response time
+  const responseTime = answerStartTime
+    ? (Date.now() - answerStartTime) / 1000
+    : null;
+
+  // Reset answer start time for next card
+  answerStartTime = null;
+
+  // Ensure card has metadata
+  if (!card.metadata) {
+    card.metadata = {};
+  }
+
+  // Update card metadata with performance
+  card.metadata.performance = answer;
+  card.metadata.lastReviewed = new Date().toISOString();
+
+  // Show feedback
+  showAnswerFeedback(answer);
+
+  // Update progress immediately
+  updateProgress();
+
+  // Move to next card after a brief delay
+  setTimeout(() => {
+    navigateCard("next");
+
+    // Reset the card state for the next card
+    $("#showAnswerBtn").show();
+    $(".performance-buttons").hide();
+    $(".card-back").hide();
+  }, 1000);
+}

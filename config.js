@@ -132,11 +132,4 @@ const FEATURE_DESCRIPTIONS = {
 };
 
 // Export Firebase instances and other configurations
-export {
-  app,
-  analytics,
-  auth,
-  db,
-  initStripe,
-  FEATURE_DESCRIPTIONS,
-};
+export { app, analytics, auth, db, initStripe, FEATURE_DESCRIPTIONS };

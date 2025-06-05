@@ -49,9 +49,9 @@
     <div id="nav-placeholder"></div>
 
     <main class="container">
-      <!-- Input Section (copied from index.html) -->
-      <div id="input-section">
-        <div class="card">
+      <div class="grid-container">
+        <!-- Left Column - Input Section -->
+        <div class="grid-item">
           <h2>Create Flashcards</h2>
           <div class="input-tabs">
             <button class="tab-btn active" data-tab="text">Text Input</button>
@@ -61,7 +61,7 @@
 
           <!-- Tab Content -->
           <div class="input-tab-content active" id="textTab">
-            <div class="text-input-container">
+            <form id="textForm" class="text-input-container">
               <textarea
                 id="textInput"
                 class="text-area-input"
@@ -79,7 +79,6 @@ Examples:
                   <option value="term">Term & Definition</option>
                   <option value="qa">Question & Answer</option>
                   <option value="cloze">Cloze</option>
-                  <option value="multiple-choice">Multiple Choice</option>
                   <option value="contextual">Contextual/Scenario-based</option>
                 </select>
                 <select id="textCardCount" class="select-input">
@@ -97,7 +96,7 @@ Examples:
               >
                 <i class="fas fa-magic"></i> Generate Flashcards
               </button>
-            </div>
+            </form>
           </div>
 
           <!-- Content Upload Tab -->
@@ -120,9 +119,10 @@ Examples:
             <div id="cardTypeSelection" style="display: none">
               <select id="uploadCardType" class="select-input">
                 <option value="">Select Card Type</option>
-                <option value="basic">Basic</option>
-                <option value="cloze">Cloze</option>
+                <option value="term">Term & Definition</option>
                 <option value="qa">Question & Answer</option>
+                <option value="cloze">Cloze</option>
+                <option value="contextual">Contextual/Scenario-based</option>
               </select>
               <select id="uploadCardCount" class="select-input">
                 <option value="5">5 cards</option>
@@ -175,8 +175,6 @@ Examples:
                     <option value="term">Term & Definition</option>
                     <option value="qa">Question & Answer</option>
                     <option value="cloze">Cloze</option>
-                    <option value="image-occlusion">Image Occlusion</option>
-                    <option value="multiple-choice">Multiple Choice</option>
                     <option value="contextual">
                       Contextual/Scenario-based
                     </option>
@@ -186,12 +184,6 @@ Examples:
                     <option value="10">10 cards</option>
                     <option value="15" class="premium-option">15 cards</option>
                     <option value="20" class="premium-option">20 cards</option>
-                    <option value="25" class="premium-option">25 cards</option>
-                    <option value="30" class="premium-option">30 cards</option>
-                    <option value="35" class="premium-option">35 cards</option>
-                    <option value="40" class="premium-option">40 cards</option>
-                    <option value="45" class="premium-option">45 cards</option>
-                    <option value="50" class="premium-option">50 cards</option>
                   </select>
                 </div>
                 <button
@@ -216,82 +208,73 @@ Examples:
             </form>
           </div>
         </div>
-      </div>
 
-      <!-- Flashcard Viewer Grid (copied from index.html) -->
-      <div class="grid">
-        <div class="upload-section">
-          <div class="card">
-            <h2>Flashcard Viewer</h2>
-            <div
-              id="loadingIndicator"
-              class="loading-overlay"
-              style="display: none"
-            >
-              <div class="loading-content">
-                <div class="spinner"></div>
-                <div class="loading-message">
-                  <h3>Generating Flashcards</h3>
-                  <p class="loading-subtitle">This may take a few moments...</p>
-                </div>
+        <!-- Right Column - Flashcard Viewer -->
+        <div class="grid-item">
+          <h2>Flashcard Viewer</h2>
+          <div
+            id="loadingIndicator"
+            class="loading-overlay"
+            style="display: none"
+          >
+            <div class="loading-content">
+              <div class="spinner"></div>
+              <div class="loading-message">
+                <h3>Generating Flashcards</h3>
+                <p class="loading-subtitle">This may take a few moments...</p>
               </div>
             </div>
-            <div id="flashcardContainer" class="flashcard-container">
-              <div id="emptyState" class="empty-state">
-                <div class="icon">📝</div>
-                <p>Upload a file or enter text to generate flashcards</p>
-                <button
-                  id="studyNowBtn"
-                  class="btn btn-primary"
-                  style="display: none"
-                >
-                  <i class="fas fa-play"></i> Study Now
-                  <span class="due-count"></span>
-                </button>
-              </div>
-              <div
-                id="flashcardViewer"
-                class="flashcard-viewer"
+          </div>
+          <div id="flashcardContainer" class="flashcard-container">
+            <div id="emptyState" class="empty-state">
+              <div class="icon">📝</div>
+              <p>Upload a file or enter text to generate flashcards</p>
+              <button
+                id="studyNowBtn"
+                class="btn btn-primary"
                 style="display: none"
               >
-                <div class="progress-container">
-                  <div class="progress-bar">
-                    <div id="progressBar" class="progress"></div>
-                  </div>
-                  <span id="progressText">0/0 cards reviewed</span>
+                <i class="fas fa-play"></i> Study Now
+                <span class="due-count"></span>
+              </button>
+            </div>
+            <div
+              id="flashcardViewer"
+              class="flashcard-viewer"
+              style="display: none"
+            >
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div id="progressBar" class="progress"></div>
                 </div>
-                <div id="flashcard" class="flashcard">
-                  <div class="card-front">
-                    <p id="frontText"></p>
-                  </div>
-                  <div class="card-back">
-                    <p id="backText"></p>
-                  </div>
-                </div>
-                <div class="card-controls">
-                  <div class="navigation-buttons">
-                    <button id="prevCardBtn" class="btn btn-secondary">
-                      <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button id="shuffleBtn" class="btn btn-secondary">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button id="nextCardBtn" class="btn btn-secondary">
-                      <i class="fas fa-chevron-right"></i>
-                    </button>
-                  </div>
-                  <button id="showAnswerBtn" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> Show Answer
+                <span id="progressText">0/0 cards reviewed</span>
+              </div>
+              <div id="flashcard" class="flashcard">
+                <!-- Card content will be dynamically inserted here by the CardTypeManager -->
+              </div>
+              <div class="card-controls">
+                <div class="navigation-buttons">
+                  <button id="prevCardBtn" class="btn btn-secondary">
+                    <i class="fas fa-chevron-left"></i>
                   </button>
+                  <button id="shuffleBtn" class="btn btn-secondary">
+                    <i class="fas fa-random"></i>
+                  </button>
+                  <button id="nextCardBtn" class="btn btn-secondary">
+                    <i class="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+                <button id="showAnswerBtn" class="btn btn-primary">
+                  <i class="fas fa-eye"></i> Show Answer
+                </button>
 
-                  <div class="performance-buttons">
-                    <button class="btn btn-danger" data-performance="1">
-                      <i class="fas fa-times"></i> Unfamiliar
-                    </button>
-                    <button class="btn btn-success" data-performance="5">
-                      <i class="fas fa-star"></i> I know it!
-                    </button>
-                  </div>
+                <div class="performance-buttons">
+                  <button class="btn btn-danger" data-performance="1">
+                    <i class="fas fa-tools"></i> Need Practice
+                  </button>
+                  <button class="btn btn-success" data-performance="5">
+                    <i class="fas fa-check-circle"></i> Confident
+                  </button>
                 </div>
               </div>
             </div>
@@ -300,70 +283,17 @@ Examples:
       </div>
     </main>
 
-    <!-- Footer with grid background -->
-    <footer class="footer">
-      <div class="footer-content">
-        <div class="footer-section company-info">
-          <div class="footer-logo">
-            <img
-              src="Note2Flash.png"
-              alt="Note2Flash"
-              class="footer-logo-img"
-            />
-            <h3>Note2Flash</h3>
-          </div>
-          <div class="company-description">
-            Transform your notes into smart, AI-powered flashcards. Study
-            faster, remember longer.
-          </div>
-          <div class="contact-info">
-            <p>
-              <strong>Email:</strong>
-              <a href="mailto:support@note2flash.com">support@note2flash.com</a>
-            </p>
-          </div>
-        </div>
-        <div class="footer-section">
-          <h4>Product</h4>
-          <ul class="footer-links">
-            <li><a href="/create-deck.html">Create Flashcards</a></li>
-            <li><a href="/shared-decks.html">Shared Decks</a></li>
-            <li><a href="/progress.html">Study Progress</a></li>
-            <li><a href="/pricing.html">Pricing</a></li>
-          </ul>
-        </div>
-        <div class="footer-section">
-          <h4>Resources</h4>
-          <ul class="footer-links">
-            <li><a href="/faq.html">FAQ</a></li>
-            <li><a href="/about.html">About</a></li>
-            <li><a href="/contact.html">Contact</a></li>
-          </ul>
-        </div>
-        <div class="footer-section">
-          <h4>Legal</h4>
-          <ul class="footer-links">
-            <li><a href="/terms.html">Terms of Service</a></li>
-            <li><a href="/privacy.html">Privacy Policy</a></li>
-          </ul>
-        </div>
-      </div>
-      <div class="footer-bottom">
-        <div class="footer-bottom-content">
-          <p>&copy; 2024 Note2Flash. All rights reserved.</p>
-          <span class="made-with"
-            >Made with <span style="color: #e25555">&#10084;</span> for
-            learners.</span
-          >
-        </div>
-      </div>
-    </footer>
+    <!-- Footer will be loaded here -->
 
     <script type="module">
       import { initializeNavigation } from "./nav-template.js";
       document.addEventListener("DOMContentLoaded", initializeNavigation);
     </script>
     <script type="module" src="./app.js"></script>
+    <script type="module">
+      import { initializeFooter } from "./footer-template.js";
+      document.addEventListener("DOMContentLoaded", initializeFooter);
+    </script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
         var tabBtns = document.querySelectorAll(".input-tabs .tab-btn");

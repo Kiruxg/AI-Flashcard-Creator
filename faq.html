@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FAQ - Note2Flash AI Flashcard Generator</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+    />
+    <style>
+      .faq-container {
+        max-width: 800px;
+        margin: 0 auto;
+        padding: 2rem;
+      }
+
+      .faq-header {
+        text-align: center;
+        margin-bottom: 3rem;
+      }
+
+      .faq-header h1 {
+        font-size: 2.5rem;
+        color: var(--primary-color, #2563eb);
+        margin-bottom: 1rem;
+      }
+
+      .faq-header p {
+        font-size: 1.1rem;
+        color: var(--text-secondary, #64748b);
+        max-width: 600px;
+        margin: 0 auto;
+      }
+
+      .faq-search {
+        margin-bottom: 2rem;
+      }
+
+      .search-box {
+        position: relative;
+        max-width: 500px;
+        margin: 0 auto;
+      }
+
+      .search-box input {
+        width: 100%;
+        padding: 1rem 1rem 1rem 3rem;
+        border: 2px solid var(--border-color, #e2e8f0);
+        border-radius: 50px;
+        font-size: 1rem;
+        transition: border-color 0.3s ease;
+      }
+
+      .search-box input:focus {
+        outline: none;
+        border-color: var(--primary-color, #2563eb);
+      }
+
+      .search-box i {
+        position: absolute;
+        left: 1rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--text-secondary, #64748b);
+      }
+
+      .faq-categories {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem;
+        justify-content: center;
+        margin-bottom: 3rem;
+      }
+
+      .category-btn {
+        padding: 0.5rem 1rem;
+        border: 2px solid var(--border-color, #e2e8f0);
+        background: white;
+        border-radius: 25px;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        font-size: 0.9rem;
+      }
+
+      .category-btn:hover,
+      .category-btn.active {
+        border-color: var(--primary-color, #2563eb);
+        background: var(--primary-color, #2563eb);
+        color: white;
+      }
+
+      .faq-list {
+        space-y: 1rem;
+      }
+
+      .faq-item {
+        background: white;
+        border: 1px solid var(--border-color, #e2e8f0);
+        border-radius: 12px;
+        margin-bottom: 1rem;
+        overflow: hidden;
+        transition: all 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+      }
+
+      .faq-item:hover {
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary-color, #2563eb);
+      }
+
+      .faq-question {
+        width: 100%;
+        padding: 1.5rem;
+        border: none;
+        background: none;
+        text-align: left;
+        font-size: 1.1rem;
+        font-weight: 600;
+        color: var(--text-primary, #1e293b);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        transition: color 0.3s ease;
+      }
+
+      .faq-question:hover {
+        color: var(--primary-color, #2563eb);
+      }
+
+      .faq-question i {
+        font-size: 0.9rem;
+        transition: transform 0.3s ease;
+      }
+
+      .faq-item.active .faq-question i {
+        transform: rotate(180deg);
+      }
+
+      .faq-answer {
+        padding: 0 1.5rem 1.5rem;
+        color: var(--text-secondary, #64748b);
+        line-height: 1.6;
+        display: none;
+      }
+
+      .faq-item.active .faq-answer {
+        display: block;
+        animation: fadeInDown 0.3s ease;
+      }
+
+      @keyframes fadeInDown {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .faq-category {
+        margin-bottom: 3rem;
+      }
+
+      .category-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--primary-color, #2563eb);
+        margin-bottom: 1.5rem;
+        padding-bottom: 0.5rem;
+        border-bottom: 2px solid var(--border-color, #e2e8f0);
+      }
+
+      .contact-support {
+        text-align: center;
+        padding: 3rem 2rem;
+        background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+        border-radius: 16px;
+        margin-top: 3rem;
+      }
+
+      .contact-support h3 {
+        font-size: 1.5rem;
+        color: var(--text-primary, #1e293b);
+        margin-bottom: 1rem;
+      }
+
+      .contact-support p {
+        color: var(--text-secondary, #64748b);
+        margin-bottom: 2rem;
+      }
+
+      .support-buttons {
+        display: flex;
+        gap: 1rem;
+        justify-content: center;
+        flex-wrap: wrap;
+      }
+
+      .btn {
+        padding: 0.75rem 1.5rem;
+        border-radius: 8px;
+        text-decoration: none;
+        font-weight: 600;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+
+      .btn-primary {
+        background: var(--primary-color, #2563eb);
+        color: white;
+        border: 2px solid var(--primary-color, #2563eb);
+      }
+
+      .btn-primary:hover {
+        background: var(--primary-dark, #1d4ed8);
+        border-color: var(--primary-dark, #1d4ed8);
+      }
+
+      .btn-secondary {
+        background: white;
+        color: var(--primary-color, #2563eb);
+        border: 2px solid var(--primary-color, #2563eb);
+      }
+
+      .btn-secondary:hover {
+        background: var(--primary-color, #2563eb);
+        color: white;
+      }
+
+      /* Responsive Design */
+      @media (max-width: 768px) {
+        .faq-container {
+          padding: 1rem;
+        }
+
+        .faq-header h1 {
+          font-size: 2rem;
+        }
+
+        .faq-categories {
+          gap: 0.5rem;
+        }
+
+        .category-btn {
+          font-size: 0.8rem;
+          padding: 0.4rem 0.8rem;
+        }
+
+        .faq-question {
+          font-size: 1rem;
+          padding: 1rem;
+        }
+
+        .faq-answer {
+          padding: 0 1rem 1rem;
+        }
+
+        .support-buttons {
+          flex-direction: column;
+          align-items: center;
+        }
+
+        .btn {
+          width: 100%;
+          max-width: 300px;
+          justify-content: center;
+        }
+      }
+
+      /* Dark mode support */
+      @media (prefers-color-scheme: dark) {
+        .faq-item {
+          border-color: var(--border-dark, #334155);
+        }
+
+        .search-box input {
+          background: var(--input-bg, #1e293b);
+          color: var(--text-primary, #f1f5f9);
+          border-color: var(--border-dark, #334155);
+        }
+
+        .category-btn {
+          background: var(--card-bg, #1e293b);
+          color: var(--text-primary, #f1f5f9);
+          border-color: var(--border-dark, #334155);
+        }
+
+        .contact-support {
+          background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        }
+      }
+
+      body {
+        background: var(--border-dark, #334155);
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation will be loaded here -->
+    <div id="nav-placeholder"></div>
+
+    <main class="container">
+      <div class="faq-header">
+        <h1>
+          <i class="fas fa-question-circle"></i> Frequently Asked Questions
+        </h1>
+        <p>
+          Find answers to common questions about our AI-powered flashcard
+          generator for trades professionals. Can't find what you're looking
+          for? Contact our support team.
+        </p>
+      </div>
+
+      <div class="faq-search">
+        <div class="search-box">
+          <i class="fas fa-search"></i>
+          <input type="text" id="faqSearch" placeholder="Search FAQ..." />
+        </div>
+      </div>
+
+      <div class="faq-categories">
+        <button class="category-btn active" data-category="all">All</button>
+        <button class="category-btn" data-category="general">General</button>
+        <button class="category-btn" data-category="features">Features</button>
+        <button class="category-btn" data-category="subscription">
+          Subscription
+        </button>
+        <button class="category-btn" data-category="technical">
+          Technical
+        </button>
+      </div>
+
+      <div class="faq-list">
+        <!-- General Questions -->
+        <div class="faq-category" data-category="general">
+          <div class="faq-item" data-category="general">
+            <button class="faq-question">
+              How does the AI flashcard generation work?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Our AI uses advanced natural language processing to analyze your
+                content and automatically generate high-quality flashcards.
+                Simply paste text, upload a document, or provide a URL, and our
+                AI will identify key concepts, terms, and relationships to
+                create effective study materials. The AI can generate different
+                card types including basic Q&A, cloze deletion, and image
+                occlusion cards.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item" data-category="general">
+            <button class="faq-question">
+              What file types can I upload for flashcard generation?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>We support a wide variety of file formats:</p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li><strong>Documents:</strong> PDF, DOC, DOCX, TXT</li>
+                <li>
+                  <strong>Images:</strong> JPG, PNG, GIF, WebP (for image
+                  occlusion)
+                </li>
+                <li><strong>Web Content:</strong> Any public URL or webpage</li>
+              </ul>
+              <p>
+                Files must be under 10MB in size. Our AI can extract text from
+                PDFs and images using OCR technology.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item" data-category="general">
+            <button class="faq-question">
+              Is my data and content secure?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Yes, your data security is our top priority. We use
+                industry-standard encryption for data transmission and storage.
+                Your uploaded content is processed securely and only used to
+                generate your flashcards. We don't share your content with third
+                parties, and you maintain full ownership of your study
+                materials. You can delete your data at any time from your
+                account settings.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Features Questions -->
+        <div class="faq-category" data-category="features">
+          <div class="faq-item" data-category="features">
+            <button class="faq-question">
+              What card types are available?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                We offer several card types to suit different learning styles:
+              </p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>
+                  <strong>Basic Q&A:</strong> Traditional front-and-back
+                  flashcards
+                </li>
+                <li>
+                  <strong>Cloze Deletion:</strong> Fill-in-the-blank style cards
+                </li>
+                <li>
+                  <strong>Multiple Choice:</strong> Quiz-style cards with
+                  multiple options
+                </li>
+                <li>
+                  <strong>Image Occlusion:</strong> Hide parts of images for
+                  visual learning (Premium)
+                </li>
+                <li>
+                  <strong>True/False:</strong> Simple true or false questions
+                </li>
+                <li>
+                  <strong>Definition Cards:</strong> Term and definition pairs
+                </li>
+              </ul>
+              <p>
+                Premium users get access to all card types, while free users can
+                use basic Q&A and cloze deletion.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item" data-category="features">
+            <button class="faq-question">
+              How does spaced repetition work?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Spaced repetition is a scientifically-proven learning technique
+                that shows you cards at optimal intervals for long-term
+                retention. Our algorithm tracks your performance on each card
+                and schedules reviews based on how well you know the material:
+              </p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>Cards you find difficult appear more frequently</li>
+                <li>Cards you know well appear less often</li>
+                <li>The system adapts to your individual learning pace</li>
+                <li>Review intervals increase as you master content</li>
+              </ul>
+              <p>
+                This approach maximizes retention while minimizing study time.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item" data-category="features">
+            <button class="faq-question">
+              Can I export my flashcards to other apps?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Yes! We support multiple export formats to ensure you can use
+                your flashcards anywhere:
+              </p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li><strong>Anki:</strong> Direct export to Anki format</li>
+                <li>
+                  <strong>CSV:</strong> Import into spreadsheets or other tools
+                </li>
+                <li>
+                  <strong>PDF:</strong> Print-ready format for physical study
+                </li>
+                <li>
+                  <strong>JSON:</strong> For developers and custom integrations
+                </li>
+                <li><strong>Text:</strong> Simple text format</li>
+              </ul>
+              <p>
+                You can also share decks with other users or print them for
+                offline study.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Subscription Questions -->
+        <div class="faq-category" data-category="subscription">
+          <div class="faq-item" data-category="subscription">
+            <button class="faq-question">
+              What's the difference between free and premium plans?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p><strong>Free Plan:</strong></p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>Up to 20 flashcards per month</li>
+                <li>Basic card types (Q&A, Cloze)</li>
+                <li>Text and basic file upload</li>
+                <li>Basic export options</li>
+              </ul>
+              <p><strong>Premium Plan:</strong></p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>Unlimited flashcard generation</li>
+                <li>All card types including image occlusion</li>
+                <li>Advanced AI features</li>
+                <li>Priority support</li>
+                <li>Advanced analytics</li>
+                <li>All export formats</li>
+                <li>Collaboration features</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="faq-item" data-category="subscription">
+            <button class="faq-question">
+              Can I cancel my subscription anytime?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Yes, you can cancel your subscription at any time with no
+                questions asked. Here's how it works:
+              </p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>Cancel anytime from your account settings</li>
+                <li>7-day money-back guarantee for new subscriptions</li>
+                <li>Keep access until the end of your billing period</li>
+                <li>Export all your data before downgrading</li>
+                <li>No cancellation fees or hidden charges</li>
+              </ul>
+              <p>
+                If you cancel within 7 days of subscribing, you'll receive a
+                full refund.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Technical Questions -->
+        <div class="faq-category" data-category="technical">
+          <div class="faq-item" data-category="technical">
+            <button class="faq-question">
+              Can I use the app offline?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                While flashcard generation requires an internet connection (as
+                it uses AI processing), you can study your existing flashcards
+                offline. The app includes:
+              </p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>Offline study mode for downloaded decks</li>
+                <li>Session recovery if you lose connection</li>
+                <li>Auto-save functionality</li>
+                <li>Sync when you reconnect</li>
+              </ul>
+              <p>
+                Your study progress is saved locally and synced when you're back
+                online.
+              </p>
+            </div>
+          </div>
+
+          <div class="faq-item" data-category="technical">
+            <button class="faq-question">
+              How do I save and organize my flashcard decks?
+              <i class="fas fa-chevron-down"></i>
+            </button>
+            <div class="faq-answer">
+              <p>
+                Our deck management system makes it easy to organize your study
+                materials:
+              </p>
+              <ul style="margin: 1rem 0; padding-left: 1.5rem">
+                <li>
+                  <strong>Auto-save:</strong> Decks are automatically saved as
+                  you create them
+                </li>
+                <li>
+                  <strong>Custom names:</strong> Give your decks descriptive
+                  names
+                </li>
+                <li>
+                  <strong>Categories:</strong> Organize by subject or topic
+                </li>
+                <li>
+                  <strong>Search:</strong> Quickly find decks by name or content
+                </li>
+                <li>
+                  <strong>Tags:</strong> Add custom tags for better organization
+                </li>
+                <li>
+                  <strong>Favorites:</strong> Mark important decks for quick
+                  access
+                </li>
+              </ul>
+              <p>
+                All your decks are stored securely in the cloud and accessible
+                from any device.
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="contact-support">
+        <h3><i class="fas fa-headset"></i> Still have questions?</h3>
+        <p>
+          Our support team is here to help! Reach out to us through any of these
+          channels.
+        </p>
+        <div class="support-buttons">
+          <a href="mailto:support@note2flash.com" class="btn btn-primary">
+            <i class="fas fa-envelope"></i>
+            Email Support
+          </a>
+          <a href="/contact.html" class="btn btn-secondary">
+            <i class="fas fa-comments"></i>
+            Live Chat
+          </a>
+        </div>
+      </div>
+    </main>
+
+    <script type="module">
+      import { initializeNavigation } from "./nav-template.js";
+      // Initialize navigation as soon as the DOM is ready
+      document.addEventListener("DOMContentLoaded", initializeNavigation);
+    </script>
+
+    <script type="module">
+      import { initializeFooter } from "./footer-template.js";
+      document.addEventListener("DOMContentLoaded", initializeFooter);
+    </script>
+
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const faqItems = document.querySelectorAll(".faq-item");
+        const searchInput = document.getElementById("faqSearch");
+        const categoryBtns = document.querySelectorAll(".category-btn");
+
+        // Toggle FAQ items
+        faqItems.forEach((item) => {
+          const question = item.querySelector(".faq-question");
+          question.addEventListener("click", () => {
+            const isActive = item.classList.contains("active");
+
+            // Close all other items
+            faqItems.forEach((otherItem) => {
+              if (otherItem !== item) {
+                otherItem.classList.remove("active");
+              }
+            });
+
+            // Toggle current item
+            item.classList.toggle("active", !isActive);
+          });
+        });
+
+        // Search functionality
+        searchInput.addEventListener("input", function () {
+          const searchTerm = this.value.toLowerCase();
+
+          faqItems.forEach((item) => {
+            const question = item
+              .querySelector(".faq-question")
+              .textContent.toLowerCase();
+            const answer = item
+              .querySelector(".faq-answer")
+              .textContent.toLowerCase();
+
+            if (question.includes(searchTerm) || answer.includes(searchTerm)) {
+              item.style.display = "block";
+            } else {
+              item.style.display = "none";
+            }
+          });
+        });
+
+        // Category filtering
+        categoryBtns.forEach((btn) => {
+          btn.addEventListener("click", function () {
+            const category = this.dataset.category;
+
+            // Update active button
+            categoryBtns.forEach((otherBtn) =>
+              otherBtn.classList.remove("active")
+            );
+            this.classList.add("active");
+
+            // Filter items
+            faqItems.forEach((item) => {
+              if (category === "all" || item.dataset.category === category) {
+                item.style.display = "block";
+              } else {
+                item.style.display = "none";
+              }
+            });
+
+            // Clear search when switching categories
+            searchInput.value = "";
+          });
+        });
+
+        // Auto-open FAQ item if linked with hash
+        const hash = window.location.hash;
+        if (hash) {
+          const targetItem = document.querySelector(
+            `[data-id="${hash.substring(1)}"]`
+          );
+          if (targetItem) {
+            targetItem.classList.add("active");
+            targetItem.scrollIntoView({ behavior: "smooth" });
+          }
+        }
+      });
+    </script>
+  </body>
+</html>

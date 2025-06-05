@@ -599,4 +599,55 @@ export class SpacedRepetition {
       this.reviewData.set(key, value);
     });
   }
+
+  // Add predictNextInterval method
+  predictNextInterval(cardId, performance) {
+    const card = this.getCardData(cardId);
+    if (!card) return 1;
+
+    // Clone the card to simulate the next interval without modifying the actual card
+    const simulatedCard = { ...card };
+
+    switch (simulatedCard.state) {
+      case this.cardStates.NEW:
+      case this.cardStates.LEARNING:
+      case this.cardStates.RELEARNING:
+        // For new/learning cards, return 1 day for good/easy, same day for again/hard
+        return performance >= 3 ? 1 : 0;
+
+      case this.cardStates.REVIEW:
+        // Calculate next interval based on performance
+        let intervalMultiplier;
+        switch (performance) {
+          case 1: // Again
+            return Math.max(1, Math.floor(simulatedCard.interval * 0.2));
+          case 2: // Hard
+            intervalMultiplier = 1.2;
+            break;
+          case 3: // Good
+            intervalMultiplier = simulatedCard.ease / 1000;
+            break;
+          case 4: // Easy
+            intervalMultiplier = (simulatedCard.ease / 1000) * 1.3;
+            break;
+          default:
+            return simulatedCard.interval;
+        }
+
+        // Apply interval modifier and calculate new interval
+        const newInterval = Math.max(
+          1,
+          Math.floor(
+            simulatedCard.interval *
+              intervalMultiplier *
+              this.config.intervalModifier
+          )
+        );
+
+        // Apply maximum interval limit
+        return Math.min(newInterval, this.config.maximumInterval);
+    }
+
+    return 1; // Default to 1 day if no other condition matches
+  }
 }

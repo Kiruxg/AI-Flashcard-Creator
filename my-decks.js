@@ -1,25 +1,20 @@
-import { auth, db } from "./config.js";
-import { DeckManager } from "./deckManager.js";
-import { StudyProgress } from "./studyProgress.js";
-import { showNotification } from "./utils.js";
+import { auth, db } from "./supabase-config.js";
+import { showAuthModal } from "./auth-modal-supabase.js";
 
 class MyDecksManager {
   constructor() {
-    this.deckManager = null;
-    this.studyProgress = null;
     this.decks = [];
+    this.currentUser = null;
     this.initializeAuth();
   }
 
   initializeAuth() {
-    auth.onAuthStateChanged(async (user) => {
-      if (user && user.emailVerified) {
-        this.deckManager = new DeckManager(user.uid);
-        this.studyProgress = new StudyProgress(user.uid);
-        await this.loadDecks();
-        await this.updateStats();
+    auth.onAuthStateChange((event, session) => {
+      this.currentUser = session?.user;
+      if (this.currentUser) {
+        this.loadDecks();
+        this.updateStats();
       } else {
-        // If user is not verified or not logged in, redirect to home
         window.location.href = "/?auth=required";
       }
     });
@@ -27,115 +22,135 @@ class MyDecksManager {
 
   async loadDecks() {
     try {
-      // Show loading state
-      document.getElementById("decksLoadingPlaceholder").style.display =
-        "block";
-      document.getElementById("emptyDecksState").style.display = "none";
-      document.getElementById("decksList").innerHTML = "";
+      const { data: decks, error } = await db
+        .from("decks")
+        .select("*")
+        .eq("user_id", this.currentUser.id)
+        .order("updated_at", { ascending: false });
 
-      // Load decks
-      this.decks = await this.deckManager.loadDecks();
+      if (error) throw error;
 
-      // Update display
-      if (this.decks.length === 0) {
-        document.getElementById("decksLoadingPlaceholder").style.display =
-          "none";
-        document.getElementById("emptyDecksState").style.display = "block";
-      } else {
-        this.displayDecks(this.decks);
-      }
+      this.decks = decks;
+      this.displayDecks(decks);
+      document.getElementById("decksLoadingPlaceholder").style.display = "none";
     } catch (error) {
       console.error("Error loading decks:", error);
-      showNotification("Failed to load decks. Please try again.", "error");
-    } finally {
-      document.getElementById("decksLoadingPlaceholder").style.display = "none";
+      // Show error state
     }
   }
 
   async updateStats() {
     try {
-      const stats = await this.studyProgress.getUserStats();
-      const dueCards = await this.studyProgress.getDueCards();
+      // Get total decks
+      const totalDecks = this.decks.length;
 
-      document.getElementById("totalDecks").textContent = this.decks.length;
-      document.getElementById("totalCards").textContent = this.decks.reduce(
-        (total, deck) => total + (deck.cards?.length || 0),
+      // Get total cards
+      const totalCards = this.decks.reduce(
+        (sum, deck) => sum + (deck.cards?.length || 0),
         0
       );
-      document.getElementById("cardsLearned").textContent =
-        stats.masteredCards || 0;
-      document.getElementById("dueCards").textContent = dueCards.length;
+
+      // Get cards learned and due today
+      const { data: progress, error } = await db
+        .from("study_progress")
+        .select("*")
+        .eq("user_id", this.currentUser.id);
+
+      if (error) throw error;
+
+      const now = new Date();
+      const cardsLearned = progress.filter((p) => p.last_reviewed).length;
+      const dueCards = progress.filter((p) => {
+        const dueDate = new Date(p.next_review);
+        return dueDate <= now;
+      }).length;
+
+      // Update UI
+      document.getElementById("totalDecks").textContent = totalDecks;
+      document.getElementById("totalCards").textContent = totalCards;
+      document.getElementById("cardsLearned").textContent = cardsLearned;
+      document.getElementById("dueCards").textContent = dueCards;
     } catch (error) {
       console.error("Error updating stats:", error);
     }
   }
 
-  displayDecks(decks) {
+  displayDecks(decks = []) {
     const decksList = document.getElementById("decksList");
-    decksList.innerHTML = "";
+    const emptyState = document.getElementById("emptyDecksState");
 
-    decks.forEach((deck) => {
-      const deckElement = document.createElement("div");
-      deckElement.className = "deck-card";
-      deckElement.innerHTML = `
-        <div class="deck-card-header">
-          <h3 class="deck-card-title">${deck.name}</h3>
-          <span class="deck-card-date">${new Date(
-            deck.updatedAt
-          ).toLocaleDateString()}</span>
+    if (decks.length === 0) {
+      decksList.innerHTML = "";
+      emptyState.style.display = "block";
+      return;
+    }
+
+    emptyState.style.display = "none";
+    decksList.innerHTML = decks
+      .map(
+        (deck) => `
+        <div class="deck-card">
+          <div class="deck-info">
+            <h3>${deck.name}</h3>
+            <p>${deck.description || "No description"}</p>
+            <div class="deck-stats">
+              <span><i class="fas fa-clone"></i> ${
+                deck.cards?.length || 0
+              } cards</span>
+              <span><i class="fas fa-clock"></i> Last updated ${new Date(
+                deck.updated_at
+              ).toLocaleDateString()}</span>
+            </div>
+          </div>
+          <div class="deck-actions">
+            <button onclick="studyDeck('${
+              deck.id
+            }')" class="btn btn-primary btn-sm">
+              <i class="fas fa-graduation-cap"></i> Study
+            </button>
+            <button onclick="editDeck('${
+              deck.id
+            }')" class="btn btn-secondary btn-sm">
+              <i class="fas fa-edit"></i> Edit
+            </button>
+            <button onclick="deleteDeck('${
+              deck.id
+            }')" class="btn btn-danger btn-sm">
+              <i class="fas fa-trash"></i>
+            </button>
+          </div>
         </div>
-        <div class="deck-card-stats">
-          <span class="deck-card-stat">
-            <i class="fas fa-clone"></i>
-            ${deck.cards?.length || 0} cards
-          </span>
-          <span class="deck-card-stat">
-            <i class="fas fa-graduation-cap"></i>
-            ${deck.stats?.mastered || 0} mastered
-          </span>
-          <span class="deck-card-stat">
-            <i class="fas fa-clock"></i>
-            ${deck.stats?.due || 0} due
-          </span>
-        </div>
-        <div class="deck-card-progress">
-          <div class="progress-bar" style="width: ${
-            ((deck.stats?.mastered || 0) / (deck.cards?.length || 1)) * 100
-          }%"></div>
-        </div>
-        <div class="deck-card-actions">
-          <button class="btn btn-primary" onclick="studyDeck('${deck.id}')">
-            <i class="fas fa-play"></i> Study
-          </button>
-          <button class="btn btn-secondary" onclick="editDeck('${deck.id}')">
-            <i class="fas fa-edit"></i> Edit
-          </button>
-          <button class="btn btn-danger" onclick="deleteDeck('${deck.id}')">
-            <i class="fas fa-trash"></i>
-          </button>
-        </div>
-      `;
-      decksList.appendChild(deckElement);
-    });
+      `
+      )
+      .join("");
   }
 
   async createDeck(name, description) {
     try {
-      const deck = await this.deckManager.saveDeck(name, [], {
-        description,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        stats: {
-          mastered: 0,
-          due: 0,
-        },
-      });
-      await this.loadDecks();
-      showNotification("Deck created successfully!", "success");
+      const { data: deck, error } = await db
+        .from("decks")
+        .insert([
+          {
+            name,
+            description,
+            user_id: this.currentUser.id,
+            cards: [],
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+        ])
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      this.decks.unshift(deck);
+      this.displayDecks(this.decks);
+      this.updateStats();
       hideModal("createDeckModal");
     } catch (error) {
       console.error("Error creating deck:", error);
-      showNotification("Failed to create deck. Please try again.", "error");
+      // Show error message
     }
   }
 
@@ -143,24 +158,31 @@ class MyDecksManager {
     if (!confirm("Are you sure you want to delete this deck?")) return;
 
     try {
-      await this.deckManager.deleteDeck(deckId);
-      await this.loadDecks();
-      showNotification("Deck deleted successfully!", "success");
+      const { error } = await db
+        .from("decks")
+        .delete()
+        .eq("id", deckId)
+        .eq("user_id", this.currentUser.id);
+
+      if (error) throw error;
+
+      this.decks = this.decks.filter((deck) => deck.id !== deckId);
+      this.displayDecks(this.decks);
+      this.updateStats();
     } catch (error) {
       console.error("Error deleting deck:", error);
-      showNotification("Failed to delete deck. Please try again.", "error");
+      // Show error message
     }
   }
 
   studyDeck(deckId) {
-    window.location.href = `/study.html?deck=${deckId}`;
+    window.location.href = `study.html?deck=${deckId}`;
   }
 
   editDeck(deckId) {
-    window.location.href = `/create-deck.html?deck=${deckId}`;
+    window.location.href = `create-deck.html?deck=${deckId}`;
   }
 
-  // Search and sort functionality
   handleSearch(query) {
     const filteredDecks = this.decks.filter((deck) =>
       deck.name.toLowerCase().includes(query.toLowerCase())
@@ -169,11 +191,11 @@ class MyDecksManager {
   }
 
   handleSort(sortBy) {
-    const sortedDecks = [...this.decks];
+    let sortedDecks = [...this.decks];
     switch (sortBy) {
       case "recent":
         sortedDecks.sort(
-          (a, b) => new Date(b.updatedAt) - new Date(a.updatedAt)
+          (a, b) => new Date(b.updated_at) - new Date(a.updated_at)
         );
         break;
       case "name":
@@ -186,9 +208,7 @@ class MyDecksManager {
         break;
       case "studied":
         sortedDecks.sort(
-          (a, b) =>
-            new Date(b.stats?.lastStudied || 0) -
-            new Date(a.stats?.lastStudied || 0)
+          (a, b) => new Date(b.last_studied) - new Date(a.last_studied)
         );
         break;
     }

@@ -20,11 +20,11 @@ export const footerTemplate = `
         <div class="footer-section">
             <h4>Product</h4>
             <ul class="footer-links">
-                <li><a href="index.html">Home</a></li>
+                <li><a href="create-deck.html">Create Flashcards from Notes</a></li>
+                <li><a href="shared-decks.html">Shared Decks</a></li>
+                <li><a href="index.html#how-it-works">Study Progress</a></li>
+                <li><a href="ai-coach.html">AI Coach</a></li>
                 <li><a href="pricing.html">Pricing</a></li>
-                <li><a href="index.html#how-it-works">How It Works</a></li>
-                <li><a href="index.html#features">Features</a></li>
-                <li><a href="progress.html">Study Progress</a></li>
             </ul>
         </div>
 
@@ -40,11 +40,12 @@ export const footerTemplate = `
         </div>
 
         <div class="footer-section">
-            <h4>Legal</h4>
+            <h4>Support & Legal</h4>
             <ul class="footer-links">
+                <li><a href="faq.html">FAQ</a></li>
+                <li><a href="mailto:support@note2flash.com">Contact Support</a></li>
                 <li><a href="privacy-policy.html">Privacy Policy</a></li>
                 <li><a href="terms-of-service.html">Terms of Service</a></li>
-                <li><a href="mailto:support@note2flash.com">Support</a></li>
             </ul>
         </div>
     </div>

@@ -2,47 +2,52 @@
 export class CardTypeManager {
   constructor() {
     this.cardTypes = {
-      basic: {
-        name: "Basic",
-        description: "Simple front and back flashcards",
+      term: {
+        name: "Term & Definition",
+        description: "Simple term and definition flashcards",
         tiers: ["free", "premium"],
         maxCards: {
           free: 10,
           premium: 100,
         },
+        validate: this.validateTermCard.bind(this),
+        render: this.renderTermCard.bind(this),
+        generatePrompt: this.generateTermPrompt.bind(this),
+      },
+      qa: {
+        name: "Question & Answer",
+        description: "Question and answer style cards",
+        tiers: ["free", "premium"],
+        maxCards: {
+          free: 10,
+          premium: 100,
+        },
+        validate: this.validateQACard.bind(this),
+        render: this.renderQACard.bind(this),
+        generatePrompt: this.generateQAPrompt.bind(this),
       },
       cloze: {
-        name: "Cloze Deletion",
+        name: "Cloze",
         description: "Fill-in-the-blank style cards",
         tiers: ["free", "premium"],
         maxCards: {
           free: 5,
           premium: 50,
         },
+        validate: this.validateClozeCard.bind(this),
+        render: this.renderClozeCard.bind(this),
+        generatePrompt: this.generateClozePrompt.bind(this),
       },
-      multipleChoice: {
-        name: "Multiple Choice",
-        description: "Question with multiple answer choices",
+      contextual: {
+        name: "Contextual/Scenario-based",
+        description: "Cards with real-world scenarios and explanations",
         tiers: ["premium"],
         maxCards: {
           premium: 50,
         },
-      },
-      imageOcclusion: {
-        name: "Image Occlusion",
-        description: "Hide parts of an image to test recall",
-        tiers: ["premium"],
-        maxCards: {
-          premium: 30,
-        },
-      },
-      conceptMap: {
-        name: "Concept Map",
-        description: "Visual representation of relationships between concepts",
-        tiers: ["premium"],
-        maxCards: {
-          premium: 20,
-        },
+        validate: this.validateContextualCard.bind(this),
+        render: this.renderContextualCard.bind(this),
+        generatePrompt: this.generateContextualPrompt.bind(this),
       },
     };
   }
@@ -72,7 +77,9 @@ export class CardTypeManager {
       typeof card.front === "string" &&
       typeof card.back === "string" &&
       card.front.includes("_____") &&
-      card.back.includes(card.front.replace("_____", ""))
+      card.front.length > 10 &&
+      card.back.length > 10 &&
+      card.front !== card.back
     );
   }
 
@@ -124,7 +131,7 @@ export class CardTypeManager {
       <div class="card-front card-type-term">
         <h3>${card.front}</h3>
       </div>
-      <div class="card-back card-type-term">
+      <div class="card-back card-type-term" style="display: none;">
         <p>${card.back}</p>
       </div>
     `;
@@ -135,7 +142,7 @@ export class CardTypeManager {
       <div class="card-front card-type-qa">
         <h3>${card.front}</h3>
       </div>
-      <div class="card-back card-type-qa">
+      <div class="card-back card-type-qa" style="display: none;">
         <p>${card.back}</p>
         ${
           card.explanation
@@ -147,17 +154,55 @@ export class CardTypeManager {
   }
 
   renderClozeCard(card, container) {
-    const frontWithBlanks = card.front.replace(
-      /_____/g,
-      '<span class="cloze-blank"></span>'
-    );
-    container.innerHTML = `
+    console.log("CLOZE CARD", card);
+    // Extract the answer by finding what word replaces the _____
+    const frontWords = card.front.split(" ");
+    const backWords = card.back.split(" ");
+    let answer = "";
+
+    // Find the word that's different between front and back
+    for (let i = 0; i < backWords.length; i++) {
+      if (i >= frontWords.length || frontWords[i].includes("_____")) {
+        answer = backWords[i];
+        console.log("answer", answer);
+        break;
+      }
+    }
+
+    // Add CSS for styling
+    const style = document.createElement("style");
+    style.textContent = `
+      .cloze-blank {
+        display: inline-block;
+        min-width: 3em;
+        border-bottom: 2px solid currentColor;
+        text-align: center;
+        margin: 0 0.2em;
+      }
+      .cloze-answer {
+        color: var(--primary-color, #2a7f62);
+        font-weight: bold;
+        font-size: 1.5em;
+        text-align: center;
+        display: block;
+        margin: 20px 0;
+      }
+      .card-back {
+        display: none;
+      }
+      .card-back.show {
+        display: block;
+      }
+    `;
+    container.appendChild(style);
+
+    container.innerHTML += `
       <div class="card-front card-type-cloze">
-        <p>${frontWithBlanks}</p>
+        <p>${card.front}</p>
         ${card.hint ? `<div class="cloze-hint">${card.hint}</div>` : ""}
       </div>
       <div class="card-back card-type-cloze">
-        <p>${card.back}</p>
+        <p class="cloze-answer">${answer}</p>
       </div>
     `;
   }
@@ -232,7 +277,7 @@ export class CardTypeManager {
         <div class="scenario">${card.scenario}</div>
         <div class="question">${card.question}</div>
       </div>
-      <div class="card-back card-type-contextual">
+      <div class="card-back card-type-contextual" style="display: none;">
         <p>${card.answer}</p>
         <div class="explanation">${card.explanation}</div>
       </div>
@@ -283,7 +328,18 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
 6. Ensure the answer is unambiguous
 7. Maintain the original meaning of the text
 
-IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "front" (text with blanks), "back" (complete text), and optional "hint" properties.`,
+Format your cloze cards using five underscores (_____) for blanks. Example:
+
+{
+  "front": "The capital of France is _____.",
+  "back": "The capital of France is Paris.",
+  "hint": "Think about major European cities"
+}
+
+IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have:
+- "front": Text with blanks using five underscores (_____) 
+- "back": The complete sentence with the answer filled in
+- "hint": (optional) A helpful hint for answering the card`,
       user: `Create cloze deletion flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
     };
   }

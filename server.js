@@ -394,7 +394,10 @@ app.post("/api/generate-flashcards", async (req, res) => {
           // Handle new structure where cards are in a "cards" array
           const cardsArray = responseData.cards || [responseData];
 
-          return cardsArray.map((card) => {
+          // Limit the number of cards to what was requested
+          const limitedCards = cardsArray.slice(0, cardCount);
+
+          return limitedCards.map((card) => {
             // Add card type and metadata
             card.type = cardType;
             card.metadata = {
@@ -416,9 +419,10 @@ app.post("/api/generate-flashcards", async (req, res) => {
         }
       })
       .flat()
-      .filter((card) => card !== null);
+      .filter((card) => card !== null)
+      .slice(0, cardCount); // Add final limit to ensure we don't exceed requested count
 
-    // If we need more cards than generated, make additional requests
+    // Only make additional requests if we don't have enough cards
     let allCards = [...cards];
     while (allCards.length < cardCount) {
       const remainingCount = cardCount - allCards.length;

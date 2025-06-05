@@ -45,15 +45,10 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <!-- File type detection -->
     <script src="https://cdn.jsdelivr.net/npm/file-type@18.7.1/browser.min.js"></script>
-    <!-- Firebase SDK -->
-    <script type="module">
-      // Import the functions you need from the SDKs you need
-      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
-      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-    </script>
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module" src="./supabase-config.js"></script>
     <script type="module" src="./config.js"></script>
     <script type="module" src="./spacedRepetition.js"></script>
     <script type="module" src="./deckManager.js"></script>
@@ -216,125 +211,9 @@
         </button>
       </div>
 
-      <!-- Study Interface -->
-      <div class="study-interface" style="display: none">
-        <div class="study-header">
-          <h2>Study Session</h2>
-          <div class="study-stats">
-            <span class="stat-item">
-              <i class="fas fa-chart-line"></i>
-              <span class="stat-value" id="studyAccuracy">0%</span>
-              <span class="stat-label">Accuracy</span>
-            </span>
-            <span class="stat-item">
-              <i class="fas fa-fire"></i>
-              <span class="stat-value" id="studyStreak">0</span>
-              <span class="stat-label">Day Streak</span>
-            </span>
-            <span class="stat-item">
-              <i class="fas fa-clock"></i>
-              <span class="stat-value" id="cardsRemaining">0</span>
-              <span class="stat-label">Cards Left</span>
-            </span>
-          </div>
-        </div>
-
-        <div class="study-card">
-          <div class="card-content">
-            <div class="card-front"></div>
-            <div class="card-back" style="display: none"></div>
-          </div>
-          <div class="card-controls">
-            <button class="btn btn-secondary" id="flipCard">
-              <i class="fas fa-sync-alt"></i> Flip Card
-            </button>
-            <div class="performance-buttons" style="display: none">
-              <button class="btn btn-danger" data-performance="1">
-                <i class="fas fa-times"></i> Unfamiliar
-              </button>
-              <button class="btn btn-success" data-performance="5">
-                <i class="fas fa-star"></i> I know it!
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <div class="study-progress">
-          <div class="progress-container">
-            <div class="progress-bar" style="width: 0%"></div>
-          </div>
-          <div class="progress-stats">
-            <span id="cardsReviewed">0</span> /
-            <span id="totalCards">0</span> cards
-          </div>
-        </div>
-
-        <div class="study-complete" style="display: none">
-          <h3>Study Session Complete!</h3>
-          <div class="session-stats">
-            <div class="stat-card">
-              <i class="fas fa-check-circle"></i>
-              <span class="stat-value" id="sessionCorrect">0</span>
-              <span class="stat-label">Correct</span>
-            </div>
-            <div class="stat-card">
-              <i class="fas fa-times-circle"></i>
-              <span class="stat-value" id="sessionIncorrect">0</span>
-              <span class="stat-label">Incorrect</span>
-            </div>
-            <div class="stat-card">
-              <i class="fas fa-percentage"></i>
-              <span class="stat-value" id="sessionAccuracy">0%</span>
-              <span class="stat-label">Accuracy</span>
-            </div>
-          </div>
-          <div class="session-actions">
-            <button class="btn btn-primary" id="restartSession">
-              <i class="fas fa-redo"></i> Restart Session
-            </button>
-            <button class="btn btn-secondary" id="endSession">
-              <i class="fas fa-home"></i> Return to Decks
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Study History -->
-      <div class="study-history" style="display: none">
-        <h3>Study History</h3>
-        <div class="history-chart">
-          <canvas id="studyHistoryChart"></canvas>
-        </div>
-        <div class="history-stats">
-          <div class="stat-group">
-            <h4>Overall Statistics</h4>
-            <div class="stat-grid">
-              <div class="stat-item">
-                <span class="stat-value" id="totalReviews">0</span>
-                <span class="stat-label">Total Reviews</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-value" id="overallAccuracy">0%</span>
-                <span class="stat-label">Overall Accuracy</span>
-              </div>
-              <div class="stat-item">
-                <span class="stat-value" id="longestStreak">0</span>
-                <span class="stat-label">Longest Streak</span>
-              </div>
-            </div>
-          </div>
-          <div class="stat-group">
-            <h4>Card Difficulty</h4>
-            <div class="difficulty-chart">
-              <canvas id="difficultyChart"></canvas>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- Input Section -->
-      <div id="input-section">
-        <div class="card">
+      <div class="grid-container">
+        <!-- Left Column - Input Section -->
+        <div class="grid-item">
           <h2>Create Flashcards</h2>
           <div class="input-tabs">
             <button class="tab-btn active" data-tab="text">Text Input</button>
@@ -458,8 +337,6 @@ Examples:
                     <option value="term">Term & Definition</option>
                     <option value="qa">Question & Answer</option>
                     <option value="cloze">Cloze</option>
-                    <option value="image-occlusion">Image Occlusion</option>
-                    <option value="multiple-choice">Multiple Choice</option>
                     <option value="contextual">
                       Contextual/Scenario-based
                     </option>
@@ -469,12 +346,6 @@ Examples:
                     <option value="10">10 cards</option>
                     <option value="15" class="premium-option">15 cards</option>
                     <option value="20" class="premium-option">20 cards</option>
-                    <option value="25" class="premium-option">25 cards</option>
-                    <option value="30" class="premium-option">30 cards</option>
-                    <option value="35" class="premium-option">35 cards</option>
-                    <option value="40" class="premium-option">40 cards</option>
-                    <option value="45" class="premium-option">45 cards</option>
-                    <option value="50" class="premium-option">50 cards</option>
                   </select>
                 </div>
                 <button
@@ -499,83 +370,78 @@ Examples:
             </form>
           </div>
         </div>
-      </div>
 
-      <!-- Flashcard Viewer Grid -->
-      <div class="grid">
-        <!-- Left Column - Upload Section -->
-        <div class="upload-section">
-          <div class="card">
-            <h2>Flashcard Viewer</h2>
-            <div
-              id="loadingIndicator"
-              class="loading-overlay"
-              style="display: none"
-            >
-              <div class="loading-content">
-                <div class="spinner"></div>
-                <div class="loading-message">
-                  <h3>Generating Flashcards</h3>
-                  <p class="loading-subtitle">This may take a few moments...</p>
-                </div>
+        <!-- Right Column - Flashcard Viewer -->
+        <div class="grid-item">
+          <h2>Flashcard Viewer</h2>
+          <div
+            id="loadingIndicator"
+            class="loading-overlay"
+            style="display: none"
+          >
+            <div class="loading-content">
+              <div class="spinner"></div>
+              <div class="loading-message">
+                <h3>Generating Flashcards</h3>
+                <p class="loading-subtitle">This may take a few moments...</p>
               </div>
             </div>
-            <div id="flashcardContainer" class="flashcard-container">
-              <div id="emptyState" class="empty-state">
-                <div class="icon">📝</div>
-                <p>Upload a file or enter text to generate flashcards</p>
-                <button
-                  id="studyNowBtn"
-                  class="btn btn-primary"
-                  style="display: none"
-                >
-                  <i class="fas fa-play"></i> Study Now
-                  <span class="due-count"></span>
-                </button>
-              </div>
-              <div
-                id="flashcardViewer"
-                class="flashcard-viewer"
+          </div>
+          <div id="flashcardContainer" class="flashcard-container">
+            <div id="emptyState" class="empty-state">
+              <div class="icon">📝</div>
+              <p>Upload a file or enter text to generate flashcards</p>
+              <button
+                id="studyNowBtn"
+                class="btn btn-primary"
                 style="display: none"
               >
-                <div class="progress-container">
-                  <div class="progress-bar">
-                    <div id="progressBar" class="progress"></div>
-                  </div>
-                  <span id="progressText">0/0 cards reviewed</span>
+                <i class="fas fa-play"></i> Study Now
+                <span class="due-count"></span>
+              </button>
+            </div>
+            <div
+              id="flashcardViewer"
+              class="flashcard-viewer"
+              style="display: none"
+            >
+              <div class="progress-container">
+                <div class="progress-bar">
+                  <div id="progressBar" class="progress"></div>
                 </div>
-                <div id="flashcard" class="flashcard">
-                  <div class="card-front">
-                    <p id="frontText"></p>
-                  </div>
-                  <div class="card-back">
-                    <p id="backText"></p>
-                  </div>
+                <span id="progressText">0/0 cards reviewed</span>
+              </div>
+              <div id="flashcard" class="flashcard">
+                <div class="card-front">
+                  <p id="frontText"></p>
                 </div>
-                <div class="card-controls">
-                  <div class="navigation-buttons">
-                    <button id="prevCardBtn" class="btn btn-secondary">
-                      <i class="fas fa-chevron-left"></i>
-                    </button>
-                    <button id="shuffleBtn" class="btn btn-secondary">
-                      <i class="fas fa-random"></i>
-                    </button>
-                    <button id="nextCardBtn" class="btn btn-secondary">
-                      <i class="fas fa-chevron-right"></i>
-                    </button>
-                  </div>
-                  <button id="showAnswerBtn" class="btn btn-primary">
-                    <i class="fas fa-eye"></i> Show Answer
+                <div class="card-back">
+                  <p id="backText"></p>
+                </div>
+              </div>
+              <div class="card-controls">
+                <div class="navigation-buttons">
+                  <button id="prevCardBtn" class="btn btn-secondary">
+                    <i class="fas fa-chevron-left"></i>
                   </button>
+                  <button id="shuffleBtn" class="btn btn-secondary">
+                    <i class="fas fa-random"></i>
+                  </button>
+                  <button id="nextCardBtn" class="btn btn-secondary">
+                    <i class="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+                <button id="showAnswerBtn" class="btn btn-primary">
+                  <i class="fas fa-eye"></i> Show Answer
+                </button>
 
-                  <div class="performance-buttons">
-                    <button class="btn btn-danger" data-performance="1">
-                      <i class="fas fa-times"></i> Unfamiliar
-                    </button>
-                    <button class="btn btn-success" data-performance="5">
-                      <i class="fas fa-star"></i> I know it!
-                    </button>
-                  </div>
+                <div class="performance-buttons">
+                  <button class="btn btn-danger" data-performance="1">
+                    <i class="fas fa-tools"></i> Need Practice
+                  </button>
+                  <button class="btn btn-success" data-performance="5">
+                    <i class="fas fa-check-circle"></i> Confident
+                  </button>
                 </div>
               </div>
             </div>
