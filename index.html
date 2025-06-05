@@ -821,30 +821,33 @@ Examples:
       const cardTypeManager = new CardTypeManager();
 
       // Card type selection handler
-      document.getElementById("cardType").addEventListener("change", (e) => {
-        const selectedType = e.target.value;
-        const optionsContainer = document.getElementById("cardTypeOptions");
-        const typeOptions =
-          optionsContainer.querySelectorAll(".card-type-option");
+      const cardType = document.getElementById("cardType");
+      if (cardType) {
+        cardType.addEventListener("change", (e) => {
+          const selectedType = e.target.value;
+          const optionsContainer = document.getElementById("cardTypeOptions");
+          const typeOptions =
+            optionsContainer.querySelectorAll(".card-type-option");
 
-        // Hide all options first
-        typeOptions.forEach((opt) => (opt.style.display = "none"));
-        optionsContainer.style.display = "none";
+          // Hide all options first
+          typeOptions.forEach((opt) => (opt.style.display = "none"));
+          optionsContainer.style.display = "none";
 
-        // Show relevant options
-        const selectedOption = optionsContainer.querySelector(
-          `[data-type="${selectedType}"]`
-        );
-        if (selectedOption) {
-          selectedOption.style.display = "block";
-          optionsContainer.style.display = "block";
-        }
+          // Show relevant options
+          const selectedOption = optionsContainer.querySelector(
+            `[data-type="${selectedType}"]`
+          );
+          if (selectedOption) {
+            selectedOption.style.display = "block";
+            optionsContainer.style.display = "block";
+          }
 
-        // Special handling for image occlusion
-        if (selectedType === "image-occlusion") {
-          initializeImageOcclusionEditor();
-        }
-      });
+          // Special handling for image occlusion
+          if (selectedType === "image-occlusion") {
+            initializeImageOcclusionEditor();
+          }
+        });
+      }
 
       // Image occlusion editor initialization
       function initializeImageOcclusionEditor() {

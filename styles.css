@@ -317,6 +317,7 @@ body {
   color: var(--text-color);
   font-size: 0.95rem;
   cursor: pointer;
+  text-decoration: none;
   transition: all 0.2s ease;
 }
 
@@ -2317,7 +2318,7 @@ body[data-billing="monthly"] .price.yearly {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  margin-bottom: 1rem;
+  margin: 1.5rem 0 0;
 }
 
 .deck-card-title {
@@ -4605,23 +4606,6 @@ body[data-billing="monthly"] .price.yearly {
   border-radius: 8px;
 }
 
-.auth-loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 36px;
-  width: 36px;
-}
-
-.spinner-small {
-  width: 20px;
-  height: 20px;
-  border: 2px solid var(--primary-100);
-  border-top-color: var(--primary-600);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
-}
-
 /* My Decks Page Styles */
 .my-decks-header {
   display: flex;
@@ -4809,3 +4793,21 @@ body[data-billing="monthly"] .price.yearly {
     flex-direction: column;
   }
 }
+
+.auth-link {
+  color: var(--primary-color);
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 0.95em;
+}
+
+.auth-success {
+  background-color: var(--success-50, #e6f9ed);
+  color: var(--success-700, #20734d);
+  padding: 0.75rem;
+  border-radius: 6px;
+  margin-bottom: 1rem;
+  font-size: 0.875rem;
+  border: 1px solid var(--success-200, #b6ecc7);
+}
+

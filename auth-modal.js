@@ -1,5 +1,15 @@
+// Import Firebase auth functions
+import { auth } from "./config.js";
+import { sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+import { AUTH_ERROR_MESSAGES } from "./config.js";
+import { showNotification } from "./utils.js";
+
 // Reusable Auth Modal Component
 export function createAuthModal() {
+  // Remove any existing modals with the same IDs to prevent duplicates
+  document.getElementById("authModal")?.remove();
+  document.getElementById("resetPasswordModal")?.remove();
+
   const modalHTML = `
     <!-- Auth Modal -->
     <div id="authModal" class="modal">
@@ -93,62 +103,90 @@ export function createAuthModal() {
         </div>
       </div>
     </div>
+
+    <!-- Reset Password Modal -->
+    <div id="resetPasswordModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Reset Password</h2>
+        <form id="resetPasswordForm" class="auth-form">
+          <div class="form-group">
+            <input
+              type="email"
+              id="resetEmail"
+              placeholder="Enter your email"
+              required
+              autocomplete="email"
+            />
+          </div>
+          <button type="submit" class="btn btn-primary">Send Reset Link</button>
+        </form>
+      </div>
+    </div>
   `;
 
-  return modalHTML;
+  // Add the modals to the document
+  document.body.insertAdjacentHTML('beforeend', modalHTML);
 }
 
 // Initialize auth modal on any page
 export function initializeAuthModal() {
-  // Only create if it doesn't exist
-  if (!document.getElementById("authModal")) {
-    // Insert the modal HTML into the body
-    document.body.insertAdjacentHTML("beforeend", createAuthModal());
-  }
+  // Create the auth modal
+  createAuthModal();
 
+  // Add event listeners for auth modal
   const authModal = document.getElementById("authModal");
-  const loginForm = document.getElementById("loginForm");
-  const signupForm = document.getElementById("signupForm");
-  const tabBtns = document.querySelectorAll(".auth-tabs .tab-btn");
-  const closeBtn = authModal.querySelector(".close");
+  const resetPasswordModal = document.getElementById("resetPasswordModal");
+  const closeButtons = document.querySelectorAll(".modal .close");
+  const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
+  const resetPasswordForm = document.getElementById("resetPasswordForm");
 
-  // Show modal when login button is clicked (both desktop and mobile)
-  const showLoginBtn = document.getElementById("showLoginBtn");
-  const mobileShowLoginBtn = document.getElementById("mobileShowLoginBtn");
-
-  if (showLoginBtn) {
-    showLoginBtn.addEventListener("click", () => {
-      showAuthModal("login");
-    });
-  }
-
-  if (mobileShowLoginBtn) {
-    mobileShowLoginBtn.addEventListener("click", () => {
-      showAuthModal("login");
-    });
-  }
-
-  // Close modal when clicking the close button
-  if (closeBtn) {
-    closeBtn.addEventListener("click", () => {
-      hideAuthModal();
-    });
-  }
-
-  // Close modal when clicking outside
-  window.addEventListener("click", (e) => {
-    if (e.target === authModal) {
-      hideAuthModal();
-    }
-  });
-
-  // Switch between login and signup tabs
-  tabBtns.forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const tab = btn.dataset.tab;
-      switchAuthTab(tab);
+  // Close modals when clicking the close button
+  closeButtons.forEach(button => {
+    button.addEventListener("click", () => {
+      const modal = button.closest(".modal");
+      if (modal.id === "authModal") {
+        hideAuthModal();
+      } else if (modal.id === "resetPasswordModal") {
+        hideResetPasswordModal();
+      }
     });
   });
+
+  // Handle forgot password button click
+  if (forgotPasswordBtn) {
+    forgotPasswordBtn.addEventListener("click", () => {
+      hideAuthModal();
+      showResetPasswordModal();
+    });
+  }
+
+  // Handle reset password form submission
+  if (resetPasswordForm) {
+    resetPasswordForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = document.getElementById("resetEmail").value;
+
+      if (!email) {
+        showAuthError("Please enter your email address", "resetPasswordForm");
+        return;
+      }
+
+      try {
+        await sendPasswordResetEmail(auth, email);
+        // Show generic message in the modal, do not close it
+        showAuthSuccess(
+          "If an account with that email exists, a reset link has been sent.",
+          "resetPasswordForm"
+        );
+      } catch (error) {
+        showAuthError(
+          AUTH_ERROR_MESSAGES[error.code] || "An error occurred while sending reset email.",
+          "resetPasswordForm"
+        );
+      }
+    });
+  }
 }
 
 // Helper functions for auth modal
@@ -182,5 +220,53 @@ export function switchAuthTab(tab) {
     document.querySelector('[data-tab="signup"]').classList.add("active");
     loginForm.style.display = "none";
     signupForm.style.display = "block";
+  }
+}
+
+export function showResetPasswordModal() {
+  const resetModal = document.getElementById("resetPasswordModal");
+  if (resetModal) {
+    resetModal.style.display = "block";
+  }
+}
+
+export function hideResetPasswordModal() {
+  const resetModal = document.getElementById("resetPasswordModal");
+  if (resetModal) {
+    resetModal.style.display = "none";
+  }
+}
+
+// Helper function to show auth errors
+function showAuthError(message, formId) {
+  const form = document.getElementById(formId);
+  if (form) {
+    // Remove any existing error messages
+    const existingError = form.querySelector(".auth-error");
+    if (existingError) {
+      existingError.remove();
+    }
+    // Add new error message
+    const errorDiv = document.createElement("div");
+    errorDiv.className = "auth-error";
+    errorDiv.textContent = message;
+    form.insertBefore(errorDiv, form.firstChild);
+  }
+}
+
+// Add a helper function to show success messages in the form
+function showAuthSuccess(message, formId) {
+  const form = document.getElementById(formId);
+  if (form) {
+    // Remove any existing error or success messages
+    const existingError = form.querySelector(".auth-error");
+    if (existingError) existingError.remove();
+    const existingSuccess = form.querySelector(".auth-success");
+    if (existingSuccess) existingSuccess.remove();
+    // Add new success message
+    const successDiv = document.createElement("div");
+    successDiv.className = "auth-success";
+    successDiv.textContent = message;
+    form.insertBefore(successDiv, form.firstChild);
   }
 }

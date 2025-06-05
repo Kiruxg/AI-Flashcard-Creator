@@ -31,10 +31,7 @@ export const navTemplate = `
           </button>
         </div>
       </div>
-      <button id="showLoginBtn" class="btn btn-primary" style="display: none">Login</button>
-      <div class="auth-loading">
-        <div class="spinner-small"></div>
-      </div>
+      <button id="showLoginBtn" class="btn btn-primary">Login</button>
     </div>
   </div>
   <nav id="mobileMenu" class="mobile-nav">

@@ -44,26 +44,9 @@ yarn-error.log*
 .idea/
 *.code-workspace
 
-# OS files
-Thumbs.db
-desktop.ini
-
-# TypeScript
-*.tsbuildinfo
-next-env.d.ts
-
 # Misc
 *.zip
 *.lnk
-*.png
 *.docx
 *.pdf
 *.xml
-
-# Ignore everything outside this directory
-../*
-../../*
-/**/../../*
-
-# vercel
-.vercel
