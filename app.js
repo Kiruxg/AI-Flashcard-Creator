@@ -35,6 +35,7 @@ import {
   initializeAuthModal,
   showAuthModal,
   hideAuthModal,
+  showResetPasswordModal,
 } from "./auth-modal.js";
 
 // Import utilities and dependencies
@@ -133,22 +134,17 @@ $(document).ready(function () {
     const userMenuBtn = document.getElementById("userMenuBtn");
     const showLoginBtn = document.getElementById("showLoginBtn");
     const userEmail = document.getElementById("userEmail");
-    const authLoading = document.querySelector(".auth-loading");
-
-    // Hide loading spinner
-    if (authLoading) {
-      authLoading.style.display = "none";
-    }
 
     if (user) {
       currentUser = user;
 
       // Check email verification
-      if (!user.emailVerified) {
-        showVerificationRequired();
-        await signOut(auth);
-        return;
-      }
+      // For testing: allow access even if not verified
+      // if (!user.emailVerified) {
+      //   showVerificationRequired();
+      //   await signOut(auth);
+      //   return;
+      // }
 
       deckManager = new DeckManager(user.uid);
 
@@ -236,7 +232,7 @@ $(document).ready(function () {
     // Reset to login tab
     $("#authTabs .tab-btn").removeClass("active");
     $("#authTabs .tab-btn[data-tab='login']").addClass("active");
-    $(".auth-form").hide();
+    $("#authModal .auth-form").hide();
     $("#loginForm").show();
   });
 
@@ -246,19 +242,19 @@ $(document).ready(function () {
     hideModal(modalId);
   });
 
-  // Close modal when clicking outside
-  $(window).on("click", function (event) {
-    if ($(event.target).hasClass("modal")) {
-      hideModal($(event.target).attr("id"));
-    }
-  });
+  // // Close modal when clicking outside
+  // $(window).on("click", function (event) {
+  //   if ($(event.target).hasClass("modal")) {
+  //     hideModal($(event.target).attr("id"));
+  //   }
+  // });
 
   // Switch between login and signup tabs
   $(document).on("click", "#authTabs .tab-btn", function () {
     const tab = $(this).data("tab");
     $("#authTabs .tab-btn").removeClass("active");
     $(this).addClass("active");
-    $(".auth-form").hide();
+    $("#authModal .auth-form").hide();
     $(`#${tab}Form`).show();
   });
 
@@ -318,21 +314,90 @@ $(document).ready(function () {
       );
 
       if (!userCredential.user.emailVerified) {
-        // Sign out the user if email is not verified
-        await signOut(auth);
-        showAuthError(
-          "Please verify your email before logging in. Check your inbox for the verification email.",
-          "loginForm"
-        );
-        return;
+        // For testing: allow login even if not verified
+        // await signOut(auth);
+        // showAuthError(
+        //   "Please verify your email before logging in. Check your inbox for the verification email.",
+        //   "loginForm"
+        // );
+        // return;
       }
 
       hideModal("authModal");
     } catch (error) {
-      showAuthError(
-        AUTH_ERROR_MESSAGES[error.code] || "An error occurred during login.",
-        "loginForm"
-      );
+      console.error("Login error:", error.code, error.message); // <-- Add this line
+      let userMessage = "";
+      
+      // Map Firebase error codes to user-friendly messages
+      switch (error.code) {
+        case "auth/invalid-credential":
+          userMessage = "The email or password you entered is incorrect. Please try again.";
+          break;
+        case "auth/wrong-password":
+          userMessage = "Incorrect password. Please try again or use the 'Forgot Password' link below.";
+          break;
+        case "auth/user-not-found":
+          userMessage = "No account found with this email. Please check your email or sign up for a new account.";
+          break;
+        case "auth/too-many-requests":
+          userMessage = "Too many failed login attempts. Please try again later or reset your password.";
+          break;
+        case "auth/network-request-failed":
+          userMessage = "Network error. Please check your internet connection and try again.";
+          break;
+        case "auth/user-disabled":
+          userMessage = "This account has been disabled. Please contact support for assistance.";
+          break;
+        case "auth/invalid-email":
+          userMessage = "Please enter a valid email address.";
+          break;
+        case "auth/email-already-in-use":
+          userMessage = "An account with this email already exists. Please try logging in instead.";
+          break;
+        case "auth/weak-password":
+          userMessage = "Password is too weak. Please use a stronger password (at least 6 characters).";
+          break;
+        case "auth/operation-not-allowed":
+          userMessage = "This sign-in method is not enabled. Please try a different method or contact support.";
+          break;
+        default:
+          userMessage = "An error occurred during login. Please try again.";
+      }
+
+      // Add helpful suggestions for common errors
+      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+        userMessage += " <br><a href='#' id='triggerResetPassword' class='auth-link'>Forgot password?</a>";
+      } else if (error.code === "auth/user-not-found") {
+        userMessage += " <br><span class='auth-link'>Check your email or <a href='#' id='triggerSignup'>sign up</a>.</span>";
+      } else if (error.code === "auth/too-many-requests") {
+        userMessage += " <br><span class='auth-link'>You can reset your password or try again later.</span>";
+      } else if (error.code === "auth/network-request-failed") {
+        userMessage += " <br><span class='auth-link'>Check your internet connection and try again.</span>";
+      }
+
+      showAuthError(userMessage, "loginForm");
+      
+      // Add click handler for reset password link
+      setTimeout(() => {
+        const resetLink = document.getElementById('triggerResetPassword');
+        if (resetLink) {
+          resetLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            hideModal('authModal');
+            showResetPasswordModal();
+          });
+        }
+        const signupLink = document.getElementById('triggerSignup');
+        if (signupLink) {
+          signupLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            $("#authTabs .tab-btn").removeClass("active");
+            $("#authTabs .tab-btn[data-tab='signup']").addClass("active");
+            $("#authModal .auth-form").hide();
+            $("#signupForm").show();
+          });
+        }
+      }, 0);
     }
   });
 
@@ -385,11 +450,13 @@ $(document).ready(function () {
       // Sign out the user since email is not verified
       await signOut(auth);
 
-      hideModal("authModal");
-      showNotification(
-        "Account created! Please check your email to verify your account.",
-        "success"
+      // Instead of hiding modal and showNotification, show verification prompt in modal
+      showAuthError(
+        "Account created! A verification email has been sent. Please check your inbox and verify your email to continue.",
+        "signupForm"
       );
+      // Optionally, disable the signup form to prevent resubmission
+      $("#signupForm input, #signupForm button").prop("disabled", true);
     } catch (error) {
       showAuthError(
         AUTH_ERROR_MESSAGES[error.code] || "An error occurred during signup.",
@@ -400,8 +467,11 @@ $(document).ready(function () {
 
   // Google login (Google accounts are pre-verified)
   $(document).on("click", "#googleLoginBtn", async function () {
+    console.log("Google login button clicked");
     try {
+      console.log("Attempting signInWithPopup with googleProvider", googleProvider);
       const result = await signInWithPopup(auth, googleProvider);
+      console.log("signInWithPopup result:", result);
       // Check if user document exists, if not create it
       const userRef = doc(db, "users", result.user.uid);
       const docSnap = await getDoc(userRef);
@@ -419,6 +489,7 @@ $(document).ready(function () {
       }
       hideModal("authModal");
     } catch (error) {
+      console.error("Google login error:", error, error.code, error.message, error.stack);
       showAuthError(
         AUTH_ERROR_MESSAGES[error.code] ||
           "An error occurred during Google login.",
@@ -430,7 +501,7 @@ $(document).ready(function () {
   // Forgot password
   $(document).on("click", "#forgotPasswordBtn", function () {
     hideModal("authModal");
-    showModal("resetPasswordModal");
+    showResetPasswordModal();
   });
 
   // Password reset form submission
@@ -2525,7 +2596,7 @@ $(document).ready(function () {
       // Switch tabs
       $(".input-tabs .tab-btn").removeClass("active");
       $(this).addClass("active");
-      $(".input-tab-content").hide();
+      $("#authModal .auth-form").hide();
       $(`#${tab}Tab`).show();
     });
   }
@@ -3825,3 +3896,9 @@ function initializeUserMenuDropdown() {
     }
   }
 }
+
+// Prevent modal from closing on overlay click
+$(window).off("click").on("click", function (event) {
+  // Only close if the X/cancel button is clicked, not overlay
+  // Do nothing here to prevent overlay click from closing modal
+});

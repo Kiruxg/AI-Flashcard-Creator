@@ -25,15 +25,15 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 
 // Auth error messages
-const AUTH_ERROR_MESSAGES = {
-  "auth/user-not-found":
-    "No account found with this email. Please sign up first.",
+export const AUTH_ERROR_MESSAGES = {
+  "auth/invalid-email": "Invalid email address.",
+  "auth/user-disabled": "This account has been disabled.",
+  "auth/user-not-found": "No account found with this email.",
   "auth/wrong-password": "Incorrect password. Please try again.",
+  "auth/too-many-requests": "Too many failed attempts. Please try again later.",
+  "auth/network-request-failed": "Network error. Please check your connection.",
   "auth/email-already-in-use": "An account already exists with this email.",
   "auth/weak-password": "Password should be at least 6 characters long.",
-  "auth/invalid-email": "Please enter a valid email address.",
-  "auth/network-request-failed": "Network error. Please check your connection.",
-  "auth/too-many-requests": "Too many failed attempts. Please try again later.",
   "auth/operation-not-allowed": "This operation is not allowed.",
   "auth/account-exists-with-different-credential":
     "An account already exists with the same email address but different sign-in credentials.",
@@ -138,6 +138,5 @@ export {
   auth,
   db,
   initStripe,
-  AUTH_ERROR_MESSAGES,
   FEATURE_DESCRIPTIONS,
 };
