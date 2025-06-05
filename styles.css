@@ -489,9 +489,9 @@ body {
   border: 1px solid var(--border-color);
   border-radius: 12px;
   padding: 1.5rem;
-  margin: 1.5rem 0;
   transition: all 0.2s ease;
   box-shadow: var(--shadow);
+  min-height: 680px;
 }
 
 .card:hover {
