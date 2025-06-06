@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Firebase Test</title>
+  </head>
+  <body>
+    <h1>Firebase Test</h1>
+    <div id="status">Loading...</div>
+    <div id="results"></div>
+
+    <script type="module">
+      // Import Firebase config
+      import { firebaseConfig } from "./config.js";
+
+      // Import Firebase modules
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import {
+        getFirestore,
+        collection,
+        getDocs,
+      } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+      async function testFirebase() {
+        const statusDiv = document.getElementById("status");
+        const resultsDiv = document.getElementById("results");
+
+        try {
+          statusDiv.innerHTML = "Initializing Firebase...";
+          console.log("Firebase config:", firebaseConfig);
+
+          const app = initializeApp(firebaseConfig);
+          const db = getFirestore(app);
+
+          statusDiv.innerHTML = "Querying sharedDecks collection...";
+
+          const sharedDecksRef = collection(db, "sharedDecks");
+          const snapshot = await getDocs(sharedDecksRef);
+
+          statusDiv.innerHTML = `Found ${snapshot.docs.length} decks in sharedDecks collection`;
+
+          let html = "<h2>Decks found:</h2><ul>";
+          snapshot.docs.forEach((doc) => {
+            const data = doc.data();
+            html += `<li><strong>${data.name}</strong> - Category: ${
+              data.category
+            }, Cards: ${data.cards?.length || 0}</li>`;
+            console.log("Deck:", doc.id, data);
+          });
+          html += "</ul>";
+
+          resultsDiv.innerHTML = html;
+        } catch (error) {
+          statusDiv.innerHTML = "Error: " + error.message;
+          resultsDiv.innerHTML =
+            "<pre>" + JSON.stringify(error, null, 2) + "</pre>";
+          console.error("Firebase test error:", error);
+        }
+      }
+
+      // Run test when page loads
+      testFirebase();
+    </script>
+  </body>
+</html>

@@ -89,14 +89,7 @@ export const PREMIUM_TIER_FEATURES = {
   AI_IMAGE_OCCLUSIONS: 1000,
   PAGES_PER_DOCUMENT: 100,
   CHARACTERS_PER_DOCUMENT: 100000,
-  CARD_TYPES: [
-    "term",
-    "qa",
-    "cloze",
-    "image-occlusion",
-    "multiple-choice",
-    "contextual",
-  ],
+  CARD_TYPES: ["term", "qa", "cloze", "image-occlusion", "contextual"],
   EXPORTS_PER_MONTH: "unlimited",
   YOUTUBE_VIDEO_LIMITS: {
     MAX_VIDEO_LENGTH: 2400, // 40 minutes in seconds
@@ -131,5 +124,16 @@ const FEATURE_DESCRIPTIONS = {
   EARLY_ACCESS: "Early access to new features",
 };
 
+// Make firebaseConfig available globally for shared-decks page
+window.firebaseConfig = firebaseConfig;
+
 // Export Firebase instances and other configurations
-export { app, analytics, auth, db, initStripe, FEATURE_DESCRIPTIONS };
+export {
+  app,
+  analytics,
+  auth,
+  db,
+  initStripe,
+  FEATURE_DESCRIPTIONS,
+  firebaseConfig,
+};

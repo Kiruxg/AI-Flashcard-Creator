@@ -2,10 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Create Flashcards | Note2Flash</title>
     <link rel="stylesheet" href="styles.css" />
-    <link rel="icon" href="favicon.ico" />
     <!-- Font Awesome -->
     <link
       rel="stylesheet"
@@ -13,6 +13,10 @@
     />
     <!-- Other Dependencies -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script type="module">
+      import { quizModeManager } from "./quiz-mode.js";
+      window.quizModeManager = quizModeManager;
+    </script>
     <style>
       body.create-deck-bg {
         background: linear-gradient(
@@ -41,6 +45,147 @@
       main.container {
         position: relative;
         z-index: 1;
+      }
+
+      /* Flip Card Styles */
+      .flashcard {
+        perspective: 1000px !important;
+        cursor: pointer !important;
+        height: 400px !important;
+        min-height: 400px !important;
+        max-height: 400px !important;
+        width: 100% !important;
+        margin-bottom: 20px !important;
+        position: relative !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+
+      .flashcard-inner {
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        text-align: center !important;
+        transition: transform 0.8s !important;
+        transform-style: preserve-3d !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        min-height: 400px !important;
+        max-height: 400px !important;
+        display: block !important;
+      }
+
+      .flashcard.flipped .flashcard-inner {
+        transform: rotateY(180deg);
+      }
+
+      .card-front,
+      .card-back {
+        position: absolute !important;
+        width: 100% !important;
+        height: 100% !important;
+        backface-visibility: hidden !important;
+        border-radius: 12px !important;
+        padding: 30px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        overflow: hidden !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+        min-height: 400px !important;
+        max-height: 400px !important;
+      }
+
+      .card-front {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px solid #dee2e6;
+        font-size: 1.3rem;
+        line-height: 1.6;
+        color: #343a40;
+      }
+
+      .card-back {
+        background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+        border: 2px solid #28a745;
+        transform: rotateY(180deg);
+        font-size: 1.2rem;
+        line-height: 1.6;
+        color: #155724;
+      }
+
+      .card-front strong,
+      .card-back strong {
+        color: #2a7f62;
+        display: block;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+      }
+
+      .flip-hint {
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        font-size: 0.9rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+
+      .flashcard:hover .flip-hint {
+        opacity: 1;
+      }
+
+      /* Ensure flashcard container takes full space */
+      .flashcard-container {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 450px !important;
+        padding: 20px !important;
+      }
+
+      .flashcard-viewer {
+        width: 100% !important;
+        height: auto !important;
+      }
+
+      /* Mobile responsiveness */
+      @media (max-width: 768px) {
+        .flashcard {
+          height: 350px !important;
+          min-height: 350px !important;
+          max-height: 350px !important;
+        }
+
+        .flashcard-inner {
+          min-height: 350px !important;
+          max-height: 350px !important;
+        }
+
+        .card-front,
+        .card-back {
+          font-size: 1.1rem !important;
+          padding: 20px !important;
+          min-height: 350px !important;
+          max-height: 350px !important;
+        }
+
+        .flip-hint {
+          font-size: 0.8rem !important;
+          bottom: 12px !important;
+          right: 15px !important;
+        }
+
+        .flashcard-container {
+          min-height: 400px !important;
+          padding: 15px !important;
+        }
       }
     </style>
   </head>
@@ -89,6 +234,19 @@ Examples:
                 </select>
               </div>
 
+              <div class="quiz-mode-toggle">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="textQuizModeToggle" />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">
+                  <i class="fas fa-graduation-cap"></i> Quiz Mode
+                  <span class="toggle-description"
+                    >Test your knowledge with multiple choice questions</span
+                  >
+                </span>
+              </div>
+
               <button
                 type="submit"
                 class="btn btn-primary"
@@ -130,6 +288,18 @@ Examples:
                 <option value="15">15 cards (Premium)</option>
                 <option value="20">20 cards (Premium)</option>
               </select>
+              <div class="quiz-mode-toggle">
+                <label class="toggle-switch">
+                  <input type="checkbox" id="uploadQuizModeToggle" />
+                  <span class="toggle-slider"></span>
+                </label>
+                <span class="toggle-label">
+                  <i class="fas fa-graduation-cap"></i> Quiz Mode
+                  <span class="toggle-description"
+                    >Test your knowledge with multiple choice questions</span
+                  >
+                </span>
+              </div>
               <button id="generateCardsBtn" class="btn btn-primary">
                 Generate Cards
               </button>
@@ -186,6 +356,18 @@ Examples:
                     <option value="20" class="premium-option">20 cards</option>
                   </select>
                 </div>
+                <div class="quiz-mode-toggle">
+                  <label class="toggle-switch">
+                    <input type="checkbox" id="urlQuizModeToggle" />
+                    <span class="toggle-slider"></span>
+                  </label>
+                  <span class="toggle-label">
+                    <i class="fas fa-graduation-cap"></i> Quiz Mode
+                    <span class="toggle-description"
+                      >Test your knowledge with multiple choice questions</span
+                    >
+                  </span>
+                </div>
                 <button
                   type="submit"
                   class="btn btn-primary"
@@ -237,6 +419,13 @@ Examples:
                 <i class="fas fa-play"></i> Study Now
                 <span class="due-count"></span>
               </button>
+              <button
+                id="quizNowBtn"
+                class="btn btn-success"
+                style="display: none"
+              >
+                <i class="fas fa-graduation-cap"></i> Take Quiz
+              </button>
             </div>
             <div
               id="flashcardViewer"
@@ -250,7 +439,26 @@ Examples:
                 <span id="progressText">0/0 cards reviewed</span>
               </div>
               <div id="flashcard" class="flashcard">
-                <!-- Card content will be dynamically inserted here by the CardTypeManager -->
+                <div class="flashcard-inner">
+                  <div class="card-front">
+                    <div id="cardFront">
+                      <!-- Front content will be dynamically inserted here -->
+                    </div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip
+                    </div>
+                  </div>
+                  <div class="card-back">
+                    <div id="cardBack">
+                      <!-- Back content will be dynamically inserted here -->
+                    </div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip back
+                    </div>
+                  </div>
+                </div>
               </div>
               <div class="card-controls">
                 <div class="navigation-buttons">
@@ -264,9 +472,6 @@ Examples:
                     <i class="fas fa-chevron-right"></i>
                   </button>
                 </div>
-                <button id="showAnswerBtn" class="btn btn-primary">
-                  <i class="fas fa-eye"></i> Show Answer
-                </button>
 
                 <div class="performance-buttons">
                   <button class="btn btn-danger" data-performance="1">
@@ -274,6 +479,17 @@ Examples:
                   </button>
                   <button class="btn btn-success" data-performance="5">
                     <i class="fas fa-check-circle"></i> Confident
+                  </button>
+                </div>
+
+                <!-- Quiz Mode Button - shown when quiz mode is enabled -->
+                <div
+                  class="quiz-mode-actions"
+                  id="quizModeActions"
+                  style="display: none"
+                >
+                  <button id="takeQuizBtn" class="btn btn-primary">
+                    <i class="fas fa-graduation-cap"></i> Take Quiz
                   </button>
                 </div>
               </div>
@@ -312,6 +528,293 @@ Examples:
             if (tabContent) tabContent.classList.add("active");
           });
         });
+
+        // Flashcard flip functionality - only listen to specific content areas
+        document.addEventListener("click", function (e) {
+          // Only proceed if NOT clicking on any interactive elements first
+          const isInteractiveElement =
+            e.target.closest(".card-controls") ||
+            e.target.closest("button") ||
+            e.target.closest(".btn") ||
+            e.target.closest(".btn-pronounce") ||
+            e.target.closest(".tts-button") ||
+            e.target.closest(".audio-button") ||
+            e.target.closest('[role="button"]') ||
+            e.target.matches("button") ||
+            e.target.matches(".btn") ||
+            e.target.matches(".btn-pronounce");
+
+          // Early return for interactive elements - don't interfere at all
+          if (isInteractiveElement) {
+            return; // Let the event proceed completely unmodified
+          }
+
+          // Only handle flip for non-interactive flashcard clicks
+          const flashcard = e.target.closest("#flashcard");
+          if (flashcard) {
+            flashcard.classList.toggle("flipped");
+            e.stopPropagation();
+          }
+        });
+
+        // Ensure TTS functionality works with dynamic content
+        function initializeTTSButtons() {
+          const ttsButtons = document.querySelectorAll(".btn-pronounce");
+          ttsButtons.forEach((button) => {
+            // Remove any existing listeners to prevent duplicates
+            button.removeEventListener("click", handleTTSClick);
+            // Add the TTS click handler
+            button.addEventListener("click", handleTTSClick);
+          });
+        }
+
+        function handleTTSClick(e) {
+          e.preventDefault();
+          e.stopPropagation();
+
+          const button = e.currentTarget;
+          const textToSpeak =
+            button.getAttribute("data-text") ||
+            button.parentElement.textContent.trim();
+
+          console.log("🔊 TTS button clicked, speaking:", textToSpeak);
+
+          if ("speechSynthesis" in window) {
+            // Cancel any ongoing speech
+            speechSynthesis.cancel();
+
+            const utterance = new SpeechSynthesisUtterance(textToSpeak);
+            utterance.rate = 0.8;
+            utterance.pitch = 1;
+            utterance.volume = 1;
+
+            speechSynthesis.speak(utterance);
+          } else {
+            console.warn("Speech synthesis not supported in this browser");
+          }
+        }
+
+        // Initialize TTS when page loads
+        setTimeout(initializeTTSButtons, 1000);
+
+        // Re-initialize TTS when flashcard content changes
+        const flashcardForTTS = document.getElementById("flashcard");
+        if (flashcardForTTS) {
+          const ttsObserver = new MutationObserver(function (mutations) {
+            let shouldReinitializeTTS = false;
+            mutations.forEach(function (mutation) {
+              if (mutation.type === "childList") {
+                // Check if new TTS buttons were added
+                const addedNodes = Array.from(mutation.addedNodes);
+                if (
+                  addedNodes.some(
+                    (node) =>
+                      node.nodeType === 1 &&
+                      (node.querySelector(".btn-pronounce") ||
+                        node.classList?.contains("btn-pronounce"))
+                  )
+                ) {
+                  shouldReinitializeTTS = true;
+                }
+              }
+            });
+
+            if (shouldReinitializeTTS) {
+              setTimeout(initializeTTSButtons, 100);
+            }
+          });
+
+          ttsObserver.observe(flashcardForTTS, {
+            childList: true,
+            subtree: true,
+          });
+        }
+
+        // Reset flip state when navigating cards
+        function resetCardFlip() {
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            flashcard.classList.remove("flipped");
+          }
+        }
+
+        // Add event listeners to navigation buttons to reset flip state
+        const prevBtn = document.getElementById("prevCardBtn");
+        const nextBtn = document.getElementById("nextCardBtn");
+        const shuffleBtn = document.getElementById("shuffleBtn");
+
+        if (prevBtn) {
+          prevBtn.addEventListener("click", resetCardFlip);
+        }
+        if (nextBtn) {
+          nextBtn.addEventListener("click", resetCardFlip);
+        }
+        if (shuffleBtn) {
+          shuffleBtn.addEventListener("click", resetCardFlip);
+        }
+
+        // Make functions available globally for other scripts
+        window.resetCardFlip = resetCardFlip;
+        window.initializeTTSButtons = initializeTTSButtons;
+
+        // Global function to update card content while preserving flip structure
+        window.updateFlipCardContent = function (frontContent, backContent) {
+          const cardFront = document.getElementById("cardFront");
+          const cardBack = document.getElementById("cardBack");
+
+          if (cardFront && cardBack) {
+            cardFront.innerHTML = frontContent || "";
+            cardBack.innerHTML = backContent || "";
+          } else {
+            // Structure doesn't exist, initialize it first
+            window.initializeFlipCard();
+            // Try again after initialization
+            const newCardFront = document.getElementById("cardFront");
+            const newCardBack = document.getElementById("cardBack");
+            if (newCardFront && newCardBack) {
+              newCardFront.innerHTML = frontContent || "";
+              newCardBack.innerHTML = backContent || "";
+            }
+          }
+          // Reset flip state and reinitialize TTS
+          window.resetCardFlip();
+          setTimeout(window.initializeTTSButtons, 50);
+        };
+
+        // Global function to ensure flip functionality is active
+        window.initializeFlipCard = function () {
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            // Ensure flashcard maintains proper height
+            flashcard.style.height = "400px";
+            flashcard.style.minHeight = "400px";
+            flashcard.style.maxHeight = "400px";
+
+            // Check if we need to restructure the flashcard
+            const inner = flashcard.querySelector(".flashcard-inner");
+            if (!inner) {
+              // Save existing content
+              const existingContent = flashcard.innerHTML;
+
+              // Check if there are existing front/back divs
+              const frontDiv = flashcard.querySelector(".card-front");
+              const backDiv = flashcard.querySelector(".card-back");
+
+              // Look for cardFront and cardBack content specifically
+              const cardFrontEl = flashcard.querySelector("#cardFront");
+              const cardBackEl = flashcard.querySelector("#cardBack");
+
+              let frontContent = "";
+              let backContent = "";
+
+              if (cardFrontEl && cardBackEl) {
+                // Extract content from existing cardFront/cardBack
+                frontContent = cardFrontEl.innerHTML;
+                backContent = cardBackEl.innerHTML;
+              } else if (frontDiv && backDiv) {
+                // Extract content from existing structure
+                frontContent = frontDiv.innerHTML;
+                backContent = backDiv.innerHTML;
+              } else {
+                // Try to extract from any existing content
+                const textContent = existingContent
+                  .replace(/<[^>]*>/g, "")
+                  .trim();
+                if (
+                  textContent &&
+                  textContent !== "Click here to generate flashcards"
+                ) {
+                  frontContent = existingContent;
+                  backContent = "Generate flashcards to see the answer";
+                } else {
+                  frontContent = "Click here to generate flashcards";
+                  backContent = "Generate flashcards to see the answer";
+                }
+              }
+
+              // Recreate the flip structure with proper height enforcement
+              flashcard.innerHTML = `
+                <div class="flashcard-inner">
+                  <div class="card-front">
+                    <div id="cardFront">${frontContent}</div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip
+                    </div>
+                  </div>
+                  <div class="card-back">
+                    <div id="cardBack">${backContent}</div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip back
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+            // Reset flip state
+            flashcard.classList.remove("flipped");
+          }
+        };
+
+        // Monitor for changes to flashcard content
+        const flashcardContainer = document.getElementById("flashcard");
+        if (flashcardContainer) {
+          const observer = new MutationObserver(function (mutations) {
+            let shouldReinitialize = false;
+            let heightChanged = false;
+
+            mutations.forEach(function (mutation) {
+              if (
+                mutation.type === "childList" &&
+                mutation.target.id === "flashcard"
+              ) {
+                // Check if the flip structure was removed
+                const inner =
+                  flashcardContainer.querySelector(".flashcard-inner");
+                if (!inner) {
+                  shouldReinitialize = true;
+                }
+              }
+
+              // Check for height/style changes
+              if (
+                mutation.type === "attributes" &&
+                (mutation.attributeName === "style" ||
+                  mutation.attributeName === "class")
+              ) {
+                const currentHeight = flashcardContainer.style.height;
+                if (currentHeight && currentHeight !== "400px") {
+                  heightChanged = true;
+                }
+              }
+            });
+
+            if (shouldReinitialize) {
+              // Flashcard structure was replaced, restore flip functionality
+              setTimeout(function () {
+                window.initializeFlipCard();
+              }, 50);
+            } else if (heightChanged) {
+              // Just fix the height without full reinitialization
+              flashcardContainer.style.height = "400px";
+              flashcardContainer.style.minHeight = "400px";
+              flashcardContainer.style.maxHeight = "400px";
+            }
+          });
+
+          observer.observe(flashcardContainer, {
+            childList: true,
+            attributes: true,
+            attributeFilter: ["style", "class"],
+            subtree: false, // Only watch direct children of flashcard
+          });
+        }
+
+        // Initialize flip card structure on page load
+        setTimeout(function () {
+          window.initializeFlipCard();
+        }, 500);
       });
     </script>
   </body>

@@ -105,28 +105,16 @@ export class CardTypeManager {
     );
   }
 
-  validateMultipleChoiceCard(card) {
-    return (
-      card &&
-      typeof card.front === "string" &&
-      Array.isArray(card.options) &&
-      card.options.length >= 2 &&
-      typeof card.correctIndex === "number" &&
-      card.correctIndex >= 0 &&
-      card.correctIndex < card.options.length
-    );
-  }
-
   validateContextualCard(card) {
     return (
       card &&
       typeof card.scenario === "string" &&
       typeof card.question === "string" &&
       typeof card.answer === "string" &&
-      typeof card.explanation === "string" &&
       card.scenario.length > 0 &&
       card.question.length > 0 &&
-      card.answer.length > 0
+      card.answer.length > 0 &&
+      (card.explanation === undefined || typeof card.explanation === "string")
     );
   }
 
@@ -161,26 +149,19 @@ export class CardTypeManager {
   renderClozeCard(card, container) {
     console.log("CLOZE CARD UPDATED FUNCTION CALLED", card);
 
-    // Parse cloze deletion format: {answer} becomes _____
+    // Use the standardized format with back property array
     let frontText = card.front;
-    let answers = [];
-
-    // Extract all answers from curly braces and replace with underscores
-    const clozeRegex = /\{([^}]+)\}/g;
-    let match;
-
-    while ((match = clozeRegex.exec(card.front)) !== null) {
-      answers.push(match[1]);
-    }
+    const answers = card.back || [];
 
     // Replace curly braces with underscores for the front
+    const clozeRegex = /\{([^}]+)\}/g;
     frontText = card.front.replace(
       clozeRegex,
       '<span class="cloze-blank">_____</span>'
     );
 
     // For the back, show the original text with answers highlighted
-    let backText = card.front.replace(
+    const backText = card.front.replace(
       clozeRegex,
       '<span class="cloze-answer">$1</span>'
     );
@@ -227,6 +208,11 @@ export class CardTypeManager {
               )}</div>`
             : ""
         }
+        ${
+          card.explanation
+            ? `<div class="explanation">${card.explanation}</div>`
+            : ""
+        }
       </div>
     `;
   }
@@ -268,46 +254,35 @@ export class CardTypeManager {
     `;
   }
 
-  renderMultipleChoiceCard(card, container) {
+  renderContextualCard(card, container) {
     container.innerHTML = `
-      <div class="card-front card-type-multiple-choice">
-        <h3>${card.front}</h3>
-        <ul class="options-list">
-          ${card.options
-            .map(
-              (option, index) => `
-            <li class="option" data-index="${index}">
-              ${option}
-            </li>
-          `
-            )
-            .join("")}
-        </ul>
+      <div class="card-front card-type-contextual">
+        <div class="scenario"><strong>Scenario:</strong><br>${
+          card.scenario
+        }</div>
+        <div class="question"><strong>Question:</strong><br>${
+          card.question
+        }</div>
       </div>
-      <div class="card-back card-type-multiple-choice">
-        <p>Correct answer: ${card.options[card.correctIndex]}</p>
+      <div class="card-back card-type-contextual" style="display: none;">
+        <div class="answer"><strong>Answer:</strong><br>${card.answer}</div>
         ${
           card.explanation
-            ? `<div class="explanation">${card.explanation}</div>`
+            ? `<div class="explanation"><strong>Explanation:</strong><br>${card.explanation}</div>`
             : ""
         }
       </div>
     `;
   }
 
-  renderContextualCard(card, container) {
-    container.innerHTML = `
-      <div class="card-front card-type-contextual">
-        <div class="question">${card.question}</div>
-      </div>
-      <div class="card-back card-type-contextual" style="display: none;">
-        <p>${card.answer}</p>
-      </div>
-    `;
-  }
-
   // Prompt generation methods
   generateTermPrompt(content) {
+    const quizModeInstructions = this.isQuizMode
+      ? `
+9. For each card, provide a brief explanation that helps understand the term in context
+10. Include examples or mnemonics where helpful for learning`
+      : "";
+
     return {
       system: `You are an expert educational content creator specializing in creating precise term-definition flashcards. Follow these guidelines:
 1. Select key terms that are essential to understanding the subject
@@ -317,9 +292,16 @@ export class CardTypeManager {
 5. Ensure definitions are accurate and complete
 6. Avoid circular definitions
 7. Include pronunciation guides for complex terms
-8. Limit the answer (the 'back' of the card) to only 1 sentence. Select the most relevant and correct sentence for the answer.
+8. Limit the answer (the 'back' of the card) to only 1 sentence. Select the most relevant and correct sentence for the answer.${quizModeInstructions}
 
-IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "front" and "back" properties.`,
+IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have:
+- "front" (term)
+- "back" (definition)
+${
+  this.isQuizMode
+    ? '- "explanation" (optional, helpful context or examples)'
+    : ""
+}`,
       user: `Create term-definition flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
     };
   }
@@ -373,16 +355,18 @@ Format your cloze cards using curly braces {answer} for blanks. Example:
 
 {
   "front": "The capital of {France} is {Paris}.",
+  "back": ["France", "Paris"],
   "hint": "Think about major European cities",
   "type": "cloze"
 }
 
 IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have:
 - "front": Text with answers enclosed in curly braces {answer}
+- "back": Array of the answers in the order they appear
 - "hint": (optional) A helpful hint for answering the card
 - "type": "cloze"
 
-The system will automatically convert {answer} to underscores for display and highlight answers when revealed.`,
+The system will convert {answer} to underscores for display and highlight answers when revealed.`,
       user: `Create cloze deletion flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
     };
   }
@@ -400,23 +384,6 @@ The system will automatically convert {answer} to underscores for display and hi
 
 IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "image", "occlusions" array with x, y, width, height, and label properties.`,
       user: `Create image occlusion flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
-    };
-  }
-
-  generateMultipleChoicePrompt(content) {
-    return {
-      system: `You are an expert educational content creator specializing in creating multiple-choice flashcards. Follow these guidelines:
-1. Create clear, unambiguous questions
-2. Provide 4 plausible answer options
-3. Include one correct answer and three distractors
-4. Make distractors similar in length and style to the correct answer
-5. Avoid obvious wrong answers
-6. Include explanations for the correct answer
-7. Ensure questions test understanding, not just recall
-8. Limit the explanation (and the correct answer) to only 1 sentence. Select the most relevant and correct sentence for the explanation and answer.
-
-IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "front" (question), "options" array, "correctIndex" number, and optional "explanation" properties.`,
-      user: `Create multiple-choice flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
     };
   }
 

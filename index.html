@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
@@ -99,76 +100,91 @@
 
     <!-- Features Section -->
     <section class="features" id="how-it-works">
-      <h2>Why Choose Note2Flash?</h2>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">
-            <i class="fas fa-magic"></i>
+      <div class="features-sticky-container">
+        <h2>Why Choose Note2Flash?</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-magic"></i>
+            </div>
+            <h3>AI-Powered Generation</h3>
+            <p>
+              Our advanced AI analyzes your content and creates optimized
+              flashcards automatically.
+            </p>
           </div>
-          <h3>AI-Powered Generation</h3>
-          <p>
-            Our advanced AI analyzes your content and creates optimized
-            flashcards automatically.
-          </p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <i class="fas fa-bolt"></i>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-bolt"></i>
+            </div>
+            <h3>Lightning Fast</h3>
+            <p>
+              Create decks in seconds, not hours. Save time and focus on
+              learning.
+            </p>
           </div>
-          <h3>Lightning Fast</h3>
-          <p>
-            Create decks in seconds, not hours. Save time and focus on learning.
-          </p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <i class="fas fa-brain"></i>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-brain"></i>
+            </div>
+            <h3>Smart Learning</h3>
+            <p>Adaptive spaced repetition helps you learn more effectively.</p>
           </div>
-          <h3>Smart Learning</h3>
-          <p>Adaptive spaced repetition helps you learn more effectively.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">
-            <i class="fas fa-share-alt"></i>
+          <div class="feature-card">
+            <div class="feature-icon">
+              <i class="fas fa-share-alt"></i>
+            </div>
+            <h3>Share & Collaborate</h3>
+            <p>
+              Share decks with classmates or discover community-created content.
+            </p>
           </div>
-          <h3>Share & Collaborate</h3>
-          <p>
-            Share decks with classmates or discover community-created content.
-          </p>
         </div>
       </div>
     </section>
 
     <!-- How It Works Section -->
     <section class="how-it-works">
-      <h2>How It Works</h2>
+      <h2>Master Any Subject in 4 Simple Steps</h2>
       <div class="steps">
         <div class="step">
           <div class="step-number">1</div>
           <div class="step-content">
-            <h3>Upload Your Content</h3>
-            <p>Paste your notes, upload documents, or import from web pages.</p>
+            <h3>Drop Your Material</h3>
+            <p>
+              Upload lecture notes, textbooks, PDFs, or paste any text. Works
+              with photos of handwritten notes too.
+            </p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">2</div>
           <div class="step-content">
-            <h3>AI Processing</h3>
-            <p>Our AI analyzes your content and identifies key concepts.</p>
+            <h3>AI Works Its Magic</h3>
+            <p>
+              Advanced AI extracts key concepts, creates meaningful questions,
+              and formats perfect study cards automatically.
+            </p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">3</div>
           <div class="step-content">
-            <h3>Review & Customize</h3>
-            <p>Edit cards as needed and organize them into decks.</p>
+            <h3>Fine-Tune Your Deck</h3>
+            <p>
+              Review, edit, and personalize cards. Add images, adjust
+              difficulty, or reorganize to match your learning style.
+            </p>
           </div>
         </div>
         <div class="step">
           <div class="step-number">4</div>
           <div class="step-content">
-            <h3>Start Learning</h3>
-            <p>Study with our smart spaced repetition system.</p>
+            <h3>Study Smarter, Not Harder</h3>
+            <p>
+              Our intelligent spaced repetition adapts to your progress,
+              ensuring you remember what matters most.
+            </p>
           </div>
         </div>
       </div>
@@ -187,7 +203,7 @@
             >Start Creating Free</a
           >
           <a href="pricing.html" class="btn btn-secondary btn-large"
-            >View Premium Plans</a
+            >Learn More</a
           >
         </div>
       </div>
@@ -241,7 +257,7 @@ Examples:
                   <option value="term">Term & Definition</option>
                   <option value="qa">Question & Answer</option>
                   <option value="cloze">Cloze</option>
-                  <option value="multiple-choice">Multiple Choice</option>
+
                   <option value="contextual">Contextual/Scenario-based</option>
                 </select>
                 <select id="textCardCount" class="select-input">
@@ -555,6 +571,64 @@ Examples:
       document.addEventListener("DOMContentLoaded", initializeFooter);
     </script>
 
+    <!-- Horizontal Scroll on Vertical Scroll Script -->
+    <script>
+      document.addEventListener("DOMContentLoaded", function () {
+        const featuresSection = document.querySelector(".features");
+        const featuresGrid = document.querySelector(".features-grid");
+
+        if (!featuresSection || !featuresGrid) return;
+
+        function handleHorizontalScroll() {
+          const sectionRect = featuresSection.getBoundingClientRect();
+          const viewportHeight = window.innerHeight;
+          const sectionHeight = featuresSection.offsetHeight;
+
+          // Calculate scroll progress: 0 when section starts entering viewport, 1 when section exits
+          let scrollProgress = 0;
+
+          if (sectionRect.top <= 0 && sectionRect.bottom >= viewportHeight) {
+            // Section is in the scrolling zone
+            scrollProgress =
+              Math.abs(sectionRect.top) / (sectionHeight - viewportHeight);
+          } else if (sectionRect.bottom < viewportHeight) {
+            // Section has passed through completely
+            scrollProgress = 1;
+          }
+
+          // Clamp between 0 and 1
+          scrollProgress = Math.max(0, Math.min(1, scrollProgress));
+
+          // Calculate maximum horizontal scroll distance
+          const gridWidth = featuresGrid.scrollWidth;
+          const containerWidth = featuresGrid.offsetWidth;
+          const maxScroll = Math.max(0, gridWidth - containerWidth);
+
+          // Apply horizontal transform based on scroll progress
+          const horizontalOffset = scrollProgress * maxScroll;
+          featuresGrid.style.transform = `translateX(-${horizontalOffset}px)`;
+        }
+
+        // Throttle scroll events for better performance
+        let ticking = false;
+        function requestTick() {
+          if (!ticking) {
+            requestAnimationFrame(() => {
+              handleHorizontalScroll();
+              ticking = false;
+            });
+            ticking = true;
+          }
+        }
+
+        window.addEventListener("scroll", requestTick);
+        window.addEventListener("resize", requestTick);
+
+        // Initial call
+        handleHorizontalScroll();
+      });
+    </script>
+
     <!-- Add card type specific UI elements -->
     <div id="cardTypeOptions" class="card-type-options" style="display: none">
       <!-- Term & Definition options -->
@@ -626,24 +700,6 @@ Examples:
         </div>
       </div>
 
-      <!-- Multiple Choice options -->
-      <div class="card-type-option" data-type="multiple-choice">
-        <div class="option-group">
-          <label>
-            <input type="number" name="optionCount" min="2" max="6" value="4" />
-            Number of options
-          </label>
-          <label>
-            <input
-              type="checkbox"
-              name="mcOptions"
-              value="includeExplanation"
-            />
-            Include explanations
-          </label>
-        </div>
-      </div>
-
       <!-- Contextual options -->
       <div class="card-type-option" data-type="contextual">
         <div class="option-group">
@@ -681,7 +737,7 @@ Examples:
 
     <!-- Add necessary scripts -->
     <script type="module">
-      import { CardTypeManager } from "./cardTypeManager.js";
+      import { CardTypeManager } from "./cardTypeManager_new.js";
 
       // Initialize card type manager
       const cardTypeManager = new CardTypeManager();

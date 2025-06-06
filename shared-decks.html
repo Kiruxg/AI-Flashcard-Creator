@@ -2,6 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Shared Decks - Note2Flash</title>
     <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
@@ -17,10 +18,151 @@
       import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
       import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
       import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+      // Initialize Firebase for shared-decks page
+      if (window.firebaseConfig) {
+        const app = initializeApp(window.firebaseConfig);
+        window.db = getFirestore(app);
+        window.auth = getAuth(app);
+        console.log("Firebase initialized for shared-decks");
+      }
     </script>
     <!-- Other Dependencies -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+      .preview-card {
+        max-height: 500px;
+        margin: 0 auto;
+        width: 100%;
+        perspective: 1000px;
+        cursor: pointer;
+      }
+
+      .preview-card-inner {
+        position: relative;
+        width: 100%;
+        height: 400px;
+        text-align: center;
+        transition: transform 0.8s;
+        transform-style: preserve-3d;
+        border-radius: 8px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .preview-card.flipped .preview-card-inner {
+        transform: rotateY(180deg);
+      }
+
+      .preview-card-front,
+      .preview-card-back {
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        backface-visibility: hidden;
+        border-radius: 8px;
+        padding: 20px;
+        box-sizing: border-box;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        text-align: center;
+        overflow: hidden;
+        overflow-wrap: break-word;
+        word-wrap: break-word;
+      }
+
+      .preview-card-front {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px solid #dee2e6;
+        font-size: 1.2rem;
+        line-height: 1.6;
+        color: #343a40;
+      }
+
+      .preview-card-back {
+        background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+        border: 2px solid #28a745;
+        transform: rotateY(180deg);
+        font-size: 1.1rem;
+        line-height: 1.6;
+        color: #155724;
+      }
+
+      .preview-card-front strong,
+      .preview-card-back strong {
+        color: #2a7f62;
+        display: block;
+        margin-bottom: 12px;
+        font-size: 1.1em;
+      }
+
+      .flip-hint {
+        position: absolute;
+        bottom: 10px;
+        right: 15px;
+        font-size: 0.8rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+
+      .preview-card:hover .flip-hint {
+        opacity: 1;
+      }
+
+      .preview-card-front strong,
+      .preview-card-back strong {
+        color: #2a7f62;
+        display: block;
+        margin-bottom: 8px;
+      }
+
+      /* Ensure modal content can expand */
+      .deck-viewer-content {
+        max-height: 80vh;
+        overflow-y: auto;
+      }
+
+      .deck-preview {
+        margin-top: 20px;
+      }
+
+      /* Deck viewer modal specific styles */
+      .deck-viewer-modal {
+        margin: 2vh auto !important;
+      }
+
+      /* Mobile responsiveness for deck viewer */
+      @media (max-width: 768px) {
+        .deck-viewer-modal {
+          margin: 1rem !important;
+          max-width: calc(100vw - 2rem) !important;
+          max-height: calc(100vh - 2rem) !important;
+          width: calc(100vw - 2rem) !important;
+        }
+
+        .preview-card-inner {
+          height: 350px;
+        }
+
+        .preview-card-front,
+        .preview-card-back {
+          font-size: 1rem;
+          padding: 15px;
+        }
+
+        .flip-hint {
+          font-size: 0.7rem;
+          bottom: 8px;
+          right: 12px;
+        }
+      }
+    </style>
   </head>
   <body>
     <!-- Navigation will be loaded here -->
@@ -80,12 +222,22 @@
             <i class="fas fa-search search-icon"></i>
           </div>
           <div class="hub-actions">
-            <button id="createDeckBtn" class="btn btn-primary">
+            <!-- Shown when user is logged in -->
+            <button
+              id="createDeckBtn"
+              class="btn btn-primary"
+              style="display: none"
+            >
               <i class="fas fa-plus"></i> Create Deck
             </button>
-            <button id="importDeckBtn" class="btn btn-secondary" disabled>
+            <button
+              id="importDeckBtn"
+              class="btn btn-secondary"
+              style="display: none"
+            >
               <i class="fas fa-file-import"></i> Import
             </button>
+            <!-- Login to create button removed -->
           </div>
         </div>
 
@@ -106,6 +258,104 @@
 
         <div id="savedDecks" class="deck-grid">
           <!-- Decks will be dynamically loaded here -->
+        </div>
+
+        <!-- Deck Viewer Modal -->
+        <div id="deckViewerModal" class="modal" style="display: none">
+          <div
+            class="modal-content deck-viewer-modal"
+            style="max-width: 900px; max-height: 90vh; overflow-y: auto"
+          >
+            <span class="close">&times;</span>
+            <div class="deck-viewer-header">
+              <h2 id="viewerDeckTitle">Deck Title</h2>
+              <p id="viewerDeckDescription" class="deck-description">
+                Deck description will appear here
+              </p>
+              <div class="deck-meta">
+                <span id="viewerDeckCards" class="deck-cards-count"
+                  >0 cards</span
+                >
+                <span id="viewerDeckLevel" class="deck-card-level"
+                  >beginner</span
+                >
+                <span id="viewerDeckCategory" class="deck-card-category"
+                  >category</span
+                >
+              </div>
+            </div>
+            <div class="deck-viewer-content">
+              <div class="deck-viewer-controls">
+                <button id="studyDeckBtn" class="btn btn-primary">
+                  <i class="fas fa-play"></i> Study This Deck
+                </button>
+                <button id="quizDeckBtn" class="btn btn-success">
+                  <i class="fas fa-graduation-cap"></i> Take Quiz
+                </button>
+                <button
+                  id="importDeckBtnModal"
+                  class="btn btn-secondary"
+                  style="display: none"
+                >
+                  <i class="fas fa-download"></i> Import to My Decks
+                </button>
+                <button id="loginToSaveandEditBtn" class="btn btn-secondary">
+                  <i class="fas fa-sign-in-alt"></i> Login to Save and Edit
+                </button>
+              </div>
+              <div class="deck-preview">
+                <div class="preview-controls">
+                  <button id="prevPreviewCard" class="btn btn-secondary">
+                    <i class="fas fa-chevron-left"></i>
+                  </button>
+                  <span id="previewCardNumber">Card 1 of 10</span>
+                  <button id="nextPreviewCard" class="btn btn-secondary">
+                    <i class="fas fa-chevron-right"></i>
+                  </button>
+                </div>
+                <!-- Preview limit message for non-logged-in users -->
+                <div
+                  id="previewLimitMessage"
+                  class="preview-limit-message"
+                  style="display: none"
+                >
+                  <div class="preview-limit-content">
+                    <i class="fas fa-lock"></i>
+                    <span
+                      >Preview limited to 10 cards.
+                      <a href="#" id="signUpForMore" class="preview-signup-link"
+                        >Sign up</a
+                      >
+                      to view all cards and unlock full features!</span
+                    >
+                  </div>
+                  <div class="tooltip-arrow"></div>
+                </div>
+                <div class="preview-card" id="previewCard">
+                  <div class="preview-card-inner">
+                    <div class="preview-card-front">
+                      <div id="previewCardFront">
+                        Card front content will appear here
+                      </div>
+                      <div class="flip-hint">
+                        <i class="fas fa-hand-pointer"></i>
+                        Click to flip
+                      </div>
+                    </div>
+                    <div class="preview-card-back">
+                      <div id="previewCardBack">
+                        Card back content will appear here
+                      </div>
+                      <div class="flip-hint">
+                        <i class="fas fa-hand-pointer"></i>
+                        Click to flip back
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Create Deck Modal -->
@@ -176,6 +426,23 @@
     <script type="module" src="./config.js"></script>
     <script type="module" src="./deckManager.js"></script>
     <script type="module" src="./app.js"></script>
+
+    <script type="module">
+      // Ensure Firebase is initialized after config loads
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+      // Wait for config to be loaded
+      setTimeout(() => {
+        if (window.firebaseConfig && !window.db) {
+          const app = initializeApp(window.firebaseConfig);
+          window.db = getFirestore(app);
+          window.auth = getAuth(app);
+          console.log("Firebase initialized for shared-decks");
+        }
+      }, 100);
+    </script>
     <script type="module">
       import { initializeNavigation } from "./nav-template.js";
       // Initialize navigation as soon as the DOM is ready
@@ -184,14 +451,42 @@
 
     <script>
       // Shared decks page specific functionality
+      let currentDeck = null;
+      let currentPreviewIndex = 0;
+
+      // Prevent KnowledgeHub auto-initialization to avoid button flashing
+      window.disableKnowledgeHubAutoInit = true;
+
+      // Override the global openDeck function to allow unauthenticated access for shared decks
+      window.openDeck = function (deckId) {
+        console.log("Opening shared deck:", deckId);
+        // Find the deck from loaded data
+        const deck = window.loadedDecks?.find((d) => d.id === deckId);
+        if (deck) {
+          openDeckViewer(deck);
+        } else {
+          showErrorMessage("Deck not found");
+        }
+      };
+
       document.addEventListener("DOMContentLoaded", () => {
+        // Update UI based on authentication status
+        updateUIForAuthStatus();
+
+        // Listen for auth state changes
+        if (window.auth) {
+          window.auth.onAuthStateChanged((user) => {
+            updateUIForAuthStatus();
+          });
+        }
+
         // Initialize category tabs
         const categoryTabs = document.querySelectorAll(".category-tab");
         categoryTabs.forEach((tab) => {
           tab.addEventListener("click", () => {
             categoryTabs.forEach((t) => t.classList.remove("active"));
             tab.classList.add("active");
-            // Add your category filtering logic here
+            filterDecksByCategory(tab.dataset.category);
           });
         });
 
@@ -199,7 +494,7 @@
         const searchInput = document.getElementById("deckSearch");
         if (searchInput) {
           searchInput.addEventListener("input", (e) => {
-            // Add your search logic here
+            filterDecksBySearch(e.target.value);
           });
         }
 
@@ -208,23 +503,61 @@
         const levelSelect = document.getElementById("filterLevel");
         if (sortSelect) {
           sortSelect.addEventListener("change", () => {
-            // Add your sorting logic here
+            sortDecks(sortSelect.value);
           });
         }
         if (levelSelect) {
           levelSelect.addEventListener("change", () => {
-            // Add your level filtering logic here
+            filterDecksByLevel(levelSelect.value);
           });
         }
 
-        // Initialize create deck modal
+        // Handle login button clicks
+        const loginToSaveandEditBtn = document.getElementById(
+          "loginToSaveandEditBtn"
+        );
+
+        if (loginToSaveandEditBtn) {
+          loginToSaveandEditBtn.addEventListener("click", () => {
+            if (typeof showAuthModal === "function") {
+              showAuthModal();
+            } else {
+              window.location.href = "/?auth=required";
+            }
+          });
+        }
+
+        // Initialize create deck modal (only shown for logged in users)
         const createDeckBtn = document.getElementById("createDeckBtn");
         const createDeckModal = document.getElementById("createDeckModal");
         if (createDeckBtn && createDeckModal) {
           createDeckBtn.addEventListener("click", () => {
+            if (!window.currentUser) {
+              if (typeof showAuthModal === "function") {
+                showAuthModal();
+              } else {
+                window.location.href = "/?auth=required";
+              }
+              return;
+            }
             createDeckModal.style.display = "block";
           });
         }
+
+        // Handle sign up link in preview limit message
+        document.addEventListener("click", (e) => {
+          if (e.target.id === "signUpForMore") {
+            e.preventDefault();
+            if (typeof showAuthModal === "function") {
+              showAuthModal("signup");
+            } else {
+              window.location.href = "/?auth=signup";
+            }
+          }
+        });
+
+        // Deck Viewer Modal functionality
+        initializeDeckViewer();
 
         // Close modal functionality (for page-specific modals only)
         const closeButtons = document.querySelectorAll(".close");
@@ -248,7 +581,690 @@
             }
           });
         });
+
+        // Load shared decks
+        loadSharedDecks();
       });
+
+      function updateUIForAuthStatus() {
+        const isLoggedIn = window.currentUser;
+
+        // Show/hide appropriate buttons in header
+        const createDeckBtn = document.getElementById("createDeckBtn");
+        const importDeckBtn = document.getElementById("importDeckBtn");
+
+        if (isLoggedIn) {
+          if (createDeckBtn) createDeckBtn.style.display = "block";
+          if (importDeckBtn) importDeckBtn.style.display = "block";
+        } else {
+          if (createDeckBtn) createDeckBtn.style.display = "none";
+          if (importDeckBtn) importDeckBtn.style.display = "none";
+        }
+
+        // Update deck viewer modal buttons
+        const importDeckBtnModal =
+          document.getElementById("importDeckBtnModal");
+        const loginToSaveandEditBtn = document.getElementById(
+          "loginToSaveandEditBtn"
+        );
+
+        if (isLoggedIn) {
+          if (importDeckBtnModal) importDeckBtnModal.style.display = "block";
+          if (loginToSaveandEditBtn)
+            loginToSaveandEditBtn.style.display = "none";
+        } else {
+          if (importDeckBtnModal) importDeckBtnModal.style.display = "none";
+          if (loginToSaveandEditBtn)
+            loginToSaveandEditBtn.style.display = "block";
+        }
+      }
+
+      function initializeDeckViewer() {
+        const deckViewerModal = document.getElementById("deckViewerModal");
+        const studyDeckBtn = document.getElementById("studyDeckBtn");
+        const quizDeckBtn = document.getElementById("quizDeckBtn");
+        const importDeckBtnModal =
+          document.getElementById("importDeckBtnModal");
+        const prevBtn = document.getElementById("prevPreviewCard");
+        const nextBtn = document.getElementById("nextPreviewCard");
+
+        // Study deck button - available to all users
+        if (studyDeckBtn) {
+          studyDeckBtn.addEventListener("click", () => {
+            if (
+              currentDeck &&
+              currentDeck.cards &&
+              currentDeck.cards.length > 0
+            ) {
+              // Close the modal first
+              deckViewerModal.style.display = "none";
+              // Start study session directly - no authentication required
+              startSharedDeckStudy(currentDeck);
+            }
+          });
+        }
+
+        // Quiz deck button - available to all users
+        if (quizDeckBtn) {
+          quizDeckBtn.addEventListener("click", () => {
+            if (
+              currentDeck &&
+              currentDeck.cards &&
+              currentDeck.cards.length > 0
+            ) {
+              // Close the modal first
+              deckViewerModal.style.display = "none";
+              // Start quiz mode
+              startQuizMode(currentDeck);
+            }
+          });
+        }
+
+        // Import deck button - only for logged in users
+        if (importDeckBtnModal) {
+          importDeckBtnModal.addEventListener("click", () => {
+            if (window.currentUser && currentDeck) {
+              importDeckToMyDecks(currentDeck);
+            }
+          });
+        }
+
+        // Card flip functionality
+        const previewCard = document.getElementById("previewCard");
+        if (previewCard) {
+          previewCard.addEventListener("click", () => {
+            previewCard.classList.toggle("flipped");
+          });
+        }
+
+        // Preview navigation
+        if (prevBtn) {
+          prevBtn.addEventListener("click", () => {
+            if (currentDeck && currentPreviewIndex > 0) {
+              currentPreviewIndex--;
+              updatePreviewCard();
+              // Reset to show question when navigating
+              resetCardDisplay();
+            }
+          });
+        }
+
+        if (nextBtn) {
+          nextBtn.addEventListener("click", () => {
+            if (
+              currentDeck &&
+              currentPreviewIndex < currentDeck.cards.length - 1
+            ) {
+              currentPreviewIndex++;
+              updatePreviewCard();
+              // Reset to show question when navigating
+              resetCardDisplay();
+            }
+          });
+        }
+      }
+
+      function openDeckViewer(deck) {
+        currentDeck = deck;
+        currentPreviewIndex = 0;
+
+        // Update modal content
+        document.getElementById("viewerDeckTitle").textContent =
+          deck.name || "Untitled Deck";
+        document.getElementById("viewerDeckDescription").textContent =
+          deck.description || "No description available";
+        document.getElementById("viewerDeckCards").textContent = `${
+          deck.cards?.length || 0
+        } cards`;
+        document.getElementById("viewerDeckLevel").textContent =
+          deck.metaData?.level || "beginner";
+        document.getElementById(
+          "viewerDeckLevel"
+        ).className = `deck-card-level ${deck.metaData?.level || "beginner"}`;
+        document.getElementById("viewerDeckCategory").textContent =
+          deck.category || "general";
+        document.getElementById(
+          "viewerDeckCategory"
+        ).className = `deck-card-category ${deck.category || "general"}`;
+
+        // Update preview card
+        updatePreviewCard();
+
+        // Reset card display to show question first
+        resetCardDisplay();
+
+        // Show modal
+        document.getElementById("deckViewerModal").style.display = "block";
+      }
+
+      function resetCardDisplay() {
+        // Reset to show question state when navigating between cards
+        const previewCard = document.getElementById("previewCard");
+        if (previewCard) {
+          previewCard.classList.remove("flipped");
+        }
+      }
+
+      function updatePreviewCard() {
+        if (
+          !currentDeck ||
+          !currentDeck.cards ||
+          currentDeck.cards.length === 0
+        ) {
+          document.getElementById("previewCardFront").textContent =
+            "No cards available";
+          document.getElementById("previewCardBack").textContent =
+            "No cards available";
+          document.getElementById("previewCardNumber").textContent = "No cards";
+          return;
+        }
+
+        const isLoggedIn = window.currentUser;
+        const maxPreviewCards = isLoggedIn
+          ? currentDeck.cards.length
+          : Math.min(10, currentDeck.cards.length);
+        const totalCards = currentDeck.cards.length;
+
+        // Show preview limit message for non-logged-in users when they have more than 10 cards
+        const previewLimitMessage = document.getElementById(
+          "previewLimitMessage"
+        );
+        if (!isLoggedIn && totalCards > 10) {
+          previewLimitMessage.style.display = "block";
+        } else {
+          previewLimitMessage.style.display = "none";
+        }
+
+        const card = currentDeck.cards[currentPreviewIndex];
+
+        // Handle different card types for preview
+        let frontContent = "No front content";
+        let backContent = "No back content";
+
+        if (card.type === "contextual") {
+          frontContent = `<strong>Scenario:</strong><br>${
+            card.scenario || "No scenario"
+          }<br><br><strong>Question:</strong><br>${
+            card.question || "No question"
+          }`;
+          backContent = `<strong>Answer:</strong><br>${
+            card.answer || "No answer"
+          }${
+            card.explanation
+              ? `<br><br><strong>Explanation:</strong><br>${card.explanation}`
+              : ""
+          }`;
+        } else if (card.type === "cloze") {
+          // For cloze cards, show the front with blanks filled in
+          if (card.front) {
+            frontContent = card.front.replace(
+              /\{([^}]+)\}/g,
+              '<span style="text-decoration: underline; font-weight: bold;">_____</span>'
+            );
+            backContent = card.front.replace(
+              /\{([^}]+)\}/g,
+              '<span style="color: #2a7f62; font-weight: bold; background-color: rgba(42, 127, 98, 0.1); padding: 2px 4px; border-radius: 3px;">$1</span>'
+            );
+          }
+        } else {
+          // For term, qa, and other card types
+          frontContent = card.front || "No front content";
+          backContent = card.back || "No back content";
+        }
+
+        document.getElementById("previewCardFront").innerHTML = frontContent;
+        document.getElementById("previewCardBack").innerHTML = backContent;
+
+        // Update card counter display
+        if (!isLoggedIn && totalCards > 10) {
+          document.getElementById("previewCardNumber").textContent = `Card ${
+            currentPreviewIndex + 1
+          } of ${maxPreviewCards} (${totalCards} total)`;
+        } else {
+          document.getElementById("previewCardNumber").textContent = `Card ${
+            currentPreviewIndex + 1
+          } of ${totalCards}`;
+        }
+
+        // Update navigation button states
+        const prevBtn = document.getElementById("prevPreviewCard");
+        const nextBtn = document.getElementById("nextPreviewCard");
+
+        if (prevBtn) {
+          prevBtn.disabled = currentPreviewIndex === 0;
+          prevBtn.style.opacity = currentPreviewIndex === 0 ? "0.5" : "1";
+        }
+
+        if (nextBtn) {
+          // For non-logged-in users, limit to 10 cards
+          const maxIndex = isLoggedIn
+            ? totalCards - 1
+            : Math.min(9, totalCards - 1);
+          nextBtn.disabled = currentPreviewIndex >= maxIndex;
+          nextBtn.style.opacity = currentPreviewIndex >= maxIndex ? "0.5" : "1";
+        }
+      }
+
+      function startSharedDeckStudy(deck) {
+        // Redirect to pricing page instead of starting study session
+        console.log("Redirecting to pricing for shared deck:", deck.name);
+        window.location.href = "/pricing.html";
+      }
+
+      function startQuizMode(deck) {
+        // Store deck data and redirect to quiz page
+        console.log("Starting quiz mode for deck:", deck.name);
+        sessionStorage.setItem("quizDeck", JSON.stringify(deck));
+        window.location.href = "/quiz.html";
+      }
+
+      async function importDeckToMyDecks(deck) {
+        if (!window.currentUser) {
+          if (typeof showAuthModal === "function") {
+            showAuthModal();
+          }
+          return;
+        }
+
+        try {
+          // Use existing deck management functionality if available
+          if (
+            typeof window.deckManager !== "undefined" &&
+            window.deckManager.importSharedDeck
+          ) {
+            await window.deckManager.importSharedDeck(deck);
+            showSuccessMessage("Deck imported successfully!");
+            document.getElementById("deckViewerModal").style.display = "none";
+          } else if (
+            typeof window.KnowledgeHub !== "undefined" &&
+            window.KnowledgeHub.importDeckToLibrary
+          ) {
+            await window.KnowledgeHub.importDeckToLibrary(deck);
+            showSuccessMessage("Deck imported successfully!");
+            document.getElementById("deckViewerModal").style.display = "none";
+          } else {
+            throw new Error("Deck import functionality not available");
+          }
+        } catch (error) {
+          console.error("Error importing deck:", error);
+          showErrorMessage("Failed to import deck. Please try again.");
+        }
+      }
+
+      async function loadSharedDecks() {
+        // Show loading state
+        const savedDecks = document.getElementById("savedDecks");
+        savedDecks.innerHTML =
+          '<div class="deck-loading-spinner"><div class="spinner"></div></div>';
+
+        try {
+          // Load decks from Firebase
+          await loadDecksFromFirebase();
+        } catch (error) {
+          console.error("Error loading shared decks:", error);
+          // Show error message instead of fallback
+          savedDecks.innerHTML = `
+            <div class="no-decks-message">
+              <i class="fas fa-exclamation-triangle"></i>
+              <p>Unable to load shared decks. Please check your connection and try again.</p>
+              <button class="btn btn-primary" onclick="loadSharedDecks()">
+                <i class="fas fa-refresh"></i> Retry
+              </button>
+            </div>
+          `;
+        }
+      }
+
+      // Helper function to safely parse Firebase date fields
+      function parseFirebaseDate(dateField) {
+        if (!dateField) {
+          return new Date();
+        }
+
+        // If it's a Firebase Timestamp object
+        if (dateField && typeof dateField.toDate === "function") {
+          return dateField.toDate();
+        }
+
+        // If it's already a Date object
+        if (dateField instanceof Date) {
+          return dateField;
+        }
+
+        // If it's a string or number, try to parse it
+        if (typeof dateField === "string" || typeof dateField === "number") {
+          const parsed = new Date(dateField);
+          return isNaN(parsed.getTime()) ? new Date() : parsed;
+        }
+
+        // Fallback to current date
+        return new Date();
+      }
+
+      async function loadDecksFromFirebase() {
+        try {
+          console.log("=== loadDecksFromFirebase() called ===");
+          console.log("window.db:", window.db);
+          console.log("window.firebaseConfig:", window.firebaseConfig);
+
+          // Check if Firebase is available
+          if (!window.db) {
+            console.log("Firebase not available, trying to initialize...");
+
+            // Try to wait for config and initialize
+            let attempts = 0;
+            while (!window.firebaseConfig && attempts < 10) {
+              console.log(
+                `Waiting for firebaseConfig... attempt ${attempts + 1}`
+              );
+              await new Promise((resolve) => setTimeout(resolve, 100));
+              attempts++;
+            }
+
+            if (window.firebaseConfig && !window.db) {
+              console.log("Config found, initializing Firebase...");
+              const { initializeApp } = await import(
+                "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js"
+              );
+              const { getFirestore } = await import(
+                "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+              );
+              const app = initializeApp(window.firebaseConfig);
+              window.db = getFirestore(app);
+              console.log("Firebase initialized successfully");
+            } else {
+              throw new Error("Firebase configuration not available");
+            }
+          }
+
+          console.log("Querying sharedDecks collection...");
+          // Get shared decks from Firebase
+          const { collection, getDocs } = await import(
+            "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js"
+          );
+          const querySnapshot = await getDocs(
+            collection(window.db, "sharedDecks")
+          );
+
+          const firebaseDecks = [];
+          querySnapshot.forEach((doc) => {
+            const deckData = doc.data();
+            console.log(
+              "Found deck:",
+              deckData.name,
+              "Category:",
+              deckData.category
+            );
+            // Convert Firebase deck format with all required properties
+            const deck = {
+              id: doc.id,
+              name: deckData.name || "Untitled Deck",
+              description: deckData.description || "No description available",
+              category: deckData.category || "general",
+              cardCount: deckData.cards ? deckData.cards.length : 0,
+              views: deckData.views || 0,
+              rating: deckData.rating || 0,
+              createdAt: parseFirebaseDate(deckData.createdAt),
+              cards: deckData.cards || [],
+              metaData: deckData.metaData || {
+                level: deckData.level || "beginner",
+                tags: deckData.tags || [],
+                isPublic: deckData.isPublic !== false,
+                author: deckData.author || "Anonymous",
+              },
+            };
+            firebaseDecks.push(deck);
+          });
+
+          console.log(
+            `=== Loaded ${firebaseDecks.length} decks from Firebase ===`
+          );
+          firebaseDecks.forEach((deck) => {
+            console.log(
+              `- ${deck.name} (${deck.category}, ${deck.cardCount} cards)`
+            );
+          });
+
+          // Store loaded decks globally for other functions
+          window.loadedDecks = firebaseDecks;
+
+          // Display the decks
+          displayDecksFromData(firebaseDecks);
+        } catch (error) {
+          console.error("=== Error loading from Firebase ===", error);
+          throw error;
+        }
+      }
+
+      function displayDecksFromData(decks) {
+        const savedDecks = document.getElementById("savedDecks");
+
+        if (decks.length === 0) {
+          savedDecks.innerHTML = `
+            <div class="no-decks-message">
+              <i class="fas fa-folder-open"></i>
+              <p>No shared decks available yet.</p>
+              <button class="btn btn-primary" onclick="window.location.href='/'">
+                Create Your Own Deck
+              </button>
+            </div>
+          `;
+          return;
+        }
+
+        savedDecks.innerHTML = decks
+          .map(
+            (deck) => `
+          <div class="deck-card" data-deck-id="${deck.id}">
+            <div class="deck-card-level ${
+              deck.metaData?.level || "beginner"
+            }">${deck.metaData?.level || "beginner"}</div>
+            <div class="deck-card-header">
+              <h3 class="deck-card-title">${deck.name}</h3>
+              <span class="deck-card-category ${deck.category}">${
+              deck.category
+            }</span>
+            </div>
+            <p class="deck-card-description">${deck.description}</p>
+            <div class="deck-card-stats">
+              <div class="deck-card-stat">
+                <i class="fas fa-layer-group"></i>
+                <span>${deck.cardCount} cards</span>
+              </div>
+            </div>
+            <div class="deck-card-actions">
+              <button class="btn btn-primary view-deck-btn" data-deck-id="${
+                deck.id
+              }">
+                <i class="fas fa-eye"></i> View
+              </button>
+              <button class="btn btn-success study-deck-btn" data-deck-id="${
+                deck.id
+              }">
+                <i class="fas fa-play"></i> Study
+              </button>
+              <button class="btn btn-secondary quiz-deck-btn" data-deck-id="${
+                deck.id
+              }">
+                <i class="fas fa-graduation-cap"></i> Quiz
+              </button>
+            </div>
+          </div>
+        `
+          )
+          .join("");
+
+        // Add event listeners to deck cards
+        document.querySelectorAll(".view-deck-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const deckId = btn.dataset.deckId;
+            const deck = decks.find((d) => d.id === deckId);
+            if (deck) {
+              openDeckViewer(deck);
+            }
+          });
+        });
+
+        document.querySelectorAll(".study-deck-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const deckId = btn.dataset.deckId;
+            const deck = decks.find((d) => d.id === deckId);
+            if (deck && deck.cards && deck.cards.length > 0) {
+              startSharedDeckStudy(deck);
+            }
+          });
+        });
+
+        document.querySelectorAll(".quiz-deck-btn").forEach((btn) => {
+          btn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            const deckId = btn.dataset.deckId;
+            const deck = decks.find((d) => d.id === deckId);
+            if (deck && deck.cards && deck.cards.length > 0) {
+              startQuizMode(deck);
+            }
+          });
+        });
+
+        // Make entire card clickable to view
+        document.querySelectorAll(".deck-card").forEach((card) => {
+          card.addEventListener("click", (e) => {
+            if (!e.target.closest("button")) {
+              const deckId = card.dataset.deckId;
+              const deck = decks.find((d) => d.id === deckId);
+              if (deck) {
+                openDeckViewer(deck);
+              }
+            }
+          });
+        });
+      }
+
+      function filterDecksByCategory(category) {
+        const deckCards = document.querySelectorAll(".deck-card");
+        deckCards.forEach((card) => {
+          const deck = window.loadedDecks?.find(
+            (d) => d.id === card.dataset.deckId
+          );
+          if (category === "all" || (deck && deck.category === category)) {
+            card.style.display = "block";
+          } else {
+            card.style.display = "none";
+          }
+        });
+      }
+
+      function filterDecksBySearch(searchTerm) {
+        const deckCards = document.querySelectorAll(".deck-card");
+        const term = searchTerm.toLowerCase();
+
+        deckCards.forEach((card) => {
+          const deck = window.loadedDecks?.find(
+            (d) => d.id === card.dataset.deckId
+          );
+          if (!deck) {
+            card.style.display = "none";
+            return;
+          }
+
+          const searchableText =
+            `${deck.name} ${deck.description} ${deck.category}`.toLowerCase();
+          if (!term || searchableText.includes(term)) {
+            card.style.display = "block";
+          } else {
+            card.style.display = "none";
+          }
+        });
+      }
+
+      function filterDecksByLevel(level) {
+        const deckCards = document.querySelectorAll(".deck-card");
+        deckCards.forEach((card) => {
+          const deck = window.loadedDecks?.find(
+            (d) => d.id === card.dataset.deckId
+          );
+          const deckLevel = deck?.metaData?.level || "beginner";
+          if (level === "all" || deckLevel === level) {
+            card.style.display = "block";
+          } else {
+            card.style.display = "none";
+          }
+        });
+      }
+
+      function sortDecks(sortBy) {
+        console.log("Sorting by:", sortBy);
+
+        if (!window.loadedDecks || window.loadedDecks.length === 0) {
+          return;
+        }
+
+        let sortedDecks = [...window.loadedDecks];
+
+        switch (sortBy) {
+          case "cards":
+            sortedDecks.sort((a, b) => (b.cardCount || 0) - (a.cardCount || 0));
+            break;
+          case "popular":
+            // Sort by view count (most popular first)
+            sortedDecks.sort((a, b) => (b.views || 0) - (a.views || 0));
+            break;
+          case "rating":
+            // Sort by rating (highest first)
+            sortedDecks.sort((a, b) => (b.rating || 0) - (a.rating || 0));
+            break;
+          case "recent":
+          default:
+            // Sort by creation date (most recent first)
+            sortedDecks.sort((a, b) => {
+              const dateA = a.createdAt || new Date(0);
+              const dateB = b.createdAt || new Date(0);
+              return dateB - dateA;
+            });
+            break;
+        }
+
+        // Re-display the sorted decks
+        displayDecksFromData(sortedDecks);
+
+        // Reapply current filters
+        const activeCategory =
+          document.querySelector(".category-tab.active")?.dataset.category ||
+          "all";
+        const searchTerm = document.getElementById("deckSearch")?.value || "";
+        const levelFilter =
+          document.getElementById("filterLevel")?.value || "all";
+
+        if (activeCategory !== "all") {
+          filterDecksByCategory(activeCategory);
+        }
+        if (searchTerm) {
+          filterDecksBySearch(searchTerm);
+        }
+        if (levelFilter !== "all") {
+          filterDecksByLevel(levelFilter);
+        }
+      }
+
+      function showSuccessMessage(message) {
+        // Use existing success message function or create simple alert
+        if (typeof window.showSuccessMessage === "function") {
+          window.showSuccessMessage(message);
+        } else {
+          alert(message);
+        }
+      }
+
+      function showErrorMessage(message) {
+        // Use existing error message function or create simple alert
+        if (typeof window.showErrorMessage === "function") {
+          window.showErrorMessage(message);
+        } else {
+          alert(message);
+        }
+      }
     </script>
 
     <script type="module">

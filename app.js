@@ -28,7 +28,7 @@ import {
 import { SpacedRepetition } from "./spacedRepetition.js";
 import { SubscriptionManager } from "./subscription.js";
 import { DeckManager } from "./deckManager.js";
-import { CardTypeManager } from "./cardTypeManager.js";
+import { CardTypeManager } from "./cardTypeManager_new.js";
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
@@ -111,6 +111,10 @@ $(document).ready(function () {
   window.flashcards = flashcards;
   window.currentCardIndex = currentCardIndex;
 
+  // Expose auth modal functions globally
+  window.showAuthModal = showAuthModal;
+  window.hideAuthModal = hideAuthModal;
+
   // Initialize Google Auth Provider
   const googleProvider = new GoogleAuthProvider();
 
@@ -138,6 +142,9 @@ $(document).ready(function () {
     const userMenuBtn = document.getElementById("userMenuBtn");
     const showLoginBtn = document.getElementById("showLoginBtn");
     const userEmail = document.getElementById("userEmail");
+    const createDeckBtn = document.getElementById("createDeckBtn");
+    const importDeckBtn = document.getElementById("importDeckBtn");
+    const loginToCreateBtn = document.getElementById("loginToCreateBtn");
 
     if (user) {
       currentUser = user;
@@ -155,7 +162,9 @@ $(document).ready(function () {
       // Initialize KnowledgeHub with the deckManager instance
       await KnowledgeHub.init(deckManager);
       console.log("KnowledgeHub.init() completed, calling initialize()...");
-      KnowledgeHub.initialize();
+      if (!window.disableKnowledgeHubAutoInit) {
+        KnowledgeHub.initialize();
+      }
 
       // Update desktop view
       if (userMenuBtn) {
@@ -163,6 +172,11 @@ $(document).ready(function () {
         userEmail.textContent = user.email;
       }
       if (showLoginBtn) showLoginBtn.style.display = "none";
+
+      // Update shared decks view
+      if (createDeckBtn) createDeckBtn.style.display = "block";
+      if (importDeckBtn) importDeckBtn.style.display = "block";
+      if (loginToCreateBtn) loginToCreateBtn.style.display = "none";
 
       await loadUserDecks();
       await loadStudyProgress();
@@ -183,6 +197,17 @@ $(document).ready(function () {
       if (userMenuBtn) userMenuBtn.style.display = "none";
       if (showLoginBtn) showLoginBtn.style.display = "block";
       if (userEmail) userEmail.textContent = "";
+
+      // Update shared decks view
+      if (createDeckBtn) createDeckBtn.style.display = "none";
+      if (importDeckBtn) importDeckBtn.style.display = "none";
+      if (loginToCreateBtn) loginToCreateBtn.style.display = "block";
+
+      // Initialize KnowledgeHub without deckManager for shared decks only
+      await KnowledgeHub.init(null);
+      if (!window.disableKnowledgeHubAutoInit) {
+        KnowledgeHub.initialize();
+      }
     }
   });
 
@@ -728,6 +753,7 @@ $(document).ready(function () {
 
       // Update Study Now button after loading progress
       updateStudyNowButton();
+      updateQuizNowButton();
     } catch (error) {
       console.error("Error loading study progress:", error);
     }
@@ -763,6 +789,23 @@ $(document).ready(function () {
       studyBtn.removeClass("btn-success").addClass("btn-primary");
     } else {
       studyBtn.hide();
+    }
+  }
+
+  // Add function to update Quiz Now button
+  function updateQuizNowButton() {
+    const quizBtn = $("#quizNowBtn");
+
+    if (flashcards.length === 0) {
+      quizBtn.hide();
+      return;
+    }
+
+    // Show quiz button if there are any flashcards (minimum 3 for a meaningful quiz)
+    if (flashcards.length >= 3) {
+      quizBtn.show();
+    } else {
+      quizBtn.hide();
     }
   }
 
@@ -812,6 +855,26 @@ $(document).ready(function () {
   // Add event handler for Study Now button
   $("#studyNowBtn").on("click", function () {
     initializeStudySession();
+  });
+
+  // Add event handler for Quiz Now button
+  $("#quizNowBtn").on("click", function () {
+    if (flashcards && flashcards.length >= 3) {
+      // Create deck object from current flashcards
+      const quizDeck = {
+        id: "current-deck",
+        name: "Current Flashcards",
+        description: "Quiz from your generated flashcards",
+        cards: flashcards,
+        cardCount: flashcards.length,
+      };
+
+      // Store deck data and redirect to quiz page
+      sessionStorage.setItem("quizDeck", JSON.stringify(quizDeck));
+      window.location.href = "/quiz.html";
+    } else {
+      showErrorMessage("You need at least 3 flashcards to take a quiz.");
+    }
   });
 
   // Text form submission
@@ -1069,7 +1132,7 @@ $(document).ready(function () {
     });
 
     // Flashcard click handler
-    $("#flashcard").on("click", function() {
+    $("#flashcard").on("click", function () {
       // Cancel any ongoing speech when flipping card
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
@@ -1082,15 +1145,20 @@ $(document).ready(function () {
   }
 
   function navigateCard(direction) {
-    console.log('navigateCard called with direction:', direction, 'currentIndex:', currentCardIndex);
-    
+    console.log(
+      "navigateCard called with direction:",
+      direction,
+      "currentIndex:",
+      currentCardIndex
+    );
+
     // Cancel any ongoing speech when navigating
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
     }
-    
+
     const oldIndex = currentCardIndex;
-    
+
     if (direction === "prev" && currentCardIndex > 0) {
       currentCardIndex--;
     } else if (direction === "next") {
@@ -1100,21 +1168,26 @@ $(document).ready(function () {
 
     // Only update if the index actually changed
     if (oldIndex !== currentCardIndex) {
-      console.log('Card index changed from', oldIndex, 'to', currentCardIndex);
+      console.log("Card index changed from", oldIndex, "to", currentCardIndex);
       updateFlashcard();
     }
   }
 
   function updateFlashcard() {
-    console.log('updateFlashcard called, currentCardIndex:', currentCardIndex, 'totalCards:', flashcards.length);
+    console.log(
+      "updateFlashcard called, currentCardIndex:",
+      currentCardIndex,
+      "totalCards:",
+      flashcards.length
+    );
     if (!flashcards || flashcards.length === 0) {
-      console.log('No flashcards available');
+      console.log("No flashcards available");
       return;
     }
 
     // Check if we've gone past the last card
     if (currentCardIndex >= flashcards.length) {
-      console.log('Reached end of flashcards, attempting to show quiz prompt');
+      console.log("Reached end of flashcards, attempting to show quiz prompt");
       // Reset index to last card for now
       currentCardIndex = flashcards.length - 1;
       showQuizPrompt();
@@ -1124,17 +1197,21 @@ $(document).ready(function () {
     // Get the flashcard container
     const container = document.getElementById("flashcard");
     if (!container) {
-      console.error('Flashcard container not found');
+      console.error("Flashcard container not found");
       return;
     }
-    
+
     container.innerHTML = ""; // Clear existing content
 
     // Create a new instance of CardTypeManager
     const cardManager = new CardTypeManager();
 
     // Render the card using the appropriate renderer
-    cardManager.renderCard(flashcards[currentCardIndex], flashcards[currentCardIndex].type || "cloze", container);
+    cardManager.renderCard(
+      flashcards[currentCardIndex],
+      flashcards[currentCardIndex].type || "cloze",
+      container
+    );
 
     // Add pronunciation buttons to front and back
     const cardFront = container.querySelector(".card-front");
@@ -1166,7 +1243,7 @@ $(document).ready(function () {
     $("#showAnswerBtn").show();
     $(".performance-buttons").hide();
     $(".card-back").hide();
-    
+
     // Update progress
     updateProgress();
   }
@@ -1180,7 +1257,7 @@ $(document).ready(function () {
 
     // Wait for voices to be loaded
     let voices = window.speechSynthesis.getVoices();
-    
+
     // If voices aren't loaded yet, wait for them
     if (voices.length === 0) {
       window.speechSynthesis.onvoiceschanged = () => {
@@ -1194,13 +1271,14 @@ $(document).ready(function () {
 
   function speakWithVoice(text, voices) {
     const utterance = new SpeechSynthesisUtterance(text);
-    
+
     // Find a good English voice
-    const englishVoice = voices.find(voice => 
-      voice.lang.includes('en') && voice.name.includes('Female')
-    ) || voices.find(voice => 
-      voice.lang.includes('en')
-    ) || voices[0];
+    const englishVoice =
+      voices.find(
+        (voice) => voice.lang.includes("en") && voice.name.includes("Female")
+      ) ||
+      voices.find((voice) => voice.lang.includes("en")) ||
+      voices[0];
 
     if (englishVoice) {
       utterance.voice = englishVoice;
@@ -1214,15 +1292,15 @@ $(document).ready(function () {
 
     // Add event listeners for better control
     utterance.onstart = () => {
-      console.log('Speech started');
+      console.log("Speech started");
     };
 
     utterance.onend = () => {
-      console.log('Speech ended');
+      console.log("Speech ended");
     };
 
     utterance.onerror = (event) => {
-      console.error('Speech error:', event);
+      console.error("Speech error:", event);
     };
 
     // Ensure the speech synthesis is ready
@@ -1291,13 +1369,13 @@ $(document).ready(function () {
   }
 
   function showQuizPrompt() {
-    console.log('showQuizPrompt called');
-    let quizPrompt = document.querySelector('.quiz-prompt');
-    
+    console.log("showQuizPrompt called");
+    let quizPrompt = document.querySelector(".quiz-prompt");
+
     if (!quizPrompt) {
-      console.log('Creating new quiz prompt element');
-      quizPrompt = document.createElement('div');
-      quizPrompt.className = 'quiz-prompt';
+      console.log("Creating new quiz prompt element");
+      quizPrompt = document.createElement("div");
+      quizPrompt.className = "quiz-prompt";
       quizPrompt.innerHTML = `
         <div class="quiz-prompt-content">
           <h3><i class="fas fa-graduation-cap"></i> Ready to Test Your Knowledge?</h3>
@@ -1313,172 +1391,59 @@ $(document).ready(function () {
         </div>
       `;
       document.body.appendChild(quizPrompt);
-      
+
       // Add event listeners
-      document.getElementById('startQuizBtn').addEventListener('click', () => {
-        console.log('Start Quiz button clicked');
-        quizPrompt.classList.remove('show');
+      document.getElementById("startQuizBtn").addEventListener("click", () => {
+        console.log("Start Quiz button clicked");
+        quizPrompt.classList.remove("show");
         startQuizMode();
       });
-      
-      document.getElementById('continuePracticeBtn').addEventListener('click', () => {
-        console.log('Continue Practice button clicked');
-        quizPrompt.classList.remove('show');
-        currentCardIndex = 0;
-        updateFlashcard();
-      });
+
+      document
+        .getElementById("continuePracticeBtn")
+        .addEventListener("click", () => {
+          console.log("Continue Practice button clicked");
+          quizPrompt.classList.remove("show");
+          currentCardIndex = 0;
+          updateFlashcard();
+        });
     }
-    
-    console.log('Showing quiz prompt modal');
-    quizPrompt.classList.add('show');
+
+    console.log("Showing quiz prompt modal");
+    quizPrompt.classList.add("show");
     // Store in session that we've shown the prompt
-    sessionStorage.setItem('quizPromptShown', 'true');
+    sessionStorage.setItem("quizPromptShown", "true");
   }
 
   function startQuizMode() {
-    console.log('startQuizMode called');
+    console.log("startQuizMode called");
     if (!flashcards || flashcards.length === 0) {
-      console.error('No flashcards available for quiz mode');
+      console.error("No flashcards available for quiz mode");
       return;
     }
-    console.log('Initializing quiz with', flashcards.length, 'cards');
-    // Convert flashcards to quiz format
-    const quizCards = flashcards.map((card) => {
-      // Generate 3 random incorrect options
-      const incorrectOptions = generateIncorrectOptions(card.back, flashcards);
+    console.log("Starting quiz with", flashcards.length, "cards");
 
-      return {
-        question: card.front,
-        options: shuffleArray([card.back, ...incorrectOptions]),
-        correctAnswer: card.back,
-        explanation: card.explanation || null,
-      };
-    });
+    // Create a quiz deck from current flashcards
+    const quizDeck = {
+      name: "Generated Flashcard Quiz",
+      description: "Quiz generated from your flashcards",
+      cards: flashcards,
+      id: `quiz_${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
 
-    // Initialize quiz interface
-    initializeQuizInterface(quizCards);
+    // Store the deck in sessionStorage and redirect to quiz.html
+    sessionStorage.setItem("quizDeck", JSON.stringify(quizDeck));
+    window.location.href = "/quiz.html";
   }
 
-  function generateIncorrectOptions(correctAnswer, allCards) {
-    // Filter out the correct answer and get unique incorrect options
-    const otherAnswers = allCards
-      .map((card) => card.back)
-      .filter((answer) => answer !== correctAnswer);
-
-    // Shuffle and take first 3
-    return shuffleArray(otherAnswers).slice(0, 3);
-  }
-
+  // Utility function for shuffling arrays (kept for other uses)
   function shuffleArray(array) {
     for (let i = array.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [array[i], array[j]] = [array[j], array[i]];
     }
     return array;
-  }
-
-  function initializeQuizInterface(quizCards) {
-    console.log('initializeQuizInterface called with', quizCards.length, 'cards');
-    let currentQuizIndex = 0;
-    let score = 0;
-
-    function showQuizCard() {
-      console.log('Showing quiz card', currentQuizIndex + 1, 'of', quizCards.length);
-      const card = quizCards[currentQuizIndex];
-      const quizContainer = $("<div>").addClass("quiz-container").html(`
-        <div class="quiz-progress">Question ${currentQuizIndex + 1}/${
-        quizCards.length
-      }</div>
-        <div class="quiz-question">${card.question}</div>
-        <div class="quiz-options">
-          ${card.options
-            .map(
-              (option, index) => `
-            <button class="quiz-option" data-index="${index}">${option}</button>
-          `
-            )
-            .join("")}
-        </div>
-      `);
-
-      // Replace flashcard viewer with quiz container
-      $("#flashcard").hide();
-      $(".card-controls").hide();
-      $(".flashcard-container").append(quizContainer);
-
-      // Handle option selection
-      $(".quiz-option").on("click", function () {
-        const selectedAnswer = card.options[$(this).data("index")];
-        const isCorrect = selectedAnswer === card.correctAnswer;
-
-        // Update score
-        if (isCorrect) score++;
-
-        // Show feedback
-        $(this).addClass(isCorrect ? "correct" : "incorrect");
-        $(".quiz-option").prop("disabled", true);
-
-        // Show explanation if available
-        if (card.explanation) {
-          quizContainer.append(
-            `<div class="quiz-explanation">${card.explanation}</div>`
-          );
-        }
-
-        // Show next question button or finish quiz
-        setTimeout(() => {
-          if (currentQuizIndex < quizCards.length - 1) {
-            quizContainer.append(`
-              <button class="btn btn-primary next-question">Next Question</button>
-            `);
-            $(".next-question").on("click", () => {
-              currentQuizIndex++;
-              quizContainer.remove();
-              showQuizCard();
-            });
-          } else {
-            showQuizResults(score, quizCards.length);
-          }
-        }, 1000);
-      });
-    }
-
-    showQuizCard();
-  }
-
-  function showQuizResults(score, total) {
-    const percentage = Math.round((score / total) * 100);
-    const resultsContainer = $("<div>").addClass("quiz-results").html(`
-      <h2>Quiz Complete!</h2>
-      <div class="quiz-score">
-        <div class="score-circle">
-          <span class="score-number">${percentage}%</span>
-        </div>
-        <p>You got ${score} out of ${total} questions correct</p>
-      </div>
-      <div class="quiz-actions">
-        <button class="btn btn-primary" id="retryQuizBtn">
-          <i class="fas fa-redo"></i> Try Again
-        </button>
-        <button class="btn btn-secondary" id="returnToPracticeBtn">
-          <i class="fas fa-cards"></i> Return to Practice
-        </button>
-      </div>
-    `);
-
-    $(".flashcard-container").append(resultsContainer);
-
-    // Handle retry and return actions
-    $("#retryQuizBtn").on("click", () => {
-      resultsContainer.remove();
-      startQuizMode();
-    });
-
-    $("#returnToPracticeBtn").on("click", () => {
-      resultsContainer.remove();
-      $("#flashcard").show();
-      $(".card-controls").show();
-    });
   }
 
   // Flashcard flip
@@ -1820,6 +1785,8 @@ $(document).ready(function () {
   function updateFlashcardViewer(flashcards) {
     if (!flashcards || flashcards.length === 0) {
       showFlashcardViewer(false);
+      // Dispatch event for flashcards cleared
+      document.dispatchEvent(new CustomEvent("flashcardsCleared"));
       return;
     }
 
@@ -1829,9 +1796,17 @@ $(document).ready(function () {
 
     // Update Study Now button
     updateStudyNowButton();
+    updateQuizNowButton();
 
     // Show the viewer
     showFlashcardViewer(true);
+
+    // Dispatch event for flashcards generated
+    document.dispatchEvent(
+      new CustomEvent("flashcardsGenerated", {
+        detail: { flashcards },
+      })
+    );
   }
 
   // Helper function to update loading message
@@ -3258,7 +3233,7 @@ $(document).ready(function () {
   // Initialize Knowledge Hub when document is ready
   document.addEventListener("DOMContentLoaded", () => {
     // ... existing initialization code ...
-    initializeKnowledgeHub();
+    // Note: KnowledgeHub initialization is now handled in the auth state change listener
   });
 
   // ... existing code ...
@@ -3815,115 +3790,8 @@ $(document).ready(function () {
 const KnowledgeHub = {
   deckManager: null,
 
-  async init(deckManagerInstance) {
-    this.deckManager = deckManagerInstance;
-    return this;
-  },
-
-  // Show loading placeholder for decks
-  showDecksLoadingPlaceholder() {
-    const deckGrid = document.getElementById("savedDecks");
-    if (!deckGrid) {
-      console.warn("Deck grid element not found");
-      return;
-    }
-
-    // Create 6 skeleton cards for loading state
-    const skeletonCards = Array(6)
-      .fill()
-      .map(
-        () => `
-      <div class="deck-card loading-placeholder">
-        <div class="skeleton-title"></div>
-        <div class="skeleton-category"></div>
-        <div class="skeleton-description"></div>
-        <div class="deck-card-stats">
-          <div class="skeleton-stat"></div>
-          <div class="skeleton-stat"></div>
-          <div class="skeleton-stat"></div>
-        </div>
-        <div class="deck-card-actions">
-          <div class="skeleton-button"></div>
-          <div class="skeleton-button"></div>
-        </div>
-      </div>
-    `
-      )
-      .join("");
-
-    deckGrid.innerHTML = skeletonCards;
-  },
-
-  // Display decks in the grid
-  displayDecks(decks, isLoading = false) {
-    const deckGrid = document.getElementById("savedDecks");
-    if (!deckGrid) {
-      console.warn("Deck grid element not found");
-      return;
-    }
-
-    if (isLoading) {
-      this.showDecksLoadingPlaceholder();
-      return;
-    }
-
-    deckGrid.innerHTML = "";
-
-    if (decks.length === 0) {
-      deckGrid.innerHTML = `
-        <div class="no-decks-message">
-          <i class="fas fa-search"></i>
-          <p>No decks found matching your criteria</p>
-          <button class="btn btn-primary" onclick="document.getElementById('createDeckBtn')?.click()">
-            Create Your First Deck
-          </button>
-        </div>
-      `;
-      return;
-    }
-
-    decks.forEach((deck) => {
-      const deckCard = document.createElement("div");
-      deckCard.className = "deck-card";
-      deckCard.innerHTML = `
-        <div class="deck-card-header">
-          <h3 class="deck-card-title">${deck.name}</h3>
-          <span class="deck-card-category ${deck.category}">${
-        deck.category
-      }</span>
-        </div>
-        <p class="deck-card-description">${
-          deck.description || "No description provided"
-        }</p>
-        <div class="deck-card-stats">
-          <span class="deck-card-stat">
-            <i class="fas fa-eye"></i> ${deck.stats?.views || 0} views
-          </span>
-          <span class="deck-card-stat">
-            <i class="fas fa-heart"></i> ${deck.stats?.favorites || 0} favorites
-          </span>
-          <span class="deck-card-stat">
-            <i class="fas fa-cards"></i> ${deck.cards?.length || 0} cards
-          </span>
-        </div>
-        <div class="deck-card-actions">
-          <button class="btn btn-primary" onclick="KnowledgeHub.openDeck('${
-            deck.id
-          }')">
-            <i class="fas fa-play"></i> Study
-          </button>
-          <button class="btn btn-secondary" onclick="KnowledgeHub.editDeck('${
-            deck.id
-          }')">
-            <i class="fas fa-edit"></i> Edit
-          </button>
-        </div>
-        <span class="deck-card-level ${deck.level || "beginner"}">${
-        deck.level || "beginner"
-      }</span>
-      `;
-      deckGrid.appendChild(deckCard);
-    });
+  async init(deckManager) {
+    this.deckManager = deckManager;
   },
 
   // Filter and sort decks
@@ -3967,15 +3835,18 @@ const KnowledgeHub = {
       decks.sort((a, b) => {
         switch (sortBy) {
           case "recent":
-            return new Date(b.updatedAt) - new Date(a.updatedAt);
+            return (
+              new Date(b.updatedAt || b.createdAt) -
+              new Date(a.updatedAt || a.createdAt)
+            );
           case "popular":
-            return b.stats.views - a.stats.views;
+            return (b.stats?.views || 0) - (a.stats?.views || 0);
           case "cards":
-            return b.cards.length - a.cards.length;
+            return (b.cards?.length || 0) - (a.cards?.length || 0);
           case "rating":
             return (
-              b.stats.favorites / (b.stats.views || 1) -
-              a.stats.favorites / (a.stats.views || 1)
+              (b.stats?.favorites || 0) / ((b.stats?.views || 0) + 1) -
+              (a.stats?.favorites || 0) / ((a.stats?.views || 0) + 1)
             );
           default:
             return 0;
@@ -3987,23 +3858,410 @@ const KnowledgeHub = {
     } catch (error) {
       console.error("Error filtering decks:", error);
       showNotification("Failed to load decks. Please try again.", "error");
-      // Show empty state on error
       this.displayDecks([], false);
     }
   },
 
+  // Display decks in the grid
+  displayDecks(decks, isLoading = false) {
+    const deckGrid = document.getElementById("savedDecks");
+    if (!deckGrid) return;
+
+    if (isLoading) {
+      // Show loading placeholders
+      deckGrid.innerHTML = Array(6)
+        .fill()
+        .map(
+          () => `
+        <div class="deck-card loading-placeholder">
+          <div class="skeleton-title"></div>
+          <div class="skeleton-category"></div>
+          <div class="skeleton-description"></div>
+          <div class="skeleton-stat"></div>
+          <div class="skeleton-button"></div>
+        </div>
+      `
+        )
+        .join("");
+      return;
+    }
+
+    if (decks.length === 0) {
+      deckGrid.innerHTML = `
+        <div class="no-decks-message">
+          <i class="fas fa-search"></i>
+          <p>No decks found matching your criteria.</p>
+          ${!this.deckManager ? "<p>Log in to create your own decks!</p>" : ""}
+        </div>
+      `;
+      return;
+    }
+
+    deckGrid.innerHTML = decks
+      .map(
+        (deck) => `
+        <div class="deck-card" data-deck-id="${deck.id}">
+          <div class="deck-card-header">
+            <h3 class="deck-card-title">${deck.name}</h3>
+            <span class="deck-card-category ${deck.category}">${
+          deck.category
+        }</span>
+          </div>
+          <p class="deck-card-description">${
+            deck.description || "No description provided"
+          }</p>
+          <div class="deck-card-stats">
+            <span class="deck-card-stat">
+              <i class="fas fa-eye"></i> ${deck.stats?.views || 0} views
+            </span>
+            <span class="deck-card-stat">
+              <i class="fas fa-heart"></i> ${
+                deck.stats?.favorites || 0
+              } favorites
+            </span>
+            <span class="deck-card-stat">
+              <i class="fas fa-cards"></i> ${deck.cards?.length || 0} cards
+            </span>
+          </div>
+          <div class="deck-card-actions">
+            <button class="btn btn-primary study-deck" data-deck-id="${
+              deck.id
+            }">
+              <i class="fas fa-play"></i> Study
+            </button>
+            ${
+              this.deckManager
+                ? `<button class="btn btn-secondary edit-deck" data-deck-id="${deck.id}">
+                    <i class="fas fa-edit"></i> Edit
+                  </button>`
+                : ""
+            }
+          </div>
+          <span class="deck-card-level ${deck.level || "beginner"}">${
+          deck.level || "beginner"
+        }</span>
+        </div>
+      `
+      )
+      .join("");
+
+    // Add event listeners after HTML is created
+    this.attachDeckEventListeners();
+  },
+
+  // Attach event listeners to deck cards
+  attachDeckEventListeners() {
+    const deckGrid = document.getElementById("savedDecks");
+    if (!deckGrid) return;
+
+    // Use event delegation for study buttons
+    deckGrid.addEventListener("click", (e) => {
+      const studyBtn = e.target.closest(".study-deck");
+      const editBtn = e.target.closest(".edit-deck");
+
+      if (studyBtn) {
+        e.preventDefault();
+        const deckId = studyBtn.getAttribute("data-deck-id");
+        if (deckId) {
+          this.openDeck(deckId);
+        }
+      } else if (editBtn) {
+        e.preventDefault();
+        const deckId = editBtn.getAttribute("data-deck-id");
+        if (deckId) {
+          this.editDeck(deckId);
+        }
+      }
+    });
+  },
+
   // Deck actions
   openDeck(deckId) {
-    console.log("Opening shared deck:", deckId);
-    showNotification(
-      "Shared deck study feature coming soon! Deck ID: " + deckId,
-      "info"
-    );
+    if (!window.currentUser) {
+      if (typeof showAuthModal === "function") {
+        showAuthModal();
+      } else {
+        window.location.href = "/?auth=required";
+      }
+      return;
+    }
+    this.showDeckViewer(deckId);
+  },
+
+  async showDeckViewer(deckId) {
+    try {
+      // Show loading
+      showLoading(true);
+
+      // Fetch deck data (for now using placeholder data)
+      const deck = await this.getDeckById(deckId);
+
+      if (!deck || !deck.cards || deck.cards.length === 0) {
+        showErrorMessage("This deck has no cards or could not be loaded.");
+        return;
+      }
+
+      // Create deck viewer modal
+      const modal = document.createElement("div");
+      modal.className = "modal";
+      modal.id = "deckViewerModal";
+      modal.innerHTML = `
+        <div class="modal-content" style="max-width: 1000px;">
+          <span class="close">&times;</span>
+          <div class="deck-viewer-header">
+            <h2>${deck.name}</h2>
+            <p class="deck-description">${deck.description || ""}</p>
+            <div class="deck-meta">
+              <span class="deck-category ${deck.category}">${
+        deck.category
+      }</span>
+              <span class="deck-level ${deck.level || "beginner"}">${
+        deck.level || "beginner"
+      }</span>
+              <span class="deck-cards-count">${deck.cards.length} cards</span>
+            </div>
+          </div>
+          
+          <div class="deck-viewer-content">
+            <div class="deck-viewer-controls">
+              <button id="studyDeckBtn" class="btn btn-primary btn-large">
+                <i class="fas fa-play"></i> Start Studying
+              </button>
+              <button id="previewDeckBtn" class="btn btn-secondary">
+                <i class="fas fa-eye"></i> Preview Cards
+              </button>
+              <button id="importDeckToLibraryBtn" class="btn btn-secondary">
+                <i class="fas fa-download"></i> Import to My Library
+              </button>
+            </div>
+            
+            <div class="deck-preview" id="deckPreview" style="display: none;">
+              <div class="preview-controls">
+                <button id="prevPreviewBtn" class="btn btn-sm btn-secondary">
+                  <i class="fas fa-chevron-left"></i>
+                </button>
+                <span id="previewCounter">1 / ${deck.cards.length}</span>
+                <button id="nextPreviewBtn" class="btn btn-sm btn-secondary">
+                  <i class="fas fa-chevron-right"></i>
+                </button>
+              </div>
+              <div class="preview-card">
+                <div class="preview-card-front">
+                  <h4>Front:</h4>
+                  <p id="previewFront"></p>
+                </div>
+                <div class="preview-card-back">
+                  <h4>Back:</h4>
+                  <p id="previewBack"></p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+
+      document.body.appendChild(modal);
+      modal.style.display = "block";
+
+      // Initialize preview functionality
+      let currentPreviewIndex = 0;
+
+      const updatePreview = () => {
+        const card = deck.cards[currentPreviewIndex];
+        document.getElementById("previewFront").textContent = card.front;
+        document.getElementById("previewBack").textContent = card.back;
+        document.getElementById("previewCounter").textContent = `${
+          currentPreviewIndex + 1
+        } / ${deck.cards.length}`;
+
+        document.getElementById("prevPreviewBtn").disabled =
+          currentPreviewIndex === 0;
+        document.getElementById("nextPreviewBtn").disabled =
+          currentPreviewIndex === deck.cards.length - 1;
+      };
+
+      // Event listeners
+      modal.querySelector(".close").addEventListener("click", () => {
+        modal.remove();
+      });
+
+      modal.addEventListener("click", (e) => {
+        if (e.target === modal) {
+          modal.remove();
+        }
+      });
+
+      document.getElementById("studyDeckBtn").addEventListener("click", () => {
+        modal.remove();
+        this.startStudySession(deck);
+      });
+
+      document
+        .getElementById("previewDeckBtn")
+        .addEventListener("click", () => {
+          const preview = document.getElementById("deckPreview");
+          if (preview.style.display === "none") {
+            preview.style.display = "block";
+            updatePreview();
+            document.getElementById("previewDeckBtn").innerHTML =
+              '<i class="fas fa-eye-slash"></i> Hide Preview';
+          } else {
+            preview.style.display = "none";
+            document.getElementById("previewDeckBtn").innerHTML =
+              '<i class="fas fa-eye"></i> Preview Cards';
+          }
+        });
+
+      document
+        .getElementById("prevPreviewBtn")
+        .addEventListener("click", () => {
+          if (currentPreviewIndex > 0) {
+            currentPreviewIndex--;
+            updatePreview();
+          }
+        });
+
+      document
+        .getElementById("nextPreviewBtn")
+        .addEventListener("click", () => {
+          if (currentPreviewIndex < deck.cards.length - 1) {
+            currentPreviewIndex++;
+            updatePreview();
+          }
+        });
+
+      document
+        .getElementById("importDeckToLibraryBtn")
+        .addEventListener("click", async () => {
+          try {
+            await this.importDeckToLibrary(deck);
+            showSuccessMessage("Deck imported to your library!");
+          } catch (error) {
+            console.error("Error importing deck:", error);
+            showErrorMessage("Failed to import deck. Please try again.");
+          }
+        });
+    } catch (error) {
+      console.error("Error showing deck viewer:", error);
+      showErrorMessage("Failed to load deck. Please try again.");
+    } finally {
+      showLoading(false);
+    }
+  },
+
+  async getDeckById(deckId) {
+    // For now, return sample data. In a real implementation, this would fetch from Firestore
+    // You can replace this with actual Firestore queries later
+    const sampleDecks = [
+      {
+        id: "electrician-basics",
+        name: "Electrician Basics",
+        description: "Fundamental electrical concepts and safety procedures",
+        category: "electrician",
+        level: "beginner",
+        cards: [
+          {
+            front: "What is Ohm's Law?",
+            back: "Ohm's Law states that the current through a conductor between two points is directly proportional to the voltage across the two points. V = I × R",
+          },
+          {
+            front:
+              "What is the standard voltage for residential electrical systems in the US?",
+            back: "120V for standard outlets and 240V for heavy appliances like dryers and electric stoves",
+          },
+          {
+            front: "What does GFCI stand for?",
+            back: "Ground Fault Circuit Interrupter - a safety device that shuts off electrical power when it detects ground faults",
+          },
+          {
+            front: "What is the purpose of a circuit breaker?",
+            back: "To protect electrical circuits from damage caused by overcurrent/overload or short circuit",
+          },
+          {
+            front: "What gauge wire is typically used for 20-amp circuits?",
+            back: "12 AWG (American Wire Gauge) wire is typically used for 20-amp circuits",
+          },
+        ],
+      },
+      {
+        id: "plumbing-basics",
+        name: "Plumbing Fundamentals",
+        description: "Essential plumbing knowledge for apprentices",
+        category: "plumber",
+        level: "beginner",
+        cards: [
+          {
+            front:
+              "What is the standard pressure for residential water systems?",
+            back: "Between 40-60 PSI (pounds per square inch), with 50 PSI being optimal",
+          },
+          {
+            front: "What does PVC stand for?",
+            back: "Polyvinyl Chloride - a type of plastic pipe commonly used in plumbing",
+          },
+        ],
+      },
+    ];
+
+    return sampleDecks.find((deck) => deck.id === deckId) || sampleDecks[0];
+  },
+
+  startStudySession(deck) {
+    // Set the flashcards globally so the existing study interface can use them
+    window.flashcards = deck.cards;
+    window.currentCardIndex = 0;
+    window.isFlipped = false;
+
+    // If we're on the shared-decks page, redirect to main app with the deck data
+    if (window.location.pathname.includes("shared-decks")) {
+      // Store deck data in session storage for retrieval on main page
+      sessionStorage.setItem("studyDeck", JSON.stringify(deck));
+      window.location.href = "/create-deck.html?study=shared";
+      return;
+    }
+
+    // If we're already on a page with flashcard viewer, use it
+    if (
+      typeof window.updateFlashcard === "function" &&
+      typeof window.showFlashcardViewer === "function"
+    ) {
+      window.updateFlashcard();
+      window.showFlashcardViewer(true);
+      showSuccessMessage(`Starting study session: ${deck.name}`);
+    } else {
+      // Fallback: redirect to main app
+      sessionStorage.setItem("studyDeck", JSON.stringify(deck));
+      window.location.href = "/create-deck.html?study=shared";
+    }
+  },
+
+  async importDeckToLibrary(deck) {
+    if (!this.deckManager) {
+      throw new Error("Please log in to import decks to your library");
+    }
+
+    const importedDeck = {
+      name: `${deck.name} (Imported)`,
+      description: deck.description,
+      cards: deck.cards,
+      category: deck.category || "imported",
+      level: deck.level || "beginner",
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      importedFrom: deck.id,
+      originalAuthor: deck.createdBy || "Unknown",
+    };
+
+    await this.deckManager.createDeck(importedDeck);
   },
 
   editDeck(deckId) {
     if (!window.currentUser) {
-      showNotification("Please log in to edit decks.", "warning");
+      if (typeof showAuthModal === "function") {
+        showAuthModal();
+      } else {
+        window.location.href = "/?auth=required";
+      }
       return;
     }
     console.log("Editing deck:", deckId);
@@ -4135,12 +4393,6 @@ const KnowledgeHub = {
           });
         }
       }
-    } else {
-      // Hide create deck button for non-logged-in users
-      const createDeckBtn = document.getElementById("createDeckBtn");
-      if (createDeckBtn) {
-        createDeckBtn.style.display = "none";
-      }
     }
 
     // Initial load of decks
@@ -4149,11 +4401,168 @@ const KnowledgeHub = {
   },
 };
 
+// Make KnowledgeHub available globally for shared-decks page
+window.KnowledgeHub = KnowledgeHub;
+
 // Minimal function to fetch shared decks
 async function getSharedDecks() {
-  const sharedDecksRef = collection(db, "sharedDecks");
-  const snapshot = await getDocs(sharedDecksRef);
-  return snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
+  try {
+    // Fetch from Firestore sharedDecks collection
+    const sharedDecksRef = collection(db, "sharedDecks");
+    const snapshot = await getDocs(sharedDecksRef);
+    const firebaseDecks = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...doc.data(),
+    }));
+
+    if (firebaseDecks.length > 0) {
+      return firebaseDecks;
+    }
+
+    // Fallback to sample data if no decks in Firestore
+    return [
+      {
+        id: "electrician-basics",
+        name: "Electrician Basics",
+        description:
+          "Fundamental electrical concepts and safety procedures for electrical apprentices",
+        category: "electrician",
+        level: "beginner",
+        stats: { views: 1245, favorites: 89, downloads: 234 },
+        cards: [
+          {
+            front: "What is Ohm's Law?",
+            back: "Ohm's Law states that the current through a conductor between two points is directly proportional to the voltage across the two points. V = I × R",
+          },
+          {
+            front:
+              "What is the standard voltage for residential electrical systems in the US?",
+            back: "120V for standard outlets and 240V for heavy appliances like dryers and electric stoves",
+          },
+          {
+            front: "What does GFCI stand for?",
+            back: "Ground Fault Circuit Interrupter - a safety device that shuts off electrical power when it detects ground faults",
+          },
+          {
+            front: "What is the purpose of a circuit breaker?",
+            back: "To protect electrical circuits from damage caused by overcurrent/overload or short circuit",
+          },
+          {
+            front: "What gauge wire is typically used for 20-amp circuits?",
+            back: "12 AWG (American Wire Gauge) wire is typically used for 20-amp circuits",
+          },
+        ],
+      },
+      {
+        id: "plumbing-basics",
+        name: "Plumbing Fundamentals",
+        description:
+          "Essential plumbing knowledge for apprentices and journeymen",
+        category: "plumber",
+        level: "beginner",
+        stats: { views: 987, favorites: 67, downloads: 156 },
+        cards: [
+          {
+            front:
+              "What is the standard pressure for residential water systems?",
+            back: "Between 40-60 PSI (pounds per square inch), with 50 PSI being optimal",
+          },
+          {
+            front: "What does PVC stand for?",
+            back: "Polyvinyl Chloride - a type of plastic pipe commonly used in plumbing",
+          },
+          {
+            front: "What is the difference between supply and drain lines?",
+            back: "Supply lines bring fresh water to fixtures under pressure, while drain lines remove wastewater using gravity",
+          },
+        ],
+      },
+      {
+        id: "hvac-refrigeration",
+        name: "HVAC & Refrigeration Basics",
+        description:
+          "Core concepts in heating, ventilation, air conditioning, and refrigeration systems",
+        category: "hvac",
+        level: "intermediate",
+        stats: { views: 756, favorites: 45, downloads: 98 },
+        cards: [
+          {
+            front:
+              "What is the ideal relative humidity range for indoor comfort?",
+            back: "Between 30-50% relative humidity for optimal comfort and health",
+          },
+          {
+            front: "What does SEER rating measure?",
+            back: "Seasonal Energy Efficiency Ratio - measures the cooling efficiency of air conditioners and heat pumps",
+          },
+        ],
+      },
+      {
+        id: "welding-safety",
+        name: "Welding Safety Fundamentals",
+        description:
+          "Critical safety procedures and equipment for welding operations",
+        category: "welder",
+        level: "beginner",
+        stats: { views: 642, favorites: 78, downloads: 123 },
+        cards: [
+          {
+            front: "What PPE is required for arc welding?",
+            back: "Welding helmet with proper filter lens, welding gloves, flame-resistant clothing, safety boots, and respiratory protection when needed",
+          },
+          {
+            front: "What causes porosity in welds?",
+            back: "Contamination from moisture, oil, rust, or inadequate shielding gas coverage",
+          },
+        ],
+      },
+      {
+        id: "carpentry-tools",
+        name: "Essential Carpentry Tools",
+        description: "Must-know tools and their proper usage in carpentry work",
+        category: "carpenter",
+        level: "beginner",
+        stats: { views: 543, favorites: 34, downloads: 87 },
+        cards: [
+          {
+            front: "What is the difference between a rip cut and a cross cut?",
+            back: "A rip cut is parallel to the wood grain, while a cross cut is perpendicular to the grain",
+          },
+          {
+            front: "What is the standard spacing for wall studs?",
+            back: '16 inches on center (OC) or 24 inches on center, with 16" OC being most common',
+          },
+        ],
+      },
+      {
+        id: "osha-safety-basics",
+        name: "OSHA Safety Basics",
+        description:
+          "Fundamental workplace safety regulations and best practices",
+        category: "safety",
+        level: "beginner",
+        stats: { views: 892, favorites: 112, downloads: 201 },
+        cards: [
+          {
+            front: "What does OSHA stand for?",
+            back: "Occupational Safety and Health Administration",
+          },
+          {
+            front:
+              "At what height must fall protection be used in construction?",
+            back: "6 feet or higher in construction work",
+          },
+          {
+            front: "What are the 'Fatal Four' in construction?",
+            back: "Falls, Struck by Object, Electrocution, and Caught-in/Between accidents",
+          },
+        ],
+      },
+    ];
+  } catch (error) {
+    console.error("Error fetching shared decks:", error);
+    return [];
+  }
 }
 
 function initializeUserMenuDropdown() {
@@ -4276,3 +4685,44 @@ function handlePerformanceAnswer(answer) {
     $(".card-back").hide();
   }, 1000);
 }
+
+// Check for shared deck session on page load
+document.addEventListener("DOMContentLoaded", () => {
+  // Check if we're on the create-deck page with study=shared parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  if (urlParams.get("study") === "shared") {
+    const sharedDeckData = sessionStorage.getItem("studyDeck");
+    if (sharedDeckData) {
+      try {
+        const deck = JSON.parse(sharedDeckData);
+
+        // Set flashcards globally
+        window.flashcards = deck.cards;
+        window.currentCardIndex = 0;
+        window.isFlipped = false;
+
+        // Wait for the page to fully load then show the flashcard viewer
+        setTimeout(() => {
+          if (
+            typeof window.updateFlashcard === "function" &&
+            typeof window.showFlashcardViewer === "function"
+          ) {
+            window.updateFlashcard();
+            window.showFlashcardViewer(true);
+            showSuccessMessage(`Started studying: ${deck.name}`);
+
+            // Clear the session storage
+            sessionStorage.removeItem("studyDeck");
+
+            // Update URL without the study parameter
+            const newUrl = window.location.href.split("?")[0];
+            window.history.replaceState({}, document.title, newUrl);
+          }
+        }, 1000);
+      } catch (error) {
+        console.error("Error loading shared deck:", error);
+        sessionStorage.removeItem("studyDeck");
+      }
+    }
+  }
+});
