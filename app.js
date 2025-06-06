@@ -1030,6 +1030,7 @@ $(document).ready(function () {
     $("#shuffleBtn").off("click");
     $("#showAnswerBtn").off("click");
     $(".performance-buttons button").off("click");
+    $("#flashcard").off("click");
 
     // Navigation buttons
     $("#prevCardBtn").on("click", function (e) {
@@ -1045,6 +1046,10 @@ $(document).ready(function () {
     // Show answer button
     $("#showAnswerBtn").on("click", function (e) {
       e.preventDefault();
+      // Cancel any ongoing speech when showing answer
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
       answerStartTime = Date.now();
 
       $(".card-back").slideDown(200);
@@ -1055,8 +1060,21 @@ $(document).ready(function () {
     // Performance buttons
     $(".performance-buttons button").on("click", function (e) {
       e.preventDefault();
+      // Cancel any ongoing speech when rating performance
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
       const answer = parseInt($(this).data("performance"));
       handlePerformanceAnswer(answer);
+    });
+
+    // Flashcard click handler
+    $("#flashcard").on("click", function() {
+      // Cancel any ongoing speech when flipping card
+      if (window.speechSynthesis.speaking) {
+        window.speechSynthesis.cancel();
+      }
+      // Rest of the click handler code...
     });
 
     // Initial progress update
@@ -1064,71 +1082,91 @@ $(document).ready(function () {
   }
 
   function navigateCard(direction) {
+    console.log('navigateCard called with direction:', direction, 'currentIndex:', currentCardIndex);
+    
+    // Cancel any ongoing speech when navigating
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel();
+    }
+    
     const oldIndex = currentCardIndex;
+    
     if (direction === "prev" && currentCardIndex > 0) {
       currentCardIndex--;
-    } else if (
-      direction === "next" &&
-      currentCardIndex < flashcards.length - 1
-    ) {
+    } else if (direction === "next") {
+      // Allow going past the last card to trigger quiz mode
       currentCardIndex++;
     }
 
     // Only update if the index actually changed
     if (oldIndex !== currentCardIndex) {
+      console.log('Card index changed from', oldIndex, 'to', currentCardIndex);
       updateFlashcard();
     }
   }
 
   function updateFlashcard() {
-    const card = flashcards[currentCardIndex];
-    if (!card) return;
+    console.log('updateFlashcard called, currentCardIndex:', currentCardIndex, 'totalCards:', flashcards.length);
+    if (!flashcards || flashcards.length === 0) {
+      console.log('No flashcards available');
+      return;
+    }
+
+    // Check if we've gone past the last card
+    if (currentCardIndex >= flashcards.length) {
+      console.log('Reached end of flashcards, attempting to show quiz prompt');
+      // Reset index to last card for now
+      currentCardIndex = flashcards.length - 1;
+      showQuizPrompt();
+      return;
+    }
 
     // Get the flashcard container
     const container = document.getElementById("flashcard");
+    if (!container) {
+      console.error('Flashcard container not found');
+      return;
+    }
+    
     container.innerHTML = ""; // Clear existing content
 
     // Create a new instance of CardTypeManager
     const cardManager = new CardTypeManager();
 
     // Render the card using the appropriate renderer
-    cardManager.renderCard(card, card.type || "cloze", container);
+    cardManager.renderCard(flashcards[currentCardIndex], flashcards[currentCardIndex].type || "cloze", container);
 
     // Add pronunciation buttons to front and back
     const cardFront = container.querySelector(".card-front");
     const cardBack = container.querySelector(".card-back");
 
-    // Add pronunciation button to front
-    const frontPronounceBtn = document.createElement("button");
-    frontPronounceBtn.className = "btn-pronounce";
-    frontPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-    frontPronounceBtn.onclick = (e) => {
-      e.stopPropagation();
-      speakText(card.front);
-    };
-    cardFront.appendChild(frontPronounceBtn);
+    if (cardFront && cardBack) {
+      // Add pronunciation button to front
+      const frontPronounceBtn = document.createElement("button");
+      frontPronounceBtn.className = "btn-pronounce";
+      frontPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+      frontPronounceBtn.onclick = (e) => {
+        e.stopPropagation();
+        speakText(flashcards[currentCardIndex].front);
+      };
+      cardFront.appendChild(frontPronounceBtn);
 
-    // Add pronunciation button to back
-    const backPronounceBtn = document.createElement("button");
-    backPronounceBtn.className = "btn-pronounce";
-    backPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-    backPronounceBtn.onclick = (e) => {
-      e.stopPropagation();
-      speakText(card.back);
-    };
-    cardBack.appendChild(backPronounceBtn);
+      // Add pronunciation button to back
+      const backPronounceBtn = document.createElement("button");
+      backPronounceBtn.className = "btn-pronounce";
+      backPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+      backPronounceBtn.onclick = (e) => {
+        e.stopPropagation();
+        speakText(flashcards[currentCardIndex].back);
+      };
+      cardBack.appendChild(backPronounceBtn);
+    }
 
     // Reset card state
     $("#showAnswerBtn").show();
     $(".performance-buttons").hide();
-
-    // Update navigation state - Fixed IDs
-    $("#prevCardBtn").prop("disabled", currentCardIndex === 0);
-    $("#nextCardBtn").prop(
-      "disabled",
-      currentCardIndex === flashcards.length - 1
-    );
-
+    $(".card-back").hide();
+    
     // Update progress
     updateProgress();
   }
@@ -1140,13 +1178,62 @@ $(document).ready(function () {
       window.speechSynthesis.cancel();
     }
 
+    // Wait for voices to be loaded
+    let voices = window.speechSynthesis.getVoices();
+    
+    // If voices aren't loaded yet, wait for them
+    if (voices.length === 0) {
+      window.speechSynthesis.onvoiceschanged = () => {
+        voices = window.speechSynthesis.getVoices();
+        speakWithVoice(text, voices);
+      };
+    } else {
+      speakWithVoice(text, voices);
+    }
+  }
+
+  function speakWithVoice(text, voices) {
     const utterance = new SpeechSynthesisUtterance(text);
+    
+    // Find a good English voice
+    const englishVoice = voices.find(voice => 
+      voice.lang.includes('en') && voice.name.includes('Female')
+    ) || voices.find(voice => 
+      voice.lang.includes('en')
+    ) || voices[0];
+
+    if (englishVoice) {
+      utterance.voice = englishVoice;
+    }
+
     // Configure for ESL
     utterance.lang = "en-US";
     utterance.rate = 0.9; // Slightly slower for clarity
     utterance.pitch = 1;
+    utterance.volume = 1;
 
-    window.speechSynthesis.speak(utterance);
+    // Add event listeners for better control
+    utterance.onstart = () => {
+      console.log('Speech started');
+    };
+
+    utterance.onend = () => {
+      console.log('Speech ended');
+    };
+
+    utterance.onerror = (event) => {
+      console.error('Speech error:', event);
+    };
+
+    // Ensure the speech synthesis is ready
+    if (window.speechSynthesis.paused) {
+      window.speechSynthesis.resume();
+    }
+
+    // Add a small delay before speaking to ensure proper initialization
+    setTimeout(() => {
+      window.speechSynthesis.speak(utterance);
+    }, 100);
   }
 
   // Enhanced progress tracking with practice/confident counts
@@ -1196,48 +1283,65 @@ $(document).ready(function () {
     countsDisplay.find(".need-practice-count .count").text(needPracticeCount);
     countsDisplay.find(".confident-count .count").text(confidentCount);
 
-    // Check if user has completed 80% of cards
-    if (progress >= 80 && !sessionStorage.getItem("quizPromptShown")) {
+    // Check if user has completed 100% of cards
+    if (progress >= 100 && !sessionStorage.getItem("quizPromptShown")) {
       showQuizPrompt();
       sessionStorage.setItem("quizPromptShown", "true");
     }
   }
 
   function showQuizPrompt() {
-    const quizPrompt = $("<div>").addClass("quiz-prompt").html(`
-      <div class="quiz-prompt-content">
-        <h3><i class="fas fa-graduation-cap"></i> Ready to Test Your Knowledge?</h3>
-        <p>You've completed 80% of your flashcards! Would you like to take a quiz to reinforce your learning?</p>
-        <div class="quiz-prompt-actions">
-          <button class="btn btn-primary" id="startQuizBtn">
-            <i class="fas fa-check"></i> Start Quiz
-          </button>
-          <button class="btn btn-secondary" id="continuePracticeBtn">
-            <i class="fas fa-redo"></i> Continue Practice
-          </button>
+    console.log('showQuizPrompt called');
+    let quizPrompt = document.querySelector('.quiz-prompt');
+    
+    if (!quizPrompt) {
+      console.log('Creating new quiz prompt element');
+      quizPrompt = document.createElement('div');
+      quizPrompt.className = 'quiz-prompt';
+      quizPrompt.innerHTML = `
+        <div class="quiz-prompt-content">
+          <h3><i class="fas fa-graduation-cap"></i> Ready to Test Your Knowledge?</h3>
+          <p>You've completed all of your flashcards! Would you like to take a quiz to reinforce your learning?</p>
+          <div class="quiz-prompt-actions">
+            <button class="btn btn-primary" id="startQuizBtn">
+              <i class="fas fa-check"></i> Start Quiz
+            </button>
+            <button class="btn btn-secondary" id="continuePracticeBtn">
+              <i class="fas fa-redo"></i> Continue Practice
+            </button>
+          </div>
         </div>
-      </div>
-    `);
-
-    $("body").append(quizPrompt);
-    quizPrompt.fadeIn(200);
-
-    // Handle quiz prompt actions
-    $("#startQuizBtn").on("click", function () {
-      quizPrompt.fadeOut(200, function () {
-        $(this).remove();
+      `;
+      document.body.appendChild(quizPrompt);
+      
+      // Add event listeners
+      document.getElementById('startQuizBtn').addEventListener('click', () => {
+        console.log('Start Quiz button clicked');
+        quizPrompt.classList.remove('show');
         startQuizMode();
       });
-    });
-
-    $("#continuePracticeBtn").on("click", function () {
-      quizPrompt.fadeOut(200, function () {
-        $(this).remove();
+      
+      document.getElementById('continuePracticeBtn').addEventListener('click', () => {
+        console.log('Continue Practice button clicked');
+        quizPrompt.classList.remove('show');
+        currentCardIndex = 0;
+        updateFlashcard();
       });
-    });
+    }
+    
+    console.log('Showing quiz prompt modal');
+    quizPrompt.classList.add('show');
+    // Store in session that we've shown the prompt
+    sessionStorage.setItem('quizPromptShown', 'true');
   }
 
   function startQuizMode() {
+    console.log('startQuizMode called');
+    if (!flashcards || flashcards.length === 0) {
+      console.error('No flashcards available for quiz mode');
+      return;
+    }
+    console.log('Initializing quiz with', flashcards.length, 'cards');
     // Convert flashcards to quiz format
     const quizCards = flashcards.map((card) => {
       // Generate 3 random incorrect options
@@ -1274,10 +1378,12 @@ $(document).ready(function () {
   }
 
   function initializeQuizInterface(quizCards) {
+    console.log('initializeQuizInterface called with', quizCards.length, 'cards');
     let currentQuizIndex = 0;
     let score = 0;
 
     function showQuizCard() {
+      console.log('Showing quiz card', currentQuizIndex + 1, 'of', quizCards.length);
       const card = quizCards[currentQuizIndex];
       const quizContainer = $("<div>").addClass("quiz-container").html(`
         <div class="quiz-progress">Question ${currentQuizIndex + 1}/${

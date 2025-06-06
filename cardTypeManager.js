@@ -274,12 +274,10 @@ export class CardTypeManager {
   renderContextualCard(card, container) {
     container.innerHTML = `
       <div class="card-front card-type-contextual">
-        <div class="scenario">${card.scenario}</div>
         <div class="question">${card.question}</div>
       </div>
       <div class="card-back card-type-contextual" style="display: none;">
         <p>${card.answer}</p>
-        <div class="explanation">${card.explanation}</div>
       </div>
     `;
   }
@@ -295,6 +293,7 @@ export class CardTypeManager {
 5. Ensure definitions are accurate and complete
 6. Avoid circular definitions
 7. Include pronunciation guides for complex terms
+8. Limit the answer (the 'back' of the card) to only 1 sentence. Select the most relevant and correct sentence for the answer.
 
 IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "front" and "back" properties.`,
       user: `Create term-definition flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
@@ -311,6 +310,7 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
 5. Avoid yes/no questions
 6. Ensure questions are specific and focused
 7. Make answers self-contained and complete
+8. Limit the answer (the 'back' of the card) to only 1 sentence. Select the most relevant and correct sentence for the answer.
 
 IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "front" (question) and "back" (answer) properties.`,
       user: `Create question-answer flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
@@ -327,6 +327,7 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
 5. Avoid blanking out too many words in one sentence
 6. Ensure the answer is unambiguous
 7. Maintain the original meaning of the text
+8. Limit the answer (the 'back' of the card) to only 1 sentence. Select the most relevant and correct sentence for the answer.
 
 Format your cloze cards using five underscores (_____) for blanks. Example:
 
@@ -370,6 +371,7 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
 5. Avoid obvious wrong answers
 6. Include explanations for the correct answer
 7. Ensure questions test understanding, not just recall
+8. Limit the explanation (and the correct answer) to only 1 sentence. Select the most relevant and correct sentence for the explanation and answer.
 
 IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "front" (question), "options" array, "correctIndex" number, and optional "explanation" properties.`,
       user: `Create multiple-choice flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,
@@ -386,6 +388,7 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
 5. Use real-world applications
 6. Ensure scenarios are relevant and engaging
 7. Make the learning context clear
+8. Limit the answer and explanation to only 1 sentence each. Select the most relevant and correct sentence for each.
 
 IMPORTANT: You must respond with a valid JSON object containing an array of flashcards. Each card should have "scenario", "question", "answer", and "explanation" properties.`,
       user: `Create contextual flashcards from the following content and return them as a JSON object with a "cards" array:\n\n${content}`,

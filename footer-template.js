@@ -53,7 +53,7 @@ export const footerTemplate = `
     <div class="footer-bottom">
         <div class="footer-bottom-content">
             <p>&copy; 2025 Note2Flash. All rights reserved.</p>
-            <p class="made-with">Made with ❤️ for trades professionals</p>
+            <p class="made-with">Made with ❤️ for learners</p>
         </div>
     </div>
 </footer>

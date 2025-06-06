@@ -667,7 +667,7 @@ a.btn:hover {
   display: none;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 9999; /* Increased z-index to ensure it's above all other elements */
   backdrop-filter: blur(4px);
   opacity: 0;
   transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1331,21 +1331,26 @@ a.btn:hover {
 
 .auth-tabs {
   display: flex;
-  gap: 1.5rem;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
+  gap: 1rem;
   margin-bottom: 1.5rem;
-  border-bottom: 1px solid var(--gray-200);
+  border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.5rem;
+  flex-wrap: nowrap; /* Prevent wrapping */
 }
 
 .tab-btn {
-  padding: 0.5rem 0;
-  border: none;
   background: none;
-  cursor: pointer;
+  border: none;
+  padding: 0.75rem 1.5rem;
   font-size: 1rem;
-  color: var(--gray-600);
+  color: var(--text-color-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
   position: relative;
-  transition: color 0.2s;
+  white-space: nowrap; /* Prevent text from wrapping inside buttons */
 }
 
 .tab-btn.active {
@@ -3164,10 +3169,14 @@ body[data-billing="monthly"] .price.yearly {
 /* Input Tabs */
 .input-tabs {
   display: flex;
+  flex-direction: row;
+  justify-content: center;
+  align-items: center;
   gap: 1rem;
   margin-bottom: 1.5rem;
   border-bottom: 2px solid var(--border-color);
   padding-bottom: 0.5rem;
+  flex-wrap: nowrap; /* Prevent wrapping */
 }
 
 .input-tabs .tab-btn {
@@ -3179,6 +3188,7 @@ body[data-billing="monthly"] .price.yearly {
   cursor: pointer;
   transition: all 0.2s ease;
   position: relative;
+  white-space: nowrap; /* Prevent text from wrapping inside buttons */
 }
 
 .input-tabs .tab-btn:hover {
@@ -4906,7 +4916,6 @@ body[data-billing="monthly"] .price.yearly {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  overflow-y: auto;
   height: 400px; /* Fixed height for card content */
 }
 
