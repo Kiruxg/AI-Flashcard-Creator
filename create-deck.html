@@ -40,11 +40,20 @@
           transparent 70%
         );
         pointer-events: none;
-        z-index: 0;
+        z-index: -1;
       }
       main.container {
         position: relative;
-        z-index: 1;
+        z-index: auto;
+      }
+
+      /* Ensure loading overlay is always on top */
+      .loading-overlay {
+        z-index: 999999 !important;
+      }
+
+      .loading-overlay.show {
+        z-index: 999999 !important;
       }
 
       /* Flip Card Styles */
@@ -55,7 +64,7 @@
         min-height: 400px !important;
         max-height: 400px !important;
         width: 100% !important;
-        margin-bottom: 20px !important;
+        margin-bottom: 10px !important;
         position: relative !important;
         overflow: visible !important;
         display: block !important;
@@ -66,17 +75,20 @@
         width: 100% !important;
         height: 100% !important;
         text-align: center !important;
-        transition: transform 0.8s !important;
+        transition: transform 0.8s ease !important;
         transform-style: preserve-3d !important;
         border-radius: 12px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
         min-height: 400px !important;
         max-height: 400px !important;
         display: block !important;
       }
 
+      #flashcard.flipped .flashcard-inner {
+        transform: rotateY(180deg) !important;
+      }
+      
       .flashcard.flipped .flashcard-inner {
-        transform: rotateY(180deg);
+        transform: rotateY(180deg) !important;
       }
 
       .card-front,
@@ -123,19 +135,6 @@
         display: block;
         margin-bottom: 15px;
         font-size: 1.1em;
-      }
-
-      .flip-hint {
-        position: absolute;
-        bottom: 15px;
-        right: 20px;
-        font-size: 0.9rem;
-        color: #6c757d;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        opacity: 0.7;
-        transition: opacity 0.3s;
       }
 
       .flashcard:hover .flip-hint {
@@ -218,6 +217,13 @@ Examples:
 - Technical specifications"
                 rows="10"
               ></textarea>
+              
+              <!-- Text Counter and Requirements -->
+              <div class="text-counter">
+                <span class="char-count" id="charCount">0</span> / 100 characters minimum
+                <span class="recommended">(300+ recommended for best results)</span>
+              </div>
+              
 
               <div class="generation-options">
                       <select id="textCardType" class="select-input">
@@ -363,8 +369,8 @@ Examples:
             <button id="editDeckNameBtn" class="btn-edit-deck-name" style="display: none;" title="Edit deck name">
               <i class="fas fa-edit"></i>
             </button>
+            <input type="text" id="deckNameInput" class="deck-name-input" style="display: none;" placeholder="Enter deck name" maxlength="50">
           </div>
-          <input type="text" id="deckNameInput" class="deck-name-input" style="display: none;" placeholder="Enter deck name" maxlength="50">
           <div
             id="loadingIndicator"
             class="loading-overlay"
@@ -438,12 +444,25 @@ Examples:
                 </div>
 
                 <div class="performance-buttons">
-                  <button class="btn btn-danger" data-performance="1">
-                    <i class="fas fa-tools"></i> Need Practice
+                  <button class="btn btn-danger" data-performance="1" title="I completely forgot this - show again soon (Keyboard: 1)">
+                    <i class="fas fa-times"></i> Again
+                    <small>Forgot it</small>
                   </button>
-                  <button class="btn btn-success" data-performance="5">
-                    <i class="fas fa-check-circle"></i> Confident
+                  <button class="btn btn-warning" data-performance="2" title="I found this difficult but remembered - show earlier (Keyboard: 2)">
+                    <i class="fas fa-clock"></i> Hard
+                    <small>Struggled</small>
                   </button>
+                  <button class="btn btn-success" data-performance="3" title="I remembered this correctly - normal interval (Keyboard: 3)">
+                    <i class="fas fa-check"></i> Good
+                    <small>Remembered</small>
+                  </button>
+                  <button class="btn btn-primary" data-performance="4" title="This was too easy - show much later (Keyboard: 4)">
+                    <i class="fas fa-star"></i> Easy
+                    <small>Too easy</small>
+                  </button>
+                </div>
+                <div class="keyboard-hints">
+                  <small><i class="fas fa-keyboard"></i> Quick keys: 1-Again | 2-Hard | 3-Good | 4-Easy</small>
                 </div>
 
                 <!-- Quiz Button - redirects to centralized quiz -->
@@ -465,6 +484,7 @@ Examples:
       import { initializeNavigation } from "./nav-template.js";
       document.addEventListener("DOMContentLoaded", initializeNavigation);
     </script>
+    <script src="./text-requirements.js"></script>
     <script type="module" src="./app.js"></script>
     <script type="module">
       import { initializeFooter } from "./footer-template.js";
@@ -495,129 +515,11 @@ Examples:
           });
         });
 
-        // Flashcard flip functionality - only listen to specific content areas
-        document.addEventListener("click", function (e) {
-          // Only proceed if NOT clicking on any interactive elements first
-          const isInteractiveElement =
-            e.target.closest(".card-controls") ||
-            e.target.closest("button") ||
-            e.target.closest(".btn") ||
-            e.target.closest(".btn-pronounce") ||
-            e.target.closest(".tts-button") ||
-            e.target.closest(".audio-button") ||
-            e.target.closest('[role="button"]') ||
-            e.target.matches("button") ||
-            e.target.matches(".btn") ||
-            e.target.matches(".btn-pronounce");
 
-          // Early return for interactive elements - don't interfere at all
-          if (isInteractiveElement) {
-            return; // Let the event proceed completely unmodified
-          }
 
-          // Only handle flip for non-interactive flashcard clicks
-          const flashcard = e.target.closest("#flashcard");
-          if (flashcard) {
-            flashcard.classList.toggle("flipped");
-            e.stopPropagation();
-          }
-        });
+        // TTS functionality is now centralized in app.js and auto-initialized
 
-        // Ensure TTS functionality works with dynamic content
-        function initializeTTSButtons() {
-          const ttsButtons = document.querySelectorAll(".btn-pronounce");
-          ttsButtons.forEach((button) => {
-            // Remove any existing listeners to prevent duplicates
-            button.removeEventListener("click", handleTTSClick);
-            // Add the TTS click handler
-            button.addEventListener("click", handleTTSClick);
-          });
-        }
 
-        function handleTTSClick(e) {
-          e.preventDefault();
-          e.stopPropagation();
-
-          const button = e.currentTarget;
-          const textToSpeak =
-            button.getAttribute("data-text") ||
-            button.parentElement.textContent.trim();
-
-          console.log("🔊 TTS button clicked, speaking:", textToSpeak);
-
-          if ("speechSynthesis" in window) {
-            // Cancel any ongoing speech
-            speechSynthesis.cancel();
-
-            const utterance = new SpeechSynthesisUtterance(textToSpeak);
-            utterance.rate = 0.8;
-            utterance.pitch = 1;
-            utterance.volume = 1;
-
-            speechSynthesis.speak(utterance);
-          } else {
-            console.warn("Speech synthesis not supported in this browser");
-          }
-        }
-
-        // Initialize TTS when page loads
-        setTimeout(initializeTTSButtons, 1000);
-
-        // Re-initialize TTS when flashcard content changes
-        const flashcardForTTS = document.getElementById("flashcard");
-        if (flashcardForTTS) {
-          const ttsObserver = new MutationObserver(function (mutations) {
-            let shouldReinitializeTTS = false;
-            mutations.forEach(function (mutation) {
-              if (mutation.type === "childList") {
-                // Check if new TTS buttons were added
-                const addedNodes = Array.from(mutation.addedNodes);
-                if (
-                  addedNodes.some(
-                    (node) =>
-                      node.nodeType === 1 &&
-                      (node.querySelector(".btn-pronounce") ||
-                        node.classList?.contains("btn-pronounce"))
-                  )
-                ) {
-                  shouldReinitializeTTS = true;
-                }
-              }
-            });
-
-            if (shouldReinitializeTTS) {
-              setTimeout(initializeTTSButtons, 100);
-            }
-          });
-
-          ttsObserver.observe(flashcardForTTS, {
-            childList: true,
-            subtree: true,
-          });
-        }
-
-        // Reset flip state when navigating cards
-        function resetCardFlip() {
-          const flashcard = document.getElementById("flashcard");
-          if (flashcard) {
-            flashcard.classList.remove("flipped");
-          }
-        }
-
-        // Add event listeners to navigation buttons to reset flip state
-        const prevBtn = document.getElementById("prevCardBtn");
-        const nextBtn = document.getElementById("nextCardBtn");
-        const shuffleBtn = document.getElementById("shuffleBtn");
-
-        if (prevBtn) {
-          prevBtn.addEventListener("click", resetCardFlip);
-        }
-        if (nextBtn) {
-          nextBtn.addEventListener("click", resetCardFlip);
-        }
-        if (shuffleBtn) {
-          shuffleBtn.addEventListener("click", resetCardFlip);
-        }
 
         // Listen for flashcards generated event to store flashcards globally
         document.addEventListener("flashcardsGenerated", function(event) {
@@ -658,9 +560,7 @@ Examples:
           });
         }
 
-        // Make functions available globally for other scripts
-        window.resetCardFlip = resetCardFlip;
-        window.initializeTTSButtons = initializeTTSButtons;
+        // TTS functionality is now centralized in app.js
         
         // Initialize edit deck name functionality
         setTimeout(() => {
@@ -688,14 +588,28 @@ Examples:
               newCardBack.innerHTML = backContent || "";
             }
           }
-          // Reset flip state and reinitialize TTS
-          window.resetCardFlip();
-          setTimeout(window.initializeTTSButtons, 50);
+          // Reset flip state and hide performance buttons
+          
+          // Ensure card starts in unflipped state
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            flashcard.classList.remove("flipped");
+            console.log("Card reset to unflipped state for new content");
+          }
+          
+          // Hide performance buttons initially (they'll show after flip + delay)
+          const performanceButtons = document.querySelector(".performance-buttons");
+          if (performanceButtons) {
+            performanceButtons.classList.remove("show");
+          }
+          
+          // TTS is auto-initialized by app.js
         };
 
         // Global function to ensure flip functionality is active
         window.initializeFlipCard = function () {
           const flashcard = document.getElementById("flashcard");
+          console.log("initializeFlipCard called - initial classes:", flashcard ? flashcard.className : "flashcard not found");
           if (flashcard) {
             // Ensure flashcard maintains proper height
             flashcard.style.height = "400px";
@@ -766,6 +680,7 @@ Examples:
             }
             // Reset flip state
             flashcard.classList.remove("flipped");
+            console.log("initializeFlipCard - classes after reset:", flashcard.className);
           }
         };
 
@@ -823,9 +738,42 @@ Examples:
           });
         }
 
+        // Track when flipped class gets added unexpectedly
+        function setupFlipClassWatcher() {
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            const observer = new MutationObserver(function(mutations) {
+              mutations.forEach(function(mutation) {
+                if (mutation.type === "attributes" && mutation.attributeName === "class") {
+                  if (flashcard.classList.contains("flipped")) {
+                    console.log("🚨 FLIPPED CLASS ADDED by something else! Stack trace:");
+                    console.trace();
+                    console.log("Current classes:", flashcard.className);
+                  }
+                }
+              });
+            });
+            
+            observer.observe(flashcard, {
+              attributes: true,
+              attributeFilter: ["class"]
+            });
+          }
+        }
+        
         // Initialize flip card structure on page load
         setTimeout(function () {
           window.initializeFlipCard();
+          
+          // Extra safety: ensure card starts unflipped
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            flashcard.classList.remove("flipped");
+            console.log("Page load safety reset - final classes:", flashcard.className);
+          }
+          
+          // Setup watcher
+          setupFlipClassWatcher();
         }, 500);
       });
     </script>

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
+    <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
     <meta
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"
@@ -19,7 +19,6 @@
       content="same-origin-allow-popups"
     />
     <title>Note2Flash - AI-Powered Flashcard Generator</title>
-    <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
     <link rel="stylesheet" href="styles.css" />
     <!-- Font Awesome -->
     <link
@@ -53,6 +52,7 @@
     <script type="module" src="./config.js"></script>
     <script type="module" src="./spacedRepetition.js"></script>
     <script type="module" src="./deckManager.js"></script>
+    <script src="./text-requirements.js"></script>
     <script type="module" src="./app.js"></script>
     
     <style>
@@ -75,7 +75,7 @@
         width: 100% !important;
         height: 100% !important;
         text-align: center !important;
-        transition: transform 0.8s !important;
+        transition: transform 0.8s ease !important;
         transform-style: preserve-3d !important;
         border-radius: 12px !important;
         box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
@@ -84,8 +84,12 @@
         display: block !important;
       }
 
+      #flashcard.flipped .flashcard-inner {
+        transform: rotateY(180deg) !important;
+      }
+      
       .flashcard.flipped .flashcard-inner {
-        transform: rotateY(180deg);
+        transform: rotateY(180deg) !important;
       }
 
       .card-front,
@@ -392,6 +396,13 @@ Examples:
 - Technical specifications"
                 rows="10"
               ></textarea>
+              
+              <!-- Text Counter and Requirements -->
+              <div class="text-counter">
+                <span class="char-count" id="charCount">0</span> / 100 characters minimum
+                <span class="recommended">(300+ recommended for best results)</span>
+              </div>
+              
 
               <div class="generation-options">
                       <select id="textCardType" class="select-input">
@@ -533,8 +544,8 @@ Examples:
             <button id="editDeckNameBtn" class="btn-edit-deck-name" style="display: none;" title="Edit deck name">
               <i class="fas fa-edit"></i>
             </button>
+            <input type="text" id="deckNameInput" class="deck-name-input" style="display: none;" placeholder="Enter deck name" maxlength="50">
           </div>
-          <input type="text" id="deckNameInput" class="deck-name-input" style="display: none;" placeholder="Enter deck name" maxlength="50">
           <div
             id="loadingIndicator"
             class="loading-overlay"
@@ -607,12 +618,25 @@ Examples:
                   </button>
                 </div>
                 <div class="performance-buttons">
-                  <button class="btn btn-danger" data-performance="1">
-                    <i class="fas fa-tools"></i> Need Practice
+                  <button class="btn btn-danger" data-performance="1" title="I completely forgot this - show again soon (Keyboard: 1)">
+                    <i class="fas fa-times"></i> Again
+                    <small>Forgot it</small>
                   </button>
-                  <button class="btn btn-success" data-performance="5">
-                    <i class="fas fa-check-circle"></i> Confident
+                  <button class="btn btn-warning" data-performance="2" title="I found this difficult but remembered - show earlier (Keyboard: 2)">
+                    <i class="fas fa-clock"></i> Hard
+                    <small>Struggled</small>
                   </button>
+                  <button class="btn btn-success" data-performance="3" title="I remembered this correctly - normal interval (Keyboard: 3)">
+                    <i class="fas fa-check"></i> Good
+                    <small>Remembered</small>
+                  </button>
+                  <button class="btn btn-primary" data-performance="4" title="This was too easy - show much later (Keyboard: 4)">
+                    <i class="fas fa-star"></i> Easy
+                    <small>Too easy</small>
+                  </button>
+                </div>
+                <div class="keyboard-hints">
+                  <small><i class="fas fa-keyboard"></i> Quick keys: 1-Again | 2-Hard | 3-Good | 4-Easy</small>
                 </div>
 
                 <!-- Quiz Button - redirects to centralized quiz -->
@@ -758,67 +782,61 @@ Examples:
         if (cardTypeSelection) cardTypeSelection.classList.remove("show");
         if (urlPreview) urlPreview.classList.remove("show");
         
-        var tabBtns = document.querySelectorAll(".input-tabs .tab-btn");
-        var tabContents = document.querySelectorAll(".input-tab-content");
-        tabBtns.forEach(function (btn) {
-          btn.addEventListener("click", function () {
-            var tab = btn.getAttribute("data-tab");
+        // Initialize tab switching for input tabs
+        function initializeInputTabSwitching() {
+          var tabBtns = document.querySelectorAll(".input-tabs .tab-btn");
+          var tabContents = document.querySelectorAll(".input-tab-content");
+          
+          // Remove any existing event listeners to prevent conflicts
+          tabBtns.forEach(function (btn) {
+            btn.removeEventListener("click", handleTabClick);
+          });
+          
+          function handleTabClick(event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            var tab = this.getAttribute("data-tab");
+            console.log("Tab clicked:", tab);
+            
+            // Remove active class from all tabs and contents
             tabBtns.forEach(function (b) {
               b.classList.remove("active");
             });
             tabContents.forEach(function (tc) {
               tc.classList.remove("active");
             });
-            btn.classList.add("active");
+            
+            // Add active class to clicked tab and corresponding content
+            this.classList.add("active");
             var tabContent = document.getElementById(tab + "Tab");
-            if (tabContent) tabContent.classList.add("active");
+            if (tabContent) {
+              tabContent.classList.add("active");
+              console.log("Tab content activated:", tab + "Tab");
+              
+              // Initialize file handling if content tab is activated
+              if (tab === "content") {
+                setTimeout(function() {
+                  if (typeof initializeFileHandling === 'function') {
+                    initializeFileHandling();
+                  }
+                }, 100);
+              }
+            } else {
+              console.error("Tab content not found:", tab + "Tab");
+            }
+          }
+          
+          // Add event listeners
+          tabBtns.forEach(function (btn) {
+            btn.addEventListener("click", handleTabClick);
           });
-        });
-
-        // Flashcard flip functionality - only listen to specific content areas
-        document.addEventListener("click", function (e) {
-          // Only proceed if NOT clicking on any interactive elements first
-          const isInteractiveElement =
-            e.target.closest(".card-controls") ||
-            e.target.closest("button") ||
-            e.target.closest(".btn") ||
-            e.target.closest("input") ||
-            e.target.closest("select") ||
-            e.target.closest(".navigation-buttons") ||
-            e.target.closest(".performance-buttons") ||
-            e.target.closest(".quiz-actions");
-
-          if (isInteractiveElement) {
-            return; // Don't flip if clicking interactive elements
-          }
-
-          // Check if clicking within the flashcard content area
-          const flashcard = e.target.closest(".flashcard");
-          const isClickingCardContent =
-            e.target.closest("#cardFront") ||
-            e.target.closest("#cardBack") ||
-            e.target.closest(".card-front") ||
-            e.target.closest(".card-back") ||
-            e.target.closest(".flip-hint");
-
-          if (flashcard && isClickingCardContent) {
-            console.log("Flipping card!");
-            flashcard.classList.toggle("flipped");
-          }
-        });
-
-        // Function to reset card flip state
-        function resetCardFlip() {
-          const flashcard = document.getElementById("flashcard");
-          if (flashcard) {
-            flashcard.classList.remove("flipped");
-          }
+          
+          console.log("Input tab switching initialized with", tabBtns.length, "tabs");
         }
-
-        // Function to initialize TTS buttons (if any)
-        function initializeTTSButtons() {
-          // Add TTS functionality if needed
-        }
+        
+        // Initialize the tab switching
+        initializeInputTabSwitching();
 
         // Add event listener for Take Quiz button
         const takeQuizBtn = document.getElementById("takeQuizBtn");
@@ -845,9 +863,7 @@ Examples:
           });
         }
 
-        // Make functions available globally for other scripts
-        window.resetCardFlip = resetCardFlip;
-        window.initializeTTSButtons = initializeTTSButtons;
+        // TTS is now centralized in app.js and auto-initialized
         
         // Initialize edit deck name functionality
         setTimeout(() => {
@@ -875,14 +891,28 @@ Examples:
               newCardBack.innerHTML = backContent || "";
             }
           }
-          // Reset flip state and reinitialize TTS
-          window.resetCardFlip();
-          setTimeout(window.initializeTTSButtons, 50);
+          // Reset flip state and hide performance buttons
+          
+          // Ensure card starts in unflipped state
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            flashcard.classList.remove("flipped");
+            console.log("Card reset to unflipped state for new content");
+          }
+          
+          // Hide performance buttons initially (they'll show after flip + delay)
+          const performanceButtons = document.querySelector(".performance-buttons");
+          if (performanceButtons) {
+            performanceButtons.classList.remove("show");
+          }
+          
+          // TTS is auto-initialized by app.js
         };
 
         // Global function to ensure flip functionality is active
         window.initializeFlipCard = function () {
           const flashcard = document.getElementById("flashcard");
+          console.log("initializeFlipCard called - initial classes:", flashcard ? flashcard.className : "flashcard not found");
           if (flashcard) {
             // Ensure flashcard maintains proper height
             flashcard.style.height = "400px";
@@ -953,6 +983,7 @@ Examples:
             }
             // Reset flip state
             flashcard.classList.remove("flipped");
+            console.log("initializeFlipCard - classes after reset:", flashcard.className);
           }
         };
 

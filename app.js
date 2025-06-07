@@ -59,6 +59,7 @@ let cardTypeManager = new CardTypeManager();
 let currentCardIndex = 0;
 let flashcards = [];
 let answerStartTime = null;
+let performanceButtonTimeout = null;
 
 // Edit deck name functionality
 function showEditDeckNameButton() {
@@ -185,9 +186,6 @@ $(document).ready(function () {
       console.log("PDF.js loaded successfully");
     })
     .catch((err) => console.error("Error loading PDF.js:", err));
-
-  // Initialize file handling
-  initializeFileHandling();
 
   // Initialize other components
   initializeTabSwitching();
@@ -1224,6 +1222,13 @@ $(document).ready(function () {
       $(".card-back").slideDown(200);
       $(this).hide();
       $(".performance-buttons").slideDown(200);
+
+      // Show helpful tooltip for new users on first card
+      if (currentCardIndex === 0 && !localStorage.getItem('seenSpacedRepetitionTip')) {
+        setTimeout(() => {
+          showSpacedRepetitionTip();
+        }, 500);
+      }
     });
 
     // Performance buttons
@@ -1237,13 +1242,101 @@ $(document).ready(function () {
       handlePerformanceAnswer(answer);
     });
 
+    // Keyboard shortcuts for performance buttons (1-4)
+    $(document).off("keydown.performance").on("keydown.performance", function (e) {
+      console.log(`Key pressed: ${e.key}, buttons visible: ${$(".performance-buttons").is(":visible")}, display: ${$(".performance-buttons").css("display")}`);
+      
+      // Only handle when performance buttons are visible
+      if (!$(".performance-buttons").is(":visible") || $(".performance-buttons").css("display") === "none") {
+        return;
+      }
+
+      // Prevent shortcuts if user is typing in an input field
+      if ($(e.target).is("input, textarea, select, [contenteditable]")) {
+        return;
+      }
+
+      const keyMap = {
+        "1": 1, // Again
+        "2": 2, // Hard  
+        "3": 3, // Good
+        "4": 4, // Easy
+      };
+
+      if (keyMap[e.key]) {
+        e.preventDefault();
+        console.log(`Keyboard shortcut ${e.key} pressed for performance ${keyMap[e.key]}`);
+        
+        // Visual feedback - briefly highlight the button
+        const button = $(`.performance-buttons button[data-performance="${keyMap[e.key]}"]`);
+        button.addClass("keyboard-pressed");
+        setTimeout(() => button.removeClass("keyboard-pressed"), 150);
+        
+        handlePerformanceAnswer(keyMap[e.key]);
+      }
+    });
+
     // Flashcard click handler
-    $("#flashcard").on("click", function () {
+    $("#flashcard").on("click", function (e) {
+      console.log("🔥 app.js click handler triggered!");
+      console.log("Event details:", e);
+      console.log("Original event:", e.originalEvent);
+      console.log("flashcardHandled flag:", e.originalEvent ? e.originalEvent.flashcardHandled : "no originalEvent");
+      console.log("Target:", e.target);
+      console.log("Current target:", e.currentTarget);
+      console.trace("Stack trace for app.js click:");
+      
+      // Check if custom flip handler already processed this click
+      if (e.originalEvent && e.originalEvent.flashcardHandled) {
+        console.log("Custom flip handler already processed this click, skipping app.js handler");
+        return;
+      }
+      
+      // Don't flip if clicking on performance buttons or other controls
+      if ($(e.target).closest('.performance-buttons, .btn-pronounce, .navigation-buttons').length > 0) {
+        return;
+      }
+
       // Cancel any ongoing speech when flipping card
       if (window.speechSynthesis.speaking) {
         window.speechSynthesis.cancel();
       }
-      // Rest of the click handler code...
+
+      const flashcard = $(this);
+      
+      // Clear any existing timeout for performance buttons
+      if (performanceButtonTimeout) {
+        clearTimeout(performanceButtonTimeout);
+        performanceButtonTimeout = null;
+      }
+
+      // Toggle the flip state
+      if (flashcard.hasClass('flipped')) {
+        // Already flipped - flip back to front (keep performance buttons visible)
+        flashcard.removeClass('flipped');
+        // Don't hide performance buttons - they should stay visible until next card
+      } else {
+        // Flip to back - show performance buttons after animation + delay
+        flashcard.addClass('flipped');
+        answerStartTime = Date.now();
+        
+        // Show performance buttons after flip animation completes + 1.5-2 second delay
+        performanceButtonTimeout = setTimeout(() => {
+          // Only show if card is still flipped (hasn't been navigated away)
+          if (flashcard.hasClass('flipped')) {
+            $(".performance-buttons").addClass("show").css("display", "flex");
+            $(".keyboard-hints").fadeIn(200);
+          }
+          performanceButtonTimeout = null;
+        }, 2100); // 600ms flip animation + 1500ms delay = 2100ms total
+
+        // Show helpful tooltip for new users on first card
+        if (currentCardIndex === 0 && !localStorage.getItem('spacedRepetitionTipShown')) {
+          setTimeout(() => {
+            showSpacedRepetitionTip();
+          }, 800);
+        }
+      }
     });
 
     // Initial progress update
@@ -1261,6 +1354,12 @@ $(document).ready(function () {
     // Cancel any ongoing speech when navigating
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel();
+    }
+
+    // Clear any pending performance button timeout
+    if (performanceButtonTimeout) {
+      clearTimeout(performanceButtonTimeout);
+      performanceButtonTimeout = null;
     }
 
     const oldIndex = currentCardIndex;
@@ -1309,46 +1408,72 @@ $(document).ready(function () {
 
     container.innerHTML = ""; // Clear existing content
 
-    // Create a new instance of CardTypeManager
-    const cardManager = new CardTypeManager();
-
-    // Render the card using the appropriate renderer
-    cardManager.renderCard(
-      flashcards[currentCardIndex],
-      flashcards[currentCardIndex].type || "cloze",
-      container
-    );
+    // Create the proper flip structure for CSS animation
+    const flashcardInner = document.createElement("div");
+    flashcardInner.className = "flashcard-inner";
+    
+    // Create front and back card containers
+    const cardFront = document.createElement("div");
+    cardFront.className = "card-front";
+    const cardBack = document.createElement("div");
+    cardBack.className = "card-back";
+    
+    // Add card content
+    const card = flashcards[currentCardIndex];
+    
+    // Create content for front and back
+    const frontContent = document.createElement("p");
+    frontContent.textContent = card.front;
+    cardFront.appendChild(frontContent);
+    
+    const backContent = document.createElement("p");
+    backContent.textContent = card.back;
+    cardBack.appendChild(backContent);
+    
+    // Add flip hint to front
+    const flipHint = document.createElement("div");
+    flipHint.className = "flip-hint";
+    flipHint.innerHTML = '<i class="fas fa-hand-pointer"></i> Click to flip';
+    cardFront.appendChild(flipHint);
+    
+    // Assemble the structure
+    flashcardInner.appendChild(cardFront);
+    flashcardInner.appendChild(cardBack);
+    container.appendChild(flashcardInner);
 
     // Add pronunciation buttons to front and back
-    const cardFront = container.querySelector(".card-front");
-    const cardBack = container.querySelector(".card-back");
+    // Add pronunciation button to front
+    const frontPronounceBtn = document.createElement("button");
+    frontPronounceBtn.className = "btn-pronounce";
+    frontPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    frontPronounceBtn.onclick = (e) => {
+      e.stopPropagation();
+      speakText(flashcards[currentCardIndex].front);
+    };
+    cardFront.appendChild(frontPronounceBtn);
 
-    if (cardFront && cardBack) {
-      // Add pronunciation button to front
-      const frontPronounceBtn = document.createElement("button");
-      frontPronounceBtn.className = "btn-pronounce";
-      frontPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-      frontPronounceBtn.onclick = (e) => {
-        e.stopPropagation();
-        speakText(flashcards[currentCardIndex].front);
-      };
-      cardFront.appendChild(frontPronounceBtn);
+    // Add pronunciation button to back
+    const backPronounceBtn = document.createElement("button");
+    backPronounceBtn.className = "btn-pronounce";
+    backPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
+    backPronounceBtn.onclick = (e) => {
+      e.stopPropagation();
+      speakText(flashcards[currentCardIndex].back);
+    };
+    cardBack.appendChild(backPronounceBtn);
 
-      // Add pronunciation button to back
-      const backPronounceBtn = document.createElement("button");
-      backPronounceBtn.className = "btn-pronounce";
-      backPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-      backPronounceBtn.onclick = (e) => {
-        e.stopPropagation();
-        speakText(flashcards[currentCardIndex].back);
-      };
-      cardBack.appendChild(backPronounceBtn);
+    // Clear any pending performance button timeout
+    if (performanceButtonTimeout) {
+      clearTimeout(performanceButtonTimeout);
+      performanceButtonTimeout = null;
     }
 
-    // Reset card state
-    $("#showAnswerBtn").show();
-    $(".performance-buttons").hide();
-    $(".card-back").hide();
+    // Reset card state - remove flip and hide performance buttons
+    $("#flashcard").removeClass("flipped");
+    $(".performance-buttons").removeClass("show").hide();
+    $(".keyboard-hints").hide();
+    
+    console.log("app.js updateFlashcard reset - flashcard classes:", $("#flashcard")[0] ? $("#flashcard")[0].className : "not found");
 
     // Update progress
     updateProgress();
@@ -1420,59 +1545,7 @@ $(document).ready(function () {
     }, 100);
   }
 
-  // Enhanced progress tracking with practice/confident counts
-  function updateProgress() {
-    const totalCards = flashcards.length;
-    const viewedCards = currentCardIndex + 1;
-    const progress = (viewedCards / totalCards) * 100;
 
-    // Update progress bar
-    $("#progressBar").css("width", `${progress}%`);
-    $("#progressText").text(`Card ${viewedCards}/${totalCards}`);
-
-    // Calculate practice/confident counts
-    let needPracticeCount = 0;
-    let confidentCount = 0;
-
-    flashcards.forEach((card) => {
-      if (card.metadata && card.metadata.performance) {
-        if (card.metadata.performance === 1) {
-          needPracticeCount++;
-        } else if (card.metadata.performance === 5) {
-          confidentCount++;
-        }
-      }
-    });
-
-    // Update or create counts display
-    let countsDisplay = $("#practiceConfidentCounts");
-    if (countsDisplay.length === 0) {
-      // Create the counts display if it doesn't exist
-      $("#progressText").after(`
-        <div id="practiceConfidentCounts" class="practice-confident-counts">
-          <span class="need-practice-count">
-            <i class="fas fa-exclamation-triangle"></i> 
-            Need Practice: <span class="count">0</span>
-          </span>
-          <span class="confident-count">
-            <i class="fas fa-check-circle"></i> 
-            Confident: <span class="count">0</span>
-          </span>
-        </div>
-      `);
-      countsDisplay = $("#practiceConfidentCounts");
-    }
-
-    // Update the counts
-    countsDisplay.find(".need-practice-count .count").text(needPracticeCount);
-    countsDisplay.find(".confident-count .count").text(confidentCount);
-
-    // Check if user has completed 100% of cards
-    if (progress >= 100 && !sessionStorage.getItem("quizPromptShown")) {
-      // showQuizPrompt(); // Removed - modal disabled
-      sessionStorage.setItem("quizPromptShown", "true");
-    }
-  }
 
   function showQuizPrompt() {
     console.log("showQuizPrompt called");
@@ -1984,11 +2057,15 @@ $(document).ready(function () {
     if (show) {
       $("#emptyState").hide();
       $("#flashcardViewer").show();
+      // Show the deck title container when flashcards are available
+      $(".deck-title-container").addClass("show");
       // Reinitialize flashcard controls when showing the viewer
       initializeFlashcardControls();
     } else {
       $("#flashcardViewer").hide();
       $("#emptyState").show();
+      // Hide the deck title container when no flashcards
+      $(".deck-title-container").removeClass("show");
     }
   }
 
@@ -2973,15 +3050,9 @@ $(document).ready(function () {
 
   // Initialize tab switching
   function initializeTabSwitching() {
-    $(".input-tabs .tab-btn").on("click", function () {
-      const tab = $(this).data("tab");
-
-      // Switch tabs
-      $(".input-tabs .tab-btn").removeClass("active");
-      $(this).addClass("active");
-      $("#authModal .auth-form").hide();
-      $(`#${tab}Tab`).show();
-    });
+    // This function is for auth modal tabs only, not input tabs
+    // Input tab switching is now handled in individual page scripts
+    console.log("Auth tab switching initialized");
   }
 
   // Camera handling functions
@@ -3063,19 +3134,7 @@ $(document).ready(function () {
     // Initialize billing toggle when document is ready
     initializeBillingToggle();
 
-    // Add tab switching handler
-    $(".input-tabs .tab-btn").on("click", function () {
-      const tab = $(this).data("tab");
-      $(".input-tabs .tab-btn").removeClass("active");
-      $(".input-tab-content").removeClass("active");
-      $(this).addClass("active");
-      $(`#${tab}Tab`).addClass("active");
-
-      // Initialize file handling when content tab is active
-      if (tab === "content") {
-        initializeFileHandling();
-      }
-    });
+    // Note: Tab switching is now handled in individual page scripts to avoid conflicts
 
     // Initialize file handling if content tab is active by default
     if ($("#contentTab").hasClass("active")) {
@@ -3145,8 +3204,84 @@ $(document).ready(function () {
 
   // ... existing code ...
 
+  // Centralized TTS Implementation
+  window.initializeTTSButtons = function initializeTTSButtons() {
+    const ttsButtons = document.querySelectorAll(".btn-pronounce");
+    ttsButtons.forEach((button) => {
+      // Remove any existing listeners to prevent duplicates
+      button.removeEventListener("click", handleTTSClick);
+      // Add the TTS click handler
+      button.addEventListener("click", handleTTSClick);
+    });
+  };
+
+  function handleTTSClick(e) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const button = e.currentTarget;
+    const textToSpeak =
+      button.getAttribute("data-text") ||
+      button.parentElement.textContent.trim();
+
+    console.log("🔊 TTS button clicked, speaking:", textToSpeak);
+
+    if ("speechSynthesis" in window) {
+      // Cancel any ongoing speech
+      speechSynthesis.cancel();
+
+      const utterance = new SpeechSynthesisUtterance(textToSpeak);
+      utterance.rate = 0.8;
+      utterance.pitch = 1;
+      utterance.volume = 1;
+
+      speechSynthesis.speak(utterance);
+    } else {
+      console.warn("Speech synthesis not supported in this browser");
+    }
+  }
+
+  // Auto-initialize TTS on DOM ready and set up mutation observer for dynamic content
+  $(document).ready(function() {
+    // Initialize TTS when page loads
+    setTimeout(window.initializeTTSButtons, 1000);
+
+    // Re-initialize TTS when flashcard content changes
+    const flashcardForTTS = document.getElementById("flashcard");
+    if (flashcardForTTS) {
+      const ttsObserver = new MutationObserver(function (mutations) {
+        let shouldReinitializeTTS = false;
+        mutations.forEach(function (mutation) {
+          if (mutation.type === "childList") {
+            // Check if new TTS buttons were added
+            const addedNodes = Array.from(mutation.addedNodes);
+            if (
+              addedNodes.some(
+                (node) =>
+                  node.nodeType === 1 &&
+                  (node.querySelector(".btn-pronounce") ||
+                    node.classList?.contains("btn-pronounce"))
+              )
+            ) {
+              shouldReinitializeTTS = true;
+            }
+          }
+        });
+
+        if (shouldReinitializeTTS) {
+          setTimeout(window.initializeTTSButtons, 100);
+        }
+      });
+
+      ttsObserver.observe(flashcardForTTS, {
+        childList: true,
+        subtree: true,
+      });
+    }
+  });
+
   // Initialize file handling
-  function initializeFileHandling() {
+  window.initializeFileHandling = function initializeFileHandling() {
     const dropzone = document.getElementById("dropzone");
     const fileInput = document.getElementById("fileInput");
     const contentTab = document.getElementById("contentTab");
@@ -4779,40 +4914,64 @@ function showAnswerFeedback(answer, updatedCard) {
   // Create feedback element
   const feedback = $("<div>").addClass("answer-feedback");
 
-  if (answer === 1) {
-    // Need Practice
-    feedback.addClass("feedback-danger").html(`
-        <i class="fas fa-tools"></i>
-        <span>Card marked for review</span>
+  // Map answers to feedback messages
+  const feedbackMap = {
+    1: {
+      class: "feedback-danger",
+      icon: "fas fa-times",
+      message: "Again - Will show soon"
+    },
+    2: {
+      class: "feedback-warning", 
+      icon: "fas fa-clock",
+      message: "Hard - Will show earlier"
+    },
+    3: {
+      class: "feedback-success",
+      icon: "fas fa-check", 
+      message: "Good - Normal interval"
+    },
+    4: {
+      class: "feedback-primary",
+      icon: "fas fa-star",
+      message: "Easy - Will show later"
+    }
+  };
+
+  const feedbackInfo = feedbackMap[answer];
+  if (feedbackInfo) {
+    feedback.addClass(feedbackInfo.class).html(`
+        <i class="${feedbackInfo.icon}"></i>
+        <span>${feedbackInfo.message}</span>
       `);
-  } else if (answer === 5) {
-    // Confident
-    feedback.addClass("feedback-success").html(`
-        <i class="fas fa-check-circle"></i>
-        <span>Great job! Card marked as confident</span>
-      `);
+
+    // Add to page and animate
+    $("body").append(feedback);
+    feedback.fadeIn(200);
+
+    // Update card's performance in metadata
+    const card = flashcards[currentCardIndex];
+    if (card && card.metadata) {
+      card.metadata.performance = answer;
+    }
+
+    // Remove feedback after shorter delay (more discreet)
+    setTimeout(() => {
+      feedback.fadeOut(300, function () {
+        $(this).remove();
+      });
+    }, 1500);
   }
-
-  // Add to page and animate
-  $("body").append(feedback);
-  feedback.fadeIn(200);
-
-  // Update card's performance in metadata
-  const card = flashcards[currentCardIndex];
-  if (card && card.metadata) {
-    card.metadata.performance = answer;
-  }
-
-  // Remove feedback after delay
-  setTimeout(() => {
-    feedback.fadeOut(200, function () {
-      $(this).remove();
-    });
-  }, 2000);
 }
 
 function handlePerformanceAnswer(answer) {
   const card = flashcards[currentCardIndex];
+
+  // Clear any pending performance button timeout
+  if (performanceButtonTimeout) {
+    clearTimeout(performanceButtonTimeout);
+    performanceButtonTimeout = null;
+  }
 
   // Calculate response time
   const responseTime = answerStartTime
@@ -4831,21 +4990,135 @@ function handlePerformanceAnswer(answer) {
   card.metadata.performance = answer;
   card.metadata.lastReviewed = new Date().toISOString();
 
-  // Show feedback
+  // Show discreet feedback
   showAnswerFeedback(answer);
 
   // Update progress immediately
   updateProgress();
 
+  // Hide performance buttons immediately for better UX
+  $(".performance-buttons").removeClass("show").hide();
+  $(".keyboard-hints").hide();
+
   // Move to next card after a brief delay
   setTimeout(() => {
     navigateCard("next");
 
-    // Reset the card state for the next card
+    // Reset the card state for the next card (flip cards)
+    $("#flashcard").removeClass("flipped");
+    $(".performance-buttons").removeClass("show").hide();
+    $(".keyboard-hints").hide();
+    
+    // Reset legacy card state (for non-flip cards)
     $("#showAnswerBtn").show();
-    $(".performance-buttons").hide();
     $(".card-back").hide();
-  }, 1000);
+  }, 600); // Reduced delay for better flow
+
+  // Optional: Integrate with spaced repetition system if available
+  if (typeof SpacedRepetition !== 'undefined' && window.spacedRepetitionInstance) {
+    const cardId = card.id || `card_${currentCardIndex}`;
+    try {
+      window.spacedRepetitionInstance.answerCard(cardId, answer, responseTime);
+    } catch (error) {
+      console.log("Spaced repetition integration not available:", error);
+    }
+  }
+}
+
+// Show spaced repetition tip for new users
+function showSpacedRepetitionTip() {
+  const tooltip = $(`
+    <div class="spaced-repetition-tip">
+      <div class="tip-content">
+        <i class="fas fa-brain"></i>
+        <h4>Smart Spaced Repetition</h4>
+        <p>Rate how well you knew this card:</p>
+        <ul>
+          <li><span class="tip-again">Again</span> - Completely forgot</li>
+          <li><span class="tip-hard">Hard</span> - Struggled to remember</li>
+          <li><span class="tip-good">Good</span> - Remembered correctly</li>
+          <li><span class="tip-easy">Easy</span> - Too easy</li>
+        </ul>
+        <p><small>This helps optimize when you'll see cards again for maximum retention!</small></p>
+        <button class="btn btn-primary btn-small" onclick="dismissSpacedRepetitionTip()">Got it!</button>
+      </div>
+    </div>
+  `);
+
+  $("body").append(tooltip);
+  tooltip.fadeIn(300);
+
+  // Auto-dismiss after 10 seconds
+  setTimeout(() => {
+    dismissSpacedRepetitionTip();
+  }, 10000);
+}
+
+function dismissSpacedRepetitionTip() {
+  $(".spaced-repetition-tip").fadeOut(300, function() {
+    $(this).remove();
+  });
+  localStorage.setItem('seenSpacedRepetitionTip', 'true');
+}
+
+// Make dismissSpacedRepetitionTip globally available
+window.dismissSpacedRepetitionTip = dismissSpacedRepetitionTip;
+
+// Enhanced progress tracking with practice/confident counts
+function updateProgress() {
+  const totalCards = flashcards.length;
+  const viewedCards = currentCardIndex + 1;
+  const progress = (viewedCards / totalCards) * 100;
+
+  // Update progress bar
+  $("#progressBar").css("width", `${progress}%`);
+  $("#progressText").text(`Card ${viewedCards}/${totalCards}`);
+
+  // Calculate practice/confident counts using the 4-level system
+  let needPracticeCount = 0;
+  let confidentCount = 0;
+
+  flashcards.forEach((card) => {
+    if (card.metadata && card.metadata.performance) {
+      // Count "Again" and "Hard" as needing practice
+      if (card.metadata.performance === 1 || card.metadata.performance === 2) {
+        needPracticeCount++;
+      } 
+      // Count "Easy" as confident (Good is neutral)
+      else if (card.metadata.performance === 4) {
+        confidentCount++;
+      }
+    }
+  });
+
+  // Update or create counts display
+  let countsDisplay = $("#practiceConfidentCounts");
+  if (countsDisplay.length === 0) {
+    // Create the counts display if it doesn't exist
+    $("#progressText").after(`
+      <div id="practiceConfidentCounts" class="practice-confident-counts">
+        <span class="need-practice-count">
+          <i class="fas fa-exclamation-triangle"></i> 
+          Need Practice: <span class="count">0</span>
+        </span>
+        <span class="confident-count">
+          <i class="fas fa-check-circle"></i> 
+          Confident: <span class="count">0</span>
+        </span>
+      </div>
+    `);
+    countsDisplay = $("#practiceConfidentCounts");
+  }
+
+  // Update the counts
+  countsDisplay.find(".need-practice-count .count").text(needPracticeCount);
+  countsDisplay.find(".confident-count .count").text(confidentCount);
+
+  // Check if user has completed 100% of cards
+  if (progress >= 100 && !sessionStorage.getItem("quizPromptShown")) {
+    // showQuizPrompt(); // Removed - modal disabled
+    sessionStorage.setItem("quizPromptShown", "true");
+  }
 }
 
 // Check for shared deck session on page load
