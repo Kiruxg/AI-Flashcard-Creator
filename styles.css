@@ -2824,7 +2824,6 @@ body[data-billing="monthly"] .price.yearly {
   margin: 0 auto;
   padding: 0 1.5rem;
   position: relative;
-  z-index: 1;
 }
 
 .hero h1 {
@@ -2928,7 +2927,6 @@ section.features::after {
   margin: 0 auto;
   padding: 0 1.5rem;
   position: relative;
-  z-index: 2;
 }
 
 .features h2 {
@@ -2938,7 +2936,6 @@ section.features::after {
   color: white;
   margin-bottom: 3rem;
   position: relative;
-  z-index: 2;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 }
 
@@ -2966,7 +2963,6 @@ section.features::after {
   flex-direction: column;
   justify-content: space-between;
   position: relative;
-  z-index: 2;
 }
 
 .feature-card:hover {
@@ -3110,7 +3106,6 @@ section.features::after {
   margin: 0 auto;
   padding: 0 1.5rem;
   position: relative;
-  z-index: 1;
 }
 
 .cta-section h2 {
