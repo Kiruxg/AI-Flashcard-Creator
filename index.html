@@ -54,6 +54,149 @@
     <script type="module" src="./spacedRepetition.js"></script>
     <script type="module" src="./deckManager.js"></script>
     <script type="module" src="./app.js"></script>
+    
+    <style>
+      /* Flip Card Styles */
+      .flashcard {
+        perspective: 1000px !important;
+        cursor: pointer !important;
+        height: 400px !important;
+        min-height: 400px !important;
+        max-height: 400px !important;
+        width: 100% !important;
+        margin-bottom: 20px !important;
+        position: relative !important;
+        overflow: visible !important;
+        display: block !important;
+      }
+
+      .flashcard-inner {
+        position: relative !important;
+        width: 100% !important;
+        height: 100% !important;
+        text-align: center !important;
+        transition: transform 0.8s !important;
+        transform-style: preserve-3d !important;
+        border-radius: 12px !important;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+        min-height: 400px !important;
+        max-height: 400px !important;
+        display: block !important;
+      }
+
+      .flashcard.flipped .flashcard-inner {
+        transform: rotateY(180deg);
+      }
+
+      .card-front,
+      .card-back {
+        position: absolute !important;
+        width: 100% !important;
+        height: 100% !important;
+        backface-visibility: hidden !important;
+        border-radius: 12px !important;
+        padding: 30px !important;
+        box-sizing: border-box !important;
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: center !important;
+        align-items: center !important;
+        text-align: center !important;
+        overflow: hidden !important;
+        overflow-wrap: break-word !important;
+        word-wrap: break-word !important;
+        min-height: 400px !important;
+        max-height: 400px !important;
+      }
+
+      .card-front {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        border: 2px solid #dee2e6;
+        font-size: 1.3rem;
+        line-height: 1.6;
+        color: #343a40;
+      }
+
+      .card-back {
+        background: linear-gradient(135deg, #e8f5e8 0%, #d4edda 100%);
+        border: 2px solid #28a745;
+        transform: rotateY(180deg);
+        font-size: 1.2rem;
+        line-height: 1.6;
+        color: #155724;
+      }
+
+      .card-front strong,
+      .card-back strong {
+        color: #2a7f62;
+        display: block;
+        margin-bottom: 15px;
+        font-size: 1.1em;
+      }
+
+      .flip-hint {
+        position: absolute;
+        bottom: 15px;
+        right: 20px;
+        font-size: 0.9rem;
+        color: #6c757d;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.7;
+        transition: opacity 0.3s;
+      }
+
+      .flashcard:hover .flip-hint {
+        opacity: 1;
+      }
+
+      /* Ensure flashcard container takes full space */
+      .flashcard-container {
+        width: 100% !important;
+        height: auto !important;
+        min-height: 450px !important;
+        padding: 20px !important;
+      }
+
+      .flashcard-viewer {
+        width: 100% !important;
+        height: auto !important;
+      }
+
+      /* Mobile responsiveness */
+      @media (max-width: 768px) {
+        .flashcard {
+          height: 350px !important;
+          min-height: 350px !important;
+          max-height: 350px !important;
+        }
+
+        .flashcard-inner {
+          min-height: 350px !important;
+          max-height: 350px !important;
+        }
+
+        .card-front,
+        .card-back {
+          font-size: 1.1rem !important;
+          padding: 20px !important;
+          min-height: 350px !important;
+          max-height: 350px !important;
+        }
+
+        .flip-hint {
+          font-size: 0.8rem !important;
+          bottom: 12px !important;
+          right: 15px !important;
+        }
+
+        .flashcard-container {
+          min-height: 400px !important;
+          padding: 15px !important;
+        }
+      }
+    </style>
   </head>
   <body>
     <!-- Navigation will be loaded here -->
@@ -84,8 +227,7 @@
       <div class="hero-content">
         <h1>Transform Your Notes into Smart Flashcards</h1>
         <p class="hero-subtitle">
-          Create effective flashcards in seconds using AI. Perfect for students,
-          professionals, and lifelong learners.
+          Drop in your PDFs, paste YouTube links, upload lecture notes, or snap photos—our AI creates perfect flashcards from any source in seconds.
         </p>
         <div class="hero-cta">
           <a href="create-deck.html" class="btn btn-primary btn-large"
@@ -107,10 +249,9 @@
             <div class="feature-icon">
               <i class="fas fa-magic"></i>
             </div>
-            <h3>AI-Powered Generation</h3>
+            <h3>AI-Powered Learning</h3>
             <p>
-              Our advanced AI analyzes your content and creates optimized
-              flashcards automatically.
+              Tired of staring at walls of text? Our AI instantly transforms boring lecture notes into engaging flashcards that actually stick in your brain.
             </p>
           </div>
           <div class="feature-card">
@@ -145,7 +286,7 @@
 
     <!-- How It Works Section -->
     <section class="how-it-works">
-      <h2>Master Any Subject in 4 Simple Steps</h2>
+      <h2>How to Never Forget What You Study Again</h2>
       <div class="steps">
         <div class="step">
           <div class="step-number">1</div>
@@ -199,7 +340,7 @@
           with Note2Flash.
         </p>
         <div class="cta-buttons">
-          <a href="#input-section" class="btn btn-primary btn-large"
+          <a href="create-deck.html" class="btn btn-primary btn-large"
             >Start Creating Free</a
           >
           <a href="pricing.html" class="btn btn-secondary btn-large"
@@ -239,7 +380,7 @@
 
           <!-- Text Input Tab -->
           <div class="input-tab-content active" id="textTab">
-            <div class="text-input-container">
+            <form id="textForm" class="text-input-container">
               <textarea
                 id="textInput"
                 class="text-area-input"
@@ -253,13 +394,12 @@ Examples:
               ></textarea>
 
               <div class="generation-options">
-                <select id="textCardType" class="select-input">
-                  <option value="term">Term & Definition</option>
-                  <option value="qa">Question & Answer</option>
-                  <option value="cloze">Cloze</option>
-
-                  <option value="contextual">Contextual/Scenario-based</option>
-                </select>
+                      <select id="textCardType" class="select-input">
+        <option value="term">Term & Definition</option>
+        <option value="qa">Question & Answer</option>
+        <option value="cloze">Cloze</option>
+        <option value="contextual">Contextual/Scenario-based</option>
+      </select>
                 <select id="textCardCount" class="select-input">
                   <option value="5">5 cards</option>
                   <option value="10">10 cards</option>
@@ -275,7 +415,7 @@ Examples:
               >
                 <i class="fas fa-magic"></i> Generate Flashcards
               </button>
-            </div>
+            </form>
           </div>
 
           <!-- Content Upload Tab -->
@@ -295,13 +435,14 @@ Examples:
             </div>
 
             <!-- Card Type Selection -->
-            <div id="cardTypeSelection" style="display: none">
-              <select id="uploadCardType" class="select-input">
-                <option value="">Select Card Type</option>
-                <option value="basic">Basic</option>
-                <option value="cloze">Cloze</option>
-                <option value="qa">Question & Answer</option>
-              </select>
+            <div id="cardTypeSelection">
+                      <select id="uploadCardType" class="select-input">
+          <option value="term" selected>Term & Definition</option>
+          <option value="qa">Question & Answer</option>
+          <option value="cloze">Cloze</option>
+          <option value="contextual">Contextual/Scenario-based</option>
+          <option value="image-occlusion" class="premium-option">Image Occlusion (Premium)</option>
+        </select>
               <select id="uploadCardCount" class="select-input">
                 <option value="5">5 cards</option>
                 <option value="10">10 cards</option>
@@ -326,7 +467,7 @@ Examples:
                     class="url-input"
                   />
                 </div>
-                <div id="urlPreview" class="url-preview" style="display: none">
+                <div id="urlPreview" class="url-preview">
                   <div class="preview-header">
                     <h3 id="previewTitle">Content Preview</h3>
                     <div class="preview-actions">
@@ -349,14 +490,12 @@ Examples:
                   <div id="previewContent" class="preview-content"></div>
                 </div>
                 <div class="generation-options">
-                  <select id="urlCardType" class="select-input">
-                    <option value="term">Term & Definition</option>
-                    <option value="qa">Question & Answer</option>
-                    <option value="cloze">Cloze</option>
-                    <option value="contextual">
-                      Contextual/Scenario-based
-                    </option>
-                  </select>
+                          <select id="urlCardType" class="select-input">
+          <option value="term">Term & Definition</option>
+          <option value="qa">Question & Answer</option>
+          <option value="cloze">Cloze</option>
+          <option value="contextual">Contextual/Scenario-based</option>
+        </select>
                   <select id="urlCardCount" class="select-input">
                     <option value="5">5 cards</option>
                     <option value="10">10 cards</option>
@@ -389,7 +528,13 @@ Examples:
 
         <!-- Right Column - Flashcard Viewer -->
         <div class="grid-item">
-          <h2>Flashcard Viewer</h2>
+          <div class="deck-title-container">
+            <h2 id="deckTitle" class="deck-title">Flashcard Viewer</h2>
+            <button id="editDeckNameBtn" class="btn-edit-deck-name" style="display: none;" title="Edit deck name">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
+          <input type="text" id="deckNameInput" class="deck-name-input" style="display: none;" placeholder="Enter deck name" maxlength="50">
           <div
             id="loadingIndicator"
             class="loading-overlay"
@@ -428,11 +573,25 @@ Examples:
                 <span id="progressText">0/0 cards reviewed</span>
               </div>
               <div id="flashcard" class="flashcard">
-                <div class="card-front">
-                  <p id="frontText"></p>
-                </div>
-                <div class="card-back">
-                  <p id="backText"></p>
+                <div class="flashcard-inner">
+                  <div class="card-front">
+                    <div id="cardFront">
+                      <!-- Front content will be dynamically inserted here -->
+                    </div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip
+                    </div>
+                  </div>
+                  <div class="card-back">
+                    <div id="cardBack">
+                      <!-- Back content will be dynamically inserted here -->
+                    </div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip back
+                    </div>
+                  </div>
                 </div>
               </div>
               <div class="card-controls">
@@ -447,16 +606,19 @@ Examples:
                     <i class="fas fa-chevron-right"></i>
                   </button>
                 </div>
-                <button id="showAnswerBtn" class="btn btn-primary">
-                  <i class="fas fa-eye"></i> Show Answer
-                </button>
-
                 <div class="performance-buttons">
                   <button class="btn btn-danger" data-performance="1">
                     <i class="fas fa-tools"></i> Need Practice
                   </button>
                   <button class="btn btn-success" data-performance="5">
                     <i class="fas fa-check-circle"></i> Confident
+                  </button>
+                </div>
+
+                <!-- Quiz Button - redirects to centralized quiz -->
+                <div class="quiz-actions">
+                  <button id="takeQuizBtn" class="btn btn-primary">
+                    <i class="fas fa-graduation-cap"></i> Take Quiz
                   </button>
                 </div>
               </div>
@@ -499,41 +661,58 @@ Examples:
         <!-- Pricing Options -->
         <div class="pricing-options">
           <div class="pricing-card">
-            <h3>Monthly</h3>
-            <p class="price">$14.99/month</p>
+            <h3>Free</h3>
+            <p class="price">$0/month</p>
             <ul class="features">
-              <li>✓ All premium features</li>
-              <li>✓ Unlimited exports</li>
-              <li>✓ Priority support</li>
-              <li>✓ Advanced analytics</li>
+              <li>✓ 3 AI deck generations/month</li>
+              <li>✓ Max 10 cards per deck</li>
+              <li>✓ 2 total saved decks</li>
+              <li>✓ Basic card types</li>
+              <li>✓ File uploads & web content</li>
             </ul>
             <button
-              class="btn btn-primary"
-              id="monthlySubBtn"
-              data-price-id="${process.env.STRIPE_PRICE_MONTHLY}"
+              class="btn btn-secondary"
+              onclick="window.location.href='create-deck.html'"
             >
-              Subscribe
+              Get Started Free
+            </button>
+          </div>
+
+          <div class="pricing-card">
+            <h3>Basic</h3>
+            <p class="price">$7.99/month</p>
+            <ul class="features">
+              <li>✓ 25 AI deck generations/month</li>
+              <li>✓ Up to 25 cards per deck</li>
+              <li>✓ Up to 25 saved decks</li>
+              <li>✓ All card types (including Image Occlusion)</li>
+              <li>✓ Explainer Assistant (20 credits/month)</li>
+            </ul>
+            <button
+              class="btn btn-secondary"
+              id="basicHomepageBtn"
+            >
+              Start with Basic
             </button>
           </div>
 
           <div class="pricing-card featured">
-            <div class="best-value">Best Value</div>
-            <h3>Yearly</h3>
-            <p class="price">$149.99/year</p>
-            <p class="save">Save 17%</p>
+            <div class="best-value">🚀 Power User Choice</div>
+            <h3>Premium</h3>
+            <p class="price">$14.99/month</p>
+            <p class="save">Perfect for serious students</p>
             <ul class="features">
-              <li>✓ All premium features</li>
-              <li>✓ Unlimited exports</li>
-              <li>✓ Priority support</li>
-              <li>✓ Advanced analytics</li>
-              <li>✓ Early access to new features</li>
+              <li>✓ 100 AI deck generations/month</li>
+              <li>✓ Up to 100 cards per deck</li>
+              <li>✓ Up to 100 saved decks</li>
+              <li>✓ All card types & advanced features</li>
+              <li>✓ Explainer Assistant (100 credits/month)</li>
             </ul>
             <button
               class="btn btn-primary"
-              id="yearlySubBtn"
-              data-price-id="${process.env.STRIPE_PRICE_YEARLY}"
+              id="premiumHomepageBtn"
             >
-              Subscribe
+              Get Premium
             </button>
           </div>
         </div>
@@ -571,63 +750,293 @@ Examples:
       document.addEventListener("DOMContentLoaded", initializeFooter);
     </script>
 
-    <!-- Horizontal Scroll on Vertical Scroll Script -->
     <script>
       document.addEventListener("DOMContentLoaded", function () {
-        const featuresSection = document.querySelector(".features");
-        const featuresGrid = document.querySelector(".features-grid");
-
-        if (!featuresSection || !featuresGrid) return;
-
-        function handleHorizontalScroll() {
-          const sectionRect = featuresSection.getBoundingClientRect();
-          const viewportHeight = window.innerHeight;
-          const sectionHeight = featuresSection.offsetHeight;
-
-          // Calculate scroll progress: 0 when section starts entering viewport, 1 when section exits
-          let scrollProgress = 0;
-
-          if (sectionRect.top <= 0 && sectionRect.bottom >= viewportHeight) {
-            // Section is in the scrolling zone
-            scrollProgress =
-              Math.abs(sectionRect.top) / (sectionHeight - viewportHeight);
-          } else if (sectionRect.bottom < viewportHeight) {
-            // Section has passed through completely
-            scrollProgress = 1;
-          }
-
-          // Clamp between 0 and 1
-          scrollProgress = Math.max(0, Math.min(1, scrollProgress));
-
-          // Calculate maximum horizontal scroll distance
-          const gridWidth = featuresGrid.scrollWidth;
-          const containerWidth = featuresGrid.offsetWidth;
-          const maxScroll = Math.max(0, gridWidth - containerWidth);
-
-          // Apply horizontal transform based on scroll progress
-          const horizontalOffset = scrollProgress * maxScroll;
-          featuresGrid.style.transform = `translateX(-${horizontalOffset}px)`;
-        }
-
-        // Throttle scroll events for better performance
-        let ticking = false;
-        function requestTick() {
-          if (!ticking) {
-            requestAnimationFrame(() => {
-              handleHorizontalScroll();
-              ticking = false;
+        // Initialize dynamic elements to be hidden
+        const cardTypeSelection = document.getElementById("cardTypeSelection");
+        const urlPreview = document.getElementById("urlPreview");
+        if (cardTypeSelection) cardTypeSelection.classList.remove("show");
+        if (urlPreview) urlPreview.classList.remove("show");
+        
+        var tabBtns = document.querySelectorAll(".input-tabs .tab-btn");
+        var tabContents = document.querySelectorAll(".input-tab-content");
+        tabBtns.forEach(function (btn) {
+          btn.addEventListener("click", function () {
+            var tab = btn.getAttribute("data-tab");
+            tabBtns.forEach(function (b) {
+              b.classList.remove("active");
             });
-            ticking = true;
+            tabContents.forEach(function (tc) {
+              tc.classList.remove("active");
+            });
+            btn.classList.add("active");
+            var tabContent = document.getElementById(tab + "Tab");
+            if (tabContent) tabContent.classList.add("active");
+          });
+        });
+
+        // Flashcard flip functionality - only listen to specific content areas
+        document.addEventListener("click", function (e) {
+          // Only proceed if NOT clicking on any interactive elements first
+          const isInteractiveElement =
+            e.target.closest(".card-controls") ||
+            e.target.closest("button") ||
+            e.target.closest(".btn") ||
+            e.target.closest("input") ||
+            e.target.closest("select") ||
+            e.target.closest(".navigation-buttons") ||
+            e.target.closest(".performance-buttons") ||
+            e.target.closest(".quiz-actions");
+
+          if (isInteractiveElement) {
+            return; // Don't flip if clicking interactive elements
+          }
+
+          // Check if clicking within the flashcard content area
+          const flashcard = e.target.closest(".flashcard");
+          const isClickingCardContent =
+            e.target.closest("#cardFront") ||
+            e.target.closest("#cardBack") ||
+            e.target.closest(".card-front") ||
+            e.target.closest(".card-back") ||
+            e.target.closest(".flip-hint");
+
+          if (flashcard && isClickingCardContent) {
+            console.log("Flipping card!");
+            flashcard.classList.toggle("flipped");
+          }
+        });
+
+        // Function to reset card flip state
+        function resetCardFlip() {
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            flashcard.classList.remove("flipped");
           }
         }
 
-        window.addEventListener("scroll", requestTick);
-        window.addEventListener("resize", requestTick);
+        // Function to initialize TTS buttons (if any)
+        function initializeTTSButtons() {
+          // Add TTS functionality if needed
+        }
 
-        // Initial call
-        handleHorizontalScroll();
+        // Add event listener for Take Quiz button
+        const takeQuizBtn = document.getElementById("takeQuizBtn");
+        if (takeQuizBtn) {
+          takeQuizBtn.addEventListener("click", function() {
+            // Check if we have flashcards available
+            if (!window.flashcards || window.flashcards.length === 0) {
+              alert("No flashcards available. Please generate flashcards first.");
+              return;
+            }
+
+            // Create a quiz deck from current flashcards
+            const quizDeck = {
+              name: "Generated Flashcard Quiz",
+              description: "Quiz generated from your flashcards",
+              cards: window.flashcards,
+              id: `quiz_${Date.now()}`,
+              createdAt: new Date().toISOString(),
+            };
+
+            // Store the deck in sessionStorage and redirect to quiz.html
+            sessionStorage.setItem("quizDeck", JSON.stringify(quizDeck));
+            window.location.href = "quiz.html";
+          });
+        }
+
+        // Make functions available globally for other scripts
+        window.resetCardFlip = resetCardFlip;
+        window.initializeTTSButtons = initializeTTSButtons;
+        
+        // Initialize edit deck name functionality
+        setTimeout(() => {
+          if (typeof window.initializeEditDeckName === 'function') {
+            window.initializeEditDeckName();
+          }
+        }, 100);
+
+        // Global function to update card content while preserving flip structure
+        window.updateFlipCardContent = function (frontContent, backContent) {
+          const cardFront = document.getElementById("cardFront");
+          const cardBack = document.getElementById("cardBack");
+
+          if (cardFront && cardBack) {
+            cardFront.innerHTML = frontContent || "";
+            cardBack.innerHTML = backContent || "";
+          } else {
+            // Structure doesn't exist, initialize it first
+            window.initializeFlipCard();
+            // Try again after initialization
+            const newCardFront = document.getElementById("cardFront");
+            const newCardBack = document.getElementById("cardBack");
+            if (newCardFront && newCardBack) {
+              newCardFront.innerHTML = frontContent || "";
+              newCardBack.innerHTML = backContent || "";
+            }
+          }
+          // Reset flip state and reinitialize TTS
+          window.resetCardFlip();
+          setTimeout(window.initializeTTSButtons, 50);
+        };
+
+        // Global function to ensure flip functionality is active
+        window.initializeFlipCard = function () {
+          const flashcard = document.getElementById("flashcard");
+          if (flashcard) {
+            // Ensure flashcard maintains proper height
+            flashcard.style.height = "400px";
+            flashcard.style.minHeight = "400px";
+            flashcard.style.maxHeight = "400px";
+
+            // Check if we need to restructure the flashcard
+            const inner = flashcard.querySelector(".flashcard-inner");
+            if (!inner) {
+              // Save existing content
+              const existingContent = flashcard.innerHTML;
+
+              // Check if there are existing front/back divs
+              const frontDiv = flashcard.querySelector(".card-front");
+              const backDiv = flashcard.querySelector(".card-back");
+
+              // Look for cardFront and cardBack content specifically
+              const cardFrontEl = flashcard.querySelector("#cardFront");
+              const cardBackEl = flashcard.querySelector("#cardBack");
+
+              let frontContent = "";
+              let backContent = "";
+
+              if (cardFrontEl && cardBackEl) {
+                // Extract content from existing cardFront/cardBack
+                frontContent = cardFrontEl.innerHTML;
+                backContent = cardBackEl.innerHTML;
+              } else if (frontDiv && backDiv) {
+                // Extract content from existing structure
+                frontContent = frontDiv.innerHTML;
+                backContent = backDiv.innerHTML;
+              } else {
+                // Try to extract from any existing content
+                const textContent = existingContent
+                  .replace(/<[^>]*>/g, "")
+                  .trim();
+                if (
+                  textContent &&
+                  textContent !== "Click here to generate flashcards"
+                ) {
+                  frontContent = existingContent;
+                  backContent = "Generate flashcards to see the answer";
+                } else {
+                  frontContent = "Click here to generate flashcards";
+                  backContent = "Generate flashcards to see the answer";
+                }
+              }
+
+              // Recreate the flip structure with proper height enforcement
+              flashcard.innerHTML = `
+                <div class="flashcard-inner">
+                  <div class="card-front">
+                    <div id="cardFront">${frontContent}</div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip
+                    </div>
+                  </div>
+                  <div class="card-back">
+                    <div id="cardBack">${backContent}</div>
+                    <div class="flip-hint">
+                      <i class="fas fa-hand-pointer"></i>
+                      Click to flip back
+                    </div>
+                  </div>
+                </div>
+              `;
+            }
+            // Reset flip state
+            flashcard.classList.remove("flipped");
+          }
+        };
+
+        // Monitor for changes to flashcard content
+        const flashcardContainer = document.getElementById("flashcard");
+        if (flashcardContainer) {
+          const observer = new MutationObserver(function (mutations) {
+            let shouldReinitialize = false;
+            let heightChanged = false;
+
+            mutations.forEach(function (mutation) {
+              if (
+                mutation.type === "childList" &&
+                mutation.target.id === "flashcard"
+              ) {
+                // Check if the flip structure was removed
+                const inner =
+                  flashcardContainer.querySelector(".flashcard-inner");
+                if (!inner) {
+                  shouldReinitialize = true;
+                }
+              }
+
+              // Check for height/style changes
+              if (
+                mutation.type === "attributes" &&
+                (mutation.attributeName === "style" ||
+                  mutation.attributeName === "class")
+              ) {
+                const currentHeight = flashcardContainer.style.height;
+                if (currentHeight && currentHeight !== "400px") {
+                  heightChanged = true;
+                }
+              }
+            });
+
+            if (shouldReinitialize) {
+              // Flashcard structure was replaced, restore flip functionality
+              setTimeout(function () {
+                window.initializeFlipCard();
+              }, 50);
+            } else if (heightChanged) {
+              // Just fix the height without full reinitialization
+              flashcardContainer.style.height = "400px";
+              flashcardContainer.style.minHeight = "400px";
+              flashcardContainer.style.maxHeight = "400px";
+            }
+          });
+
+          observer.observe(flashcardContainer, {
+            childList: true,
+            attributes: true,
+            attributeFilter: ["style", "class"],
+            subtree: false, // Only watch direct children of flashcard
+          });
+        }
+
+        // Initialize flip card structure on page load
+        setTimeout(function () {
+          window.initializeFlipCard();
+        }, 500);
+
+        // Homepage pricing button event listeners
+        const basicHomepageBtn = document.getElementById("basicHomepageBtn");
+        const premiumHomepageBtn = document.getElementById("premiumHomepageBtn");
+
+        if (basicHomepageBtn) {
+          basicHomepageBtn.addEventListener("click", () => {
+            window.location.href = "pricing.html";
+          });
+        }
+
+        if (premiumHomepageBtn) {
+          premiumHomepageBtn.addEventListener("click", () => {
+            window.location.href = "pricing.html";
+          });
+        }
       });
     </script>
+
+    <!-- Horizontal Scroll on Vertical Scroll Script - REMOVED -->
+    <!-- <script>
+      // Horizontal scrolling functionality has been disabled
+    </script> -->
 
     <!-- Add card type specific UI elements -->
     <div id="cardTypeOptions" class="card-type-options" style="display: none">
@@ -686,16 +1095,29 @@ Examples:
         <div class="option-group">
           <label>
             <input type="file" name="occlusionImage" accept="image/*" />
-            Upload image
+            📸 Upload image for occlusion
           </label>
           <div class="occlusion-editor" style="display: none">
             <canvas id="occlusionCanvas"></canvas>
             <div class="occlusion-controls">
-              <button type="button" id="addOcclusion">Add Occlusion</button>
+              <button type="button" id="addOcclusion">
+                <i class="fas fa-plus"></i> Draw Occlusion
+              </button>
               <button type="button" id="removeOcclusion">
-                Remove Selected
+                <i class="fas fa-trash"></i> Remove Selected
+              </button>
+              <button type="button" id="clearOcclusions">
+                <i class="fas fa-eraser"></i> Clear All
+              </button>
+              <button type="button" id="autoOcclusion">
+                <i class="fas fa-magic"></i> AI Auto-Occlusion
               </button>
             </div>
+            <div class="occlusion-info">
+              <i class="fas fa-info-circle"></i>
+              Click and drag to create occlusion areas. Each area will become a separate flashcard.
+            </div>
+            <div class="occlusion-list" id="occlusionList"></div>
           </div>
         </div>
       </div>
@@ -775,77 +1197,276 @@ Examples:
       function initializeImageOcclusionEditor() {
         const canvas = document.getElementById("occlusionCanvas");
         const ctx = canvas.getContext("2d");
-        let isDrawing = false;
-        let currentOcclusion = null;
+        const occlusionList = document.getElementById("occlusionList");
+        
+        let currentImage = null;
         let occlusions = [];
+        let isDrawing = false;
+        let startX, startY;
+        let selectedOcclusion = null;
 
-        // Set up canvas
+        // Set up canvas with proper scaling
         function setupCanvas(image) {
-          canvas.width = image.width;
-          canvas.height = image.height;
-          ctx.drawImage(image, 0, 0);
+          const maxWidth = 800;
+          const maxHeight = 600;
+          
+          let { width, height } = image;
+          
+          // Scale down if too large
+          if (width > maxWidth || height > maxHeight) {
+            const ratio = Math.min(maxWidth / width, maxHeight / height);
+            width *= ratio;
+            height *= ratio;
+          }
+          
+          canvas.width = width;
+          canvas.height = height;
+          canvas.style.width = width + 'px';
+          canvas.style.height = height + 'px';
+          
+          ctx.drawImage(image, 0, 0, width, height);
+          currentImage = image;
+          drawOcclusions();
+        }
+
+        // Draw all occlusions on canvas
+        function drawOcclusions() {
+          if (!currentImage) return;
+          
+          // Clear and redraw image
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+          
+          // Draw occlusions
+          occlusions.forEach((occ, index) => {
+            ctx.fillStyle = selectedOcclusion === index ? 
+              "rgba(0, 123, 255, 0.7)" : "rgba(0, 0, 0, 0.6)";
+            ctx.fillRect(occ.x, occ.y, occ.width, occ.height);
+            
+            // Draw border
+            ctx.strokeStyle = selectedOcclusion === index ? 
+              "#007bff" : "#fff";
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.strokeRect(occ.x, occ.y, occ.width, occ.height);
+            ctx.setLineDash([]);
+            
+            // Draw label
+            if (occ.label) {
+              ctx.fillStyle = "#fff";
+              ctx.font = "14px Arial, sans-serif";
+              ctx.fillText(occ.label, occ.x + 5, occ.y + 20);
+            }
+          });
+        }
+
+        // Update occlusion list display
+        function updateOcclusionList() {
+          occlusionList.innerHTML = occlusions.map((occ, index) => `
+            <div class="occlusion-item ${selectedOcclusion === index ? 'selected' : ''}" data-index="${index}">
+              <div>
+                <span class="occlusion-item-label">${occ.label || `Occlusion ${index + 1}`}</span>
+                <span class="occlusion-item-coords">(${Math.round(occ.x)}, ${Math.round(occ.y)}, ${Math.round(occ.width)}×${Math.round(occ.height)})</span>
+              </div>
+              <div class="occlusion-item-actions">
+                <button class="edit-occlusion" onclick="editOcclusion(${index})">
+                  <i class="fas fa-edit"></i>
+                </button>
+                <button class="delete-occlusion" onclick="deleteOcclusion(${index})">
+                  <i class="fas fa-trash"></i>
+                </button>
+              </div>
+            </div>
+          `).join('');
         }
 
         // Handle image upload
-        document
-          .querySelector('input[name="occlusionImage"]')
-          .addEventListener("change", (e) => {
-            const file = e.target.files[0];
-            if (file) {
-              const reader = new FileReader();
-              reader.onload = (event) => {
-                const img = new Image();
-                img.onload = () => {
-                  setupCanvas(img);
-                  document.querySelector(".occlusion-editor").style.display =
-                    "block";
-                };
-                img.src = event.target.result;
-              };
-              reader.readAsDataURL(file);
+        document.querySelector('input[name="occlusionImage"]').addEventListener("change", (e) => {
+          const file = e.target.files[0];
+          if (file) {
+            if (!file.type.startsWith('image/')) {
+              alert('Please upload a valid image file.');
+              return;
             }
-          });
+            
+            const reader = new FileReader();
+            reader.onload = (event) => {
+              const img = new Image();
+              img.onload = () => {
+                setupCanvas(img);
+                document.querySelector(".occlusion-editor").style.display = "block";
+                occlusions = []; // Reset occlusions for new image
+                updateOcclusionList();
+              };
+              img.src = event.target.result;
+            };
+            reader.readAsDataURL(file);
+          }
+        });
 
-        // Drawing handlers
-        canvas.addEventListener("mousedown", startDrawing);
-        canvas.addEventListener("mousemove", draw);
-        canvas.addEventListener("mouseup", endDrawing);
-        canvas.addEventListener("mouseout", endDrawing);
-
-        function startDrawing(e) {
-          isDrawing = true;
+        // Canvas drawing events
+        canvas.addEventListener("mousedown", (e) => {
           const rect = canvas.getBoundingClientRect();
-          currentOcclusion = {
-            x: e.clientX - rect.left,
-            y: e.clientY - rect.top,
-            width: 0,
-            height: 0,
-          };
-        }
-
-        function draw(e) {
-          if (!isDrawing) return;
-          const rect = canvas.getBoundingClientRect();
-          currentOcclusion.width = e.clientX - rect.left - currentOcclusion.x;
-          currentOcclusion.height = e.clientY - rect.top - currentOcclusion.y;
-
-          // Redraw canvas with current occlusion
-          ctx.clearRect(0, 0, canvas.width, canvas.height);
-          ctx.drawImage(img, 0, 0);
-          ctx.fillStyle = "rgba(0, 0, 0, 0.5)";
-          ctx.fillRect(
-            currentOcclusion.x,
-            currentOcclusion.y,
-            currentOcclusion.width,
-            currentOcclusion.height
+          startX = e.clientX - rect.left;
+          startY = e.clientY - rect.top;
+          
+          // Check if clicking on existing occlusion
+          const clickedOcclusion = occlusions.findIndex(occ => 
+            startX >= occ.x && startX <= occ.x + occ.width &&
+            startY >= occ.y && startY <= occ.y + occ.height
           );
-        }
+          
+          if (clickedOcclusion !== -1) {
+            selectedOcclusion = clickedOcclusion;
+            drawOcclusions();
+            updateOcclusionList();
+          } else {
+            selectedOcclusion = null;
+            isDrawing = true;
+            updateOcclusionList();
+          }
+        });
 
-        function endDrawing() {
+        canvas.addEventListener("mousemove", (e) => {
+          if (!isDrawing) return;
+          
+          const rect = canvas.getBoundingClientRect();
+          const currentX = e.clientX - rect.left;
+          const currentY = e.clientY - rect.top;
+          
+          // Redraw image and existing occlusions
+          drawOcclusions();
+          
+          // Draw current selection rectangle
+          const width = currentX - startX;
+          const height = currentY - startY;
+          
+          ctx.strokeStyle = "#007bff";
+          ctx.lineWidth = 2;
+          ctx.setLineDash([5, 5]);
+          ctx.strokeRect(startX, startY, width, height);
+          ctx.setLineDash([]);
+          
+          ctx.fillStyle = "rgba(0, 123, 255, 0.3)";
+          ctx.fillRect(startX, startY, width, height);
+        });
+
+        canvas.addEventListener("mouseup", (e) => {
+          if (!isDrawing) return;
           isDrawing = false;
-          occlusions.push(currentOcclusion);
-          currentOcclusion = null;
-        }
+          
+          const rect = canvas.getBoundingClientRect();
+          const endX = e.clientX - rect.left;
+          const endY = e.clientY - rect.top;
+          
+          const width = endX - startX;
+          const height = endY - startY;
+          
+          // Only create occlusion if it's large enough
+          if (Math.abs(width) > 20 && Math.abs(height) > 20) {
+            const label = prompt("Enter label for this occlusion area:", `Area ${occlusions.length + 1}`);
+            if (label !== null) {
+              occlusions.push({
+                x: Math.min(startX, endX),
+                y: Math.min(startY, endY),
+                width: Math.abs(width),
+                height: Math.abs(height),
+                label: label.trim() || `Area ${occlusions.length + 1}`
+              });
+              drawOcclusions();
+              updateOcclusionList();
+            }
+          } else {
+            drawOcclusions(); // Redraw to remove the selection rectangle
+          }
+        });
+
+        // Control button handlers
+        document.getElementById("removeOcclusion").addEventListener("click", () => {
+          if (selectedOcclusion !== null) {
+            occlusions.splice(selectedOcclusion, 1);
+            selectedOcclusion = null;
+            drawOcclusions();
+            updateOcclusionList();
+          } else {
+            alert("Please select an occlusion area to remove.");
+          }
+        });
+
+        document.getElementById("clearOcclusions").addEventListener("click", () => {
+          if (occlusions.length > 0 && confirm("Are you sure you want to clear all occlusions?")) {
+            occlusions = [];
+            selectedOcclusion = null;
+            drawOcclusions();
+            updateOcclusionList();
+          }
+        });
+
+        document.getElementById("autoOcclusion").addEventListener("click", async () => {
+          if (!currentImage) {
+            alert("Please upload an image first.");
+            return;
+          }
+          
+          try {
+            // Convert canvas to blob
+            canvas.toBlob(async (blob) => {
+              const formData = new FormData();
+              formData.append('image', blob, 'image.png');
+              
+              const response = await fetch('/api/auto-occlusion', {
+                method: 'POST',
+                body: formData
+              });
+              
+              if (response.ok) {
+                const result = await response.json();
+                if (result.occlusions && result.occlusions.length > 0) {
+                  occlusions = [...occlusions, ...result.occlusions];
+                  drawOcclusions();
+                  updateOcclusionList();
+                  alert(`Added ${result.occlusions.length} auto-detected occlusion areas.`);
+                } else {
+                  alert("No suitable occlusion areas were detected automatically.");
+                }
+              } else {
+                throw new Error('Auto-occlusion failed');
+              }
+            }, 'image/png');
+          } catch (error) {
+            console.error('Auto-occlusion error:', error);
+            alert("Auto-occlusion is currently unavailable. Please create occlusions manually.");
+          }
+        });
+
+        // Global functions for occlusion management
+        window.editOcclusion = (index) => {
+          const occ = occlusions[index];
+          const newLabel = prompt("Edit occlusion label:", occ.label);
+          if (newLabel !== null) {
+            occ.label = newLabel.trim() || `Area ${index + 1}`;
+            drawOcclusions();
+            updateOcclusionList();
+          }
+        };
+
+        window.deleteOcclusion = (index) => {
+          if (confirm("Are you sure you want to delete this occlusion?")) {
+            occlusions.splice(index, 1);
+            if (selectedOcclusion === index) selectedOcclusion = null;
+            else if (selectedOcclusion > index) selectedOcclusion--;
+            drawOcclusions();
+            updateOcclusionList();
+          }
+        };
+
+        // Store occlusions data for form submission
+        window.getOcclusionData = () => ({
+          image: currentImage ? canvas.toDataURL() : null,
+          occlusions: occlusions,
+          imageWidth: canvas.width,
+          imageHeight: canvas.height
+        });
       }
     </script>
   </body>

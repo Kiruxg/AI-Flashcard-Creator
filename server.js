@@ -495,24 +495,45 @@ app.post(
   upload.single("image"),
   async (req, res) => {
     try {
+      console.log('Processing image occlusion request...');
+      console.log('Request body:', req.body);
+      console.log('Uploaded file:', req.file ? req.file.filename : 'No file');
+
       if (!req.file) {
         return res.status(400).json({ error: "No image uploaded" });
       }
 
       const image = req.file;
-      const { occlusions } = req.body;
+      let occlusions;
+
+      // Parse occlusions from JSON string
+      try {
+        occlusions = JSON.parse(req.body.occlusions || '[]');
+      } catch (parseError) {
+        console.error('Error parsing occlusions:', parseError);
+        return res.status(400).json({ error: "Invalid occlusions format - must be valid JSON" });
+      }
 
       // Validate occlusions
       if (!Array.isArray(occlusions)) {
-        return res.status(400).json({ error: "Invalid occlusions format" });
+        return res.status(400).json({ error: "Occlusions must be an array" });
+      }
+
+      if (occlusions.length === 0) {
+        return res.status(400).json({ error: "At least one occlusion area is required" });
       }
 
       // Process the image and occlusions
       const processedImage = await processImageForOcclusion(image, occlusions);
 
+      console.log('Successfully processed image occlusion');
+
       res.json({
+        success: true,
         image: processedImage.url,
         occlusions: processedImage.occlusions,
+        metadata: processedImage.metadata,
+        cardCount: processedImage.occlusions.length
       });
     } catch (error) {
       console.error("Error processing image occlusion:", error);
@@ -526,22 +547,123 @@ app.post(
 
 // Helper function to process images for occlusion
 async function processImageForOcclusion(image, occlusions) {
-  // Implement image processing logic here
-  // This could include:
-  // 1. Image optimization
-  // 2. Storage in cloud storage
-  // 3. Generation of occlusion areas
-  // 4. Validation of occlusion coordinates
+  try {
+    // Validate image
+    if (!image || !image.filename) {
+      throw new Error('Invalid image file');
+    }
 
-  // For now, return a mock response
-  return {
-    url: `/uploads/${image.filename}`,
-    occlusions: occlusions.map((occ) => ({
-      ...occ,
-      validated: true,
-    })),
-  };
+    // Validate occlusions array
+    if (!Array.isArray(occlusions)) {
+      throw new Error('Occlusions must be an array');
+    }
+
+    // Validate each occlusion
+    const validatedOcclusions = occlusions.map((occ, index) => {
+      if (typeof occ.x !== 'number' || typeof occ.y !== 'number' || 
+          typeof occ.width !== 'number' || typeof occ.height !== 'number') {
+        throw new Error(`Invalid coordinates for occlusion ${index + 1}`);
+      }
+
+      if (occ.x < 0 || occ.y < 0 || occ.width <= 0 || occ.height <= 0) {
+        throw new Error(`Invalid dimensions for occlusion ${index + 1}`);
+      }
+
+      return {
+        x: Math.round(occ.x),
+        y: Math.round(occ.y),
+        width: Math.round(occ.width),
+        height: Math.round(occ.height),
+        label: occ.label || `Area ${index + 1}`,
+        validated: true,
+        id: `occ-${Date.now()}-${index}`
+      };
+    });
+
+    // Create optimized image URL
+    const imageUrl = `/uploads/${image.filename}`;
+    
+    // Store image metadata (in a real implementation, you might save to database)
+    const imageMetadata = {
+      filename: image.filename,
+      originalName: image.originalname,
+      mimetype: image.mimetype,
+      size: image.size,
+      uploadedAt: new Date().toISOString(),
+      occlusionCount: validatedOcclusions.length
+    };
+
+    console.log('Processed image occlusion:', {
+      imageUrl,
+      occlusionCount: validatedOcclusions.length,
+      metadata: imageMetadata
+    });
+
+    return {
+      url: imageUrl,
+      occlusions: validatedOcclusions,
+      metadata: imageMetadata,
+      processed: true
+    };
+
+  } catch (error) {
+    console.error('Error in processImageForOcclusion:', error);
+    throw error;
+  }
 }
+
+// AI-powered auto-occlusion endpoint
+app.post(
+  "/api/auto-occlusion",
+  upload.single("image"),
+  async (req, res) => {
+    try {
+      console.log('Processing auto-occlusion request...');
+
+      if (!req.file) {
+        return res.status(400).json({ error: "No image uploaded" });
+      }
+
+      const image = req.file;
+      
+      // For now, we'll create mock auto-occlusions
+      // In a real implementation, this would use computer vision/AI to detect regions of interest
+      const mockOcclusions = [
+        {
+          x: 50,
+          y: 50,
+          width: 100,
+          height: 80,
+          label: "Auto-detected area 1",
+          confidence: 0.85
+        },
+        {
+          x: 200,
+          y: 150,
+          width: 120,
+          height: 60,
+          label: "Auto-detected area 2",
+          confidence: 0.92
+        }
+      ];
+
+      console.log('Generated auto-occlusions:', mockOcclusions);
+
+      res.json({
+        success: true,
+        occlusions: mockOcclusions,
+        message: "Auto-occlusion detection completed"
+      });
+
+    } catch (error) {
+      console.error("Error in auto-occlusion:", error);
+      res.status(500).json({
+        error: "Failed to perform auto-occlusion",
+        details: error.message,
+      });
+    }
+  }
+);
 
 // Subscription management endpoints
 app.post("/create-checkout-session", async (req, res) => {

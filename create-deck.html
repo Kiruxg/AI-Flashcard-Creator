@@ -220,12 +220,12 @@ Examples:
               ></textarea>
 
               <div class="generation-options">
-                <select id="textCardType" class="select-input">
-                  <option value="term">Term & Definition</option>
-                  <option value="qa">Question & Answer</option>
-                  <option value="cloze">Cloze</option>
-                  <option value="contextual">Contextual/Scenario-based</option>
-                </select>
+                      <select id="textCardType" class="select-input">
+        <option value="term">Term & Definition</option>
+        <option value="qa">Question & Answer</option>
+        <option value="cloze">Cloze</option>
+        <option value="contextual">Contextual/Scenario-based</option>
+      </select>
                 <select id="textCardCount" class="select-input">
                   <option value="5">5 cards</option>
                   <option value="10">10 cards</option>
@@ -234,18 +234,7 @@ Examples:
                 </select>
               </div>
 
-              <div class="quiz-mode-toggle">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="textQuizModeToggle" />
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="toggle-label">
-                  <i class="fas fa-graduation-cap"></i> Quiz Mode
-                  <span class="toggle-description"
-                    >Test your knowledge with multiple choice questions</span
-                  >
-                </span>
-              </div>
+
 
               <button
                 type="submit"
@@ -274,32 +263,21 @@ Examples:
             </div>
 
             <!-- Card Type Selection -->
-            <div id="cardTypeSelection" style="display: none">
-              <select id="uploadCardType" class="select-input">
-                <option value="">Select Card Type</option>
-                <option value="term">Term & Definition</option>
-                <option value="qa">Question & Answer</option>
-                <option value="cloze">Cloze</option>
-                <option value="contextual">Contextual/Scenario-based</option>
-              </select>
+            <div id="cardTypeSelection">
+                      <select id="uploadCardType" class="select-input">
+          <option value="term" selected>Term & Definition</option>
+          <option value="qa">Question & Answer</option>
+          <option value="cloze">Cloze</option>
+          <option value="contextual">Contextual/Scenario-based</option>
+          <option value="image-occlusion" class="premium-option">Image Occlusion (Premium)</option>
+        </select>
               <select id="uploadCardCount" class="select-input">
                 <option value="5">5 cards</option>
                 <option value="10">10 cards</option>
                 <option value="15">15 cards (Premium)</option>
                 <option value="20">20 cards (Premium)</option>
               </select>
-              <div class="quiz-mode-toggle">
-                <label class="toggle-switch">
-                  <input type="checkbox" id="uploadQuizModeToggle" />
-                  <span class="toggle-slider"></span>
-                </label>
-                <span class="toggle-label">
-                  <i class="fas fa-graduation-cap"></i> Quiz Mode
-                  <span class="toggle-description"
-                    >Test your knowledge with multiple choice questions</span
-                  >
-                </span>
-              </div>
+
               <button id="generateCardsBtn" class="btn btn-primary">
                 Generate Cards
               </button>
@@ -318,7 +296,7 @@ Examples:
                     class="url-input"
                   />
                 </div>
-                <div id="urlPreview" class="url-preview" style="display: none">
+                <div id="urlPreview" class="url-preview">
                   <div class="preview-header">
                     <h3 id="previewTitle">Content Preview</h3>
                     <div class="preview-actions">
@@ -341,14 +319,12 @@ Examples:
                   <div id="previewContent" class="preview-content"></div>
                 </div>
                 <div class="generation-options">
-                  <select id="urlCardType" class="select-input">
-                    <option value="term">Term & Definition</option>
-                    <option value="qa">Question & Answer</option>
-                    <option value="cloze">Cloze</option>
-                    <option value="contextual">
-                      Contextual/Scenario-based
-                    </option>
-                  </select>
+                          <select id="urlCardType" class="select-input">
+          <option value="term">Term & Definition</option>
+          <option value="qa">Question & Answer</option>
+          <option value="cloze">Cloze</option>
+          <option value="contextual">Contextual/Scenario-based</option>
+        </select>
                   <select id="urlCardCount" class="select-input">
                     <option value="5">5 cards</option>
                     <option value="10">10 cards</option>
@@ -356,18 +332,7 @@ Examples:
                     <option value="20" class="premium-option">20 cards</option>
                   </select>
                 </div>
-                <div class="quiz-mode-toggle">
-                  <label class="toggle-switch">
-                    <input type="checkbox" id="urlQuizModeToggle" />
-                    <span class="toggle-slider"></span>
-                  </label>
-                  <span class="toggle-label">
-                    <i class="fas fa-graduation-cap"></i> Quiz Mode
-                    <span class="toggle-description"
-                      >Test your knowledge with multiple choice questions</span
-                    >
-                  </span>
-                </div>
+
                 <button
                   type="submit"
                   class="btn btn-primary"
@@ -393,7 +358,13 @@ Examples:
 
         <!-- Right Column - Flashcard Viewer -->
         <div class="grid-item">
-          <h2>Flashcard Viewer</h2>
+          <div class="deck-title-container">
+            <h2 id="deckTitle" class="deck-title">Flashcard Viewer</h2>
+            <button id="editDeckNameBtn" class="btn-edit-deck-name" style="display: none;" title="Edit deck name">
+              <i class="fas fa-edit"></i>
+            </button>
+          </div>
+          <input type="text" id="deckNameInput" class="deck-name-input" style="display: none;" placeholder="Enter deck name" maxlength="50">
           <div
             id="loadingIndicator"
             class="loading-overlay"
@@ -418,13 +389,6 @@ Examples:
               >
                 <i class="fas fa-play"></i> Study Now
                 <span class="due-count"></span>
-              </button>
-              <button
-                id="quizNowBtn"
-                class="btn btn-success"
-                style="display: none"
-              >
-                <i class="fas fa-graduation-cap"></i> Take Quiz
               </button>
             </div>
             <div
@@ -482,12 +446,8 @@ Examples:
                   </button>
                 </div>
 
-                <!-- Quiz Mode Button - shown when quiz mode is enabled -->
-                <div
-                  class="quiz-mode-actions"
-                  id="quizModeActions"
-                  style="display: none"
-                >
+                <!-- Quiz Button - redirects to centralized quiz -->
+                <div class="quiz-actions">
                   <button id="takeQuizBtn" class="btn btn-primary">
                     <i class="fas fa-graduation-cap"></i> Take Quiz
                   </button>
@@ -512,6 +472,12 @@ Examples:
     </script>
     <script>
       document.addEventListener("DOMContentLoaded", function () {
+        // Initialize dynamic elements to be hidden
+        const cardTypeSelection = document.getElementById("cardTypeSelection");
+        const urlPreview = document.getElementById("urlPreview");
+        if (cardTypeSelection) cardTypeSelection.classList.remove("show");
+        if (urlPreview) urlPreview.classList.remove("show");
+        
         var tabBtns = document.querySelectorAll(".input-tabs .tab-btn");
         var tabContents = document.querySelectorAll(".input-tab-content");
         tabBtns.forEach(function (btn) {
@@ -653,9 +619,55 @@ Examples:
           shuffleBtn.addEventListener("click", resetCardFlip);
         }
 
+        // Listen for flashcards generated event to store flashcards globally
+        document.addEventListener("flashcardsGenerated", function(event) {
+          if (event.detail && event.detail.flashcards) {
+            window.flashcards = event.detail.flashcards;
+            console.log("Flashcards stored globally:", window.flashcards.length, "cards");
+          }
+        });
+
+        // Listen for flashcards cleared event
+        document.addEventListener("flashcardsCleared", function() {
+          window.flashcards = [];
+          console.log("Flashcards cleared from global storage");
+        });
+
+        // Add event listener for Take Quiz button
+        const takeQuizBtn = document.getElementById("takeQuizBtn");
+        if (takeQuizBtn) {
+          takeQuizBtn.addEventListener("click", function() {
+            // Check if we have flashcards available
+            if (!window.flashcards || window.flashcards.length === 0) {
+              alert("No flashcards available. Please generate flashcards first.");
+              return;
+            }
+
+            // Create a quiz deck from current flashcards
+            const quizDeck = {
+              name: "Generated Flashcard Quiz",
+              description: "Quiz generated from your flashcards",
+              cards: window.flashcards,
+              id: `quiz_${Date.now()}`,
+              createdAt: new Date().toISOString(),
+            };
+
+            // Store the deck in sessionStorage and redirect to quiz.html
+            sessionStorage.setItem("quizDeck", JSON.stringify(quizDeck));
+            window.location.href = "quiz.html";
+          });
+        }
+
         // Make functions available globally for other scripts
         window.resetCardFlip = resetCardFlip;
         window.initializeTTSButtons = initializeTTSButtons;
+        
+        // Initialize edit deck name functionality
+        setTimeout(() => {
+          if (typeof window.initializeEditDeckName === 'function') {
+            window.initializeEditDeckName();
+          }
+        }, 100);
 
         // Global function to update card content while preserving flip structure
         window.updateFlipCardContent = function (frontContent, backContent) {

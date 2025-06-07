@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google OAuth Debugger - Firebase</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            line-height: 1.6;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        h2 {
+            color: #4285f4;
+            border-bottom: 2px solid #4285f4;
+            padding-bottom: 10px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            font-weight: 500;
+        }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+        
+        .btn {
+            background: #4285f4;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+            transition: all 0.3s ease;
+        }
+        .btn:hover {
+            background: #3367d6;
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .debug-log {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        
+        .test-results {
+            display: grid;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .config-display {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 6px;
+            border-left: 4px solid #4285f4;
+        }
+        
+        .user-info {
+            background: #e8f5e8;
+            padding: 15px;
+            border-radius: 6px;
+            margin-top: 15px;
+        }
+        
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Google OAuth Debugger</h1>
+    
+    <div class="container">
+        <h2>🔧 Configuration Check</h2>
+        <div id="configStatus">
+            <div class="info">Checking Firebase configuration...</div>
+        </div>
+        
+        <div class="config-display">
+            <h3>Firebase Config:</h3>
+            <pre id="configDisplay">Loading...</pre>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>🧪 Authentication Tests</h2>
+        <div class="test-results">
+            <button class="btn" id="testPopupBtn">Test Popup Sign-In</button>
+            <button class="btn" id="testRedirectBtn">Test Redirect Sign-In</button>
+            <button class="btn" id="testSilentBtn">Test Silent Sign-In</button>
+            <button class="btn" id="clearLogBtn">Clear Debug Log</button>
+        </div>
+        
+        <div id="authStatus">
+            <div class="info">Ready to test authentication...</div>
+        </div>
+        
+        <div id="userInfo" class="user-info hidden">
+            <h3>✅ Authentication Successful!</h3>
+            <div id="userDetails"></div>
+            <button class="btn" id="signOutBtn" style="background: #dc3545;">Sign Out</button>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>📝 Debug Log</h2>
+        <div id="debugLog" class="debug-log">
+Starting Google OAuth Debug Session...
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>🔍 Common Issues & Solutions</h2>
+        <div class="info">
+            <strong>If authentication fails, check:</strong><br>
+            1. Firebase Console: Authentication → Sign-in method → Google (enabled)<br>
+            2. Google Cloud Console: APIs & Services → Credentials<br>
+            3. Authorized JavaScript origins: http://localhost:8080<br>
+            4. Authorized redirect URIs: http://localhost:8080/__/auth/handler<br>
+            5. Browser popup blocker disabled<br>
+            6. Third-party cookies enabled
+        </div>
+    </div>
+
+    <!-- Firebase imports -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { 
+            getAuth, 
+            GoogleAuthProvider, 
+            signInWithPopup, 
+            signInWithRedirect,
+            getRedirectResult,
+            signOut,
+            onAuthStateChanged 
+        } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+
+        // Import Firebase config
+        import { firebaseConfig } from './config.js';
+
+        // Debug logging function
+        function debugLog(message, data = null) {
+            const timestamp = new Date().toLocaleTimeString();
+            const logElement = document.getElementById('debugLog');
+            const logMessage = `[${timestamp}] ${message}${data ? '\n' + JSON.stringify(data, null, 2) : ''}`;
+            logElement.textContent += '\n' + logMessage;
+            logElement.scrollTop = logElement.scrollHeight;
+            console.log(`[OAUTH-DEBUG] ${message}`, data);
+        }
+
+        // Initialize Firebase
+        let app, auth, googleProvider;
+        
+        try {
+            app = initializeApp(firebaseConfig);
+            auth = getAuth(app);
+            googleProvider = new GoogleAuthProvider();
+            googleProvider.addScope('email');
+            googleProvider.addScope('profile');
+            
+            debugLog('✅ Firebase initialized successfully');
+            document.getElementById('configStatus').innerHTML = '<div class="success">✅ Firebase configuration loaded successfully</div>';
+            document.getElementById('configDisplay').textContent = JSON.stringify(firebaseConfig, null, 2);
+        } catch (error) {
+            debugLog('❌ Firebase initialization failed', error);
+            document.getElementById('configStatus').innerHTML = '<div class="error">❌ Firebase configuration failed: ' + error.message + '</div>';
+        }
+
+        // Auth state listener
+        onAuthStateChanged(auth, (user) => {
+            if (user) {
+                debugLog('✅ User signed in', {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: user.displayName,
+                    photoURL: user.photoURL,
+                    emailVerified: user.emailVerified
+                });
+                
+                document.getElementById('userInfo').classList.remove('hidden');
+                document.getElementById('userDetails').innerHTML = `
+                    <p><strong>Email:</strong> ${user.email}</p>
+                    <p><strong>Name:</strong> ${user.displayName || 'Not provided'}</p>
+                    <p><strong>UID:</strong> ${user.uid}</p>
+                    <p><strong>Email Verified:</strong> ${user.emailVerified ? '✅' : '❌'}</p>
+                    <p><strong>Photo:</strong> ${user.photoURL ? `<img src="${user.photoURL}" width="50" height="50" style="border-radius: 50%;">` : 'Not provided'}</p>
+                `;
+                
+                document.getElementById('authStatus').innerHTML = '<div class="success">✅ Successfully authenticated with Google!</div>';
+            } else {
+                debugLog('ℹ️ User signed out');
+                document.getElementById('userInfo').classList.add('hidden');
+                document.getElementById('authStatus').innerHTML = '<div class="info">Ready to test authentication...</div>';
+            }
+        });
+
+        // Check for redirect result on page load
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result) {
+                    debugLog('✅ Redirect authentication successful', result);
+                } else {
+                    debugLog('ℹ️ No redirect result found');
+                }
+            })
+            .catch((error) => {
+                debugLog('❌ Redirect authentication failed', error);
+            });
+
+        // Test popup sign-in
+        document.getElementById('testPopupBtn').addEventListener('click', async () => {
+            debugLog('🔄 Testing popup sign-in...');
+            document.getElementById('authStatus').innerHTML = '<div class="info">🔄 Testing popup sign-in...</div>';
+            
+            try {
+                const result = await signInWithPopup(auth, googleProvider);
+                debugLog('✅ Popup sign-in successful', result);
+            } catch (error) {
+                debugLog('❌ Popup sign-in failed', error);
+                document.getElementById('authStatus').innerHTML = `<div class="error">❌ Popup sign-in failed: ${error.code} - ${error.message}</div>`;
+                
+                // Provide specific error guidance
+                if (error.code === 'auth/popup-blocked') {
+                    document.getElementById('authStatus').innerHTML += '<div class="warning">⚠️ Popup was blocked by browser. Please allow popups for this site.</div>';
+                } else if (error.code === 'auth/unauthorized-domain') {
+                    document.getElementById('authStatus').innerHTML += '<div class="warning">⚠️ Domain not authorized. Add this domain to Firebase Console.</div>';
+                }
+            }
+        });
+
+        // Test redirect sign-in
+        document.getElementById('testRedirectBtn').addEventListener('click', async () => {
+            debugLog('🔄 Testing redirect sign-in...');
+            document.getElementById('authStatus').innerHTML = '<div class="info">🔄 Redirecting for sign-in...</div>';
+            
+            try {
+                await signInWithRedirect(auth, googleProvider);
+                debugLog('🔄 Redirect initiated');
+            } catch (error) {
+                debugLog('❌ Redirect sign-in failed', error);
+                document.getElementById('authStatus').innerHTML = `<div class="error">❌ Redirect sign-in failed: ${error.code} - ${error.message}</div>`;
+            }
+        });
+
+        // Test silent sign-in (get current user)
+        document.getElementById('testSilentBtn').addEventListener('click', () => {
+            debugLog('🔄 Testing silent sign-in...');
+            const currentUser = auth.currentUser;
+            
+            if (currentUser) {
+                debugLog('✅ User already signed in', currentUser);
+                document.getElementById('authStatus').innerHTML = '<div class="success">✅ User already authenticated</div>';
+            } else {
+                debugLog('ℹ️ No user currently signed in');
+                document.getElementById('authStatus').innerHTML = '<div class="info">ℹ️ No user currently signed in</div>';
+            }
+        });
+
+        // Sign out
+        document.getElementById('signOutBtn').addEventListener('click', async () => {
+            debugLog('🔄 Signing out...');
+            try {
+                await signOut(auth);
+                debugLog('✅ Sign out successful');
+            } catch (error) {
+                debugLog('❌ Sign out failed', error);
+            }
+        });
+
+        // Clear debug log
+        document.getElementById('clearLogBtn').addEventListener('click', () => {
+            document.getElementById('debugLog').textContent = 'Debug log cleared...';
+        });
+
+    </script>
+</body>
+</html> 

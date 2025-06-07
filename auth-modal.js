@@ -9,6 +9,16 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import { showNotification } from "./utils.js";
 
+// Initialize Google provider with scopes
+const googleProvider = new GoogleAuthProvider();
+googleProvider.addScope('email');
+googleProvider.addScope('profile');
+
+// Enhanced debug logging for auth
+function debugAuthLog(message, data = null) {
+  console.log(`[AUTH] ${message}`, data);
+}
+
 // Reusable Auth Modal Component
 export function createAuthModal() {
   // Remove any existing modals with the same IDs to prevent duplicates
@@ -139,17 +149,23 @@ export function initializeAuthModal() {
   // Create the auth modal
   createAuthModal();
 
+  debugAuthLog("Initializing auth modal");
+
   // Check for redirect result on page load
   getRedirectResult(auth)
     .then((result) => {
       if (result) {
+        debugAuthLog("Redirect result found:", result);
         hideAuthModal();
         showNotification("Successfully signed in with Google!", "success");
         window.location.reload();
+      } else {
+        debugAuthLog("No redirect result found");
       }
     })
     .catch((error) => {
       if (error.code !== "auth/no-redirect-event") {
+        debugAuthLog("Redirect sign-in error:", error);
         console.error("Redirect sign-in error:", error);
         showAuthError(
           AUTH_ERROR_MESSAGES[error.code] || "Failed to sign in with Google",
@@ -198,6 +214,7 @@ export function initializeAuthModal() {
       }
 
       try {
+        debugAuthLog("Sending password reset email to:", email);
         await sendPasswordResetEmail(auth, email);
         // Show generic message in the modal, do not close it
         showAuthSuccess(
@@ -205,6 +222,7 @@ export function initializeAuthModal() {
           "resetPasswordForm"
         );
       } catch (error) {
+        debugAuthLog("Password reset error:", error);
         showAuthError(
           AUTH_ERROR_MESSAGES[error.code] ||
             "An error occurred while sending reset email.",
@@ -214,36 +232,89 @@ export function initializeAuthModal() {
     });
   }
 
-  // Handle Google login
+  // Handle Google login with enhanced error handling
   if (googleLoginBtn) {
     googleLoginBtn.addEventListener("click", async () => {
+      debugAuthLog("Google login button clicked");
+      
+      // Disable button to prevent multiple clicks
+      googleLoginBtn.disabled = true;
+      googleLoginBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Signing in...';
+      
       try {
-        const provider = new GoogleAuthProvider();
+        debugAuthLog("Attempting Google sign-in with provider:", googleProvider);
+        
         // Try popup first
         try {
-          const result = await signInWithPopup(auth, provider);
+          debugAuthLog("Trying popup sign-in");
+          const result = await signInWithPopup(auth, googleProvider);
+          debugAuthLog("Popup sign-in successful:", result);
+          
           hideAuthModal();
           showNotification("Successfully signed in with Google!", "success");
-          window.location.reload();
+          
+          // Reload to refresh the UI state
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+          
         } catch (popupError) {
+          debugAuthLog("Popup sign-in failed:", popupError);
+          
           // If popup fails (blocked), fall back to redirect
           if (
             popupError.code === "auth/popup-blocked" ||
             popupError.code === "auth/popup-closed-by-user" ||
             popupError.code === "auth/cancelled-popup-request"
           ) {
-            console.log("Popup blocked or closed, trying redirect...");
-            await signInWithRedirect(auth, provider);
+            debugAuthLog("Popup blocked or closed, trying redirect...");
+            showAuthSuccess("Popup blocked, redirecting to Google...", "loginForm");
+            
+            // Small delay before redirect
+            setTimeout(async () => {
+              try {
+                await signInWithRedirect(auth, googleProvider);
+              } catch (redirectError) {
+                debugAuthLog("Redirect sign-in error:", redirectError);
+                throw redirectError;
+              }
+            }, 1000);
+            
           } else {
             throw popupError;
           }
         }
+        
       } catch (error) {
+        debugAuthLog("Google sign-in error:", error);
         console.error("Google sign-in error:", error);
-        showAuthError(
-          AUTH_ERROR_MESSAGES[error.code] || "Failed to sign in with Google",
-          "loginForm"
-        );
+        
+        // Re-enable button
+        googleLoginBtn.disabled = false;
+        googleLoginBtn.innerHTML = `
+          <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" 
+               alt="Google" width="18" height="18">
+          Continue with Google
+        `;
+        
+        let errorMessage = "Failed to sign in with Google";
+        
+        // Provide more specific error messages
+        switch (error.code) {
+          case "auth/unauthorized-domain":
+            errorMessage = "This domain is not authorized for Google sign-in";
+            break;
+          case "auth/operation-not-allowed":
+            errorMessage = "Google sign-in is not enabled for this project";
+            break;
+          case "auth/network-request-failed":
+            errorMessage = "Network error. Please check your connection";
+            break;
+          default:
+            errorMessage = AUTH_ERROR_MESSAGES[error.code] || errorMessage;
+        }
+        
+        showAuthError(errorMessage, "loginForm");
       }
     });
   }

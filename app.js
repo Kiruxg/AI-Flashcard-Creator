@@ -60,6 +60,112 @@ let currentCardIndex = 0;
 let flashcards = [];
 let answerStartTime = null;
 
+// Edit deck name functionality
+function showEditDeckNameButton() {
+  const editBtn = document.getElementById("editDeckNameBtn");
+  if (editBtn) {
+    editBtn.style.display = "inline-block";
+  }
+}
+
+function hideEditDeckNameButton() {
+  const editBtn = document.getElementById("editDeckNameBtn");
+  const deckInput = document.getElementById("deckNameInput");
+  const deckTitle = document.getElementById("deckTitle");
+  
+  if (editBtn) {
+    editBtn.style.display = "none";
+  }
+  if (deckInput) {
+    deckInput.style.display = "none";
+  }
+  if (deckTitle) {
+    deckTitle.style.display = "block";
+    deckTitle.textContent = "Flashcard Viewer";
+  }
+}
+
+function initializeEditDeckName() {
+  const editBtn = document.getElementById("editDeckNameBtn");
+  const deckInput = document.getElementById("deckNameInput");
+  const deckTitle = document.getElementById("deckTitle");
+
+  console.log("Initializing edit deck name functionality", { editBtn, deckInput, deckTitle });
+  
+  if (!editBtn || !deckInput || !deckTitle) {
+    console.warn("Edit deck name elements not found");
+    return;
+  }
+
+  // Clear any existing event listeners by cloning elements
+  const newEditBtn = editBtn.cloneNode(true);
+  const newDeckInput = deckInput.cloneNode(true);
+  
+  editBtn.parentNode.replaceChild(newEditBtn, editBtn);
+  deckInput.parentNode.replaceChild(newDeckInput, deckInput);
+  
+  // Edit button click handler
+  newEditBtn.addEventListener("click", function(e) {
+    e.preventDefault();
+    e.stopPropagation();
+    console.log("Edit button clicked!");
+    
+    const currentName = deckTitle.textContent.trim();
+    newDeckInput.value = currentName === "Flashcard Viewer" ? "" : currentName;
+    console.log("Setting input value to:", newDeckInput.value);
+    
+    // Hide title and button, show input
+    deckTitle.style.display = "none";
+    newEditBtn.style.display = "none";
+    newDeckInput.style.display = "block";
+    
+    console.log("Input display set to block, focusing...");
+    setTimeout(() => {
+      newDeckInput.focus();
+      newDeckInput.select();
+    }, 50);
+  });
+
+  // Input handlers
+  function saveDeckName() {
+    const newName = newDeckInput.value.trim();
+    if (newName && newName !== "") {
+      deckTitle.textContent = newName;
+    } else {
+      deckTitle.textContent = "Flashcard Viewer";
+    }
+    newDeckInput.style.display = "none";
+    deckTitle.style.display = "block";
+    newEditBtn.style.display = "inline-block";
+    console.log("Deck name saved:", deckTitle.textContent);
+  }
+
+  function cancelEdit() {
+    newDeckInput.style.display = "none";
+    deckTitle.style.display = "block";
+    newEditBtn.style.display = "inline-block";
+    console.log("Edit cancelled");
+  }
+
+  // Save on Enter key, cancel on Escape
+  newDeckInput.addEventListener("keydown", function(e) {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      saveDeckName();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelEdit();
+    }
+  });
+
+  // Save when input loses focus
+  newDeckInput.addEventListener("blur", function() {
+    setTimeout(saveDeckName, 100); // Small delay to allow other interactions
+  });
+  
+  console.log("Edit deck name functionality initialized successfully");
+}
+
 // Initialize Firebase and auth modal
 document.addEventListener("DOMContentLoaded", function () {
   // Initialize the centralized auth modal
@@ -88,6 +194,7 @@ $(document).ready(function () {
   initializeSessionRecovery();
   initializeMobileMenu();
   initializeUserMenuDropdown();
+  initializeEditDeckName();
 
   // Initialize subscription manager
   const subscriptionManager = new SubscriptionManager();
@@ -114,6 +221,9 @@ $(document).ready(function () {
   // Expose auth modal functions globally
   window.showAuthModal = showAuthModal;
   window.hideAuthModal = hideAuthModal;
+  
+  // Expose edit deck name function globally
+  window.initializeEditDeckName = initializeEditDeckName;
 
   // Initialize Google Auth Provider
   const googleProvider = new GoogleAuthProvider();
@@ -148,6 +258,36 @@ $(document).ready(function () {
 
     if (user) {
       currentUser = user;
+
+      // Ensure user document exists (important for Google OAuth users)
+      try {
+        const userRef = doc(db, "users", user.uid);
+        const docSnap = await getDoc(userRef);
+        
+        if (!docSnap.exists()) {
+          console.log("Creating new user document for:", user.email);
+          await setDoc(userRef, {
+            email: user.email,
+            displayName: user.displayName || null,
+            photoURL: user.photoURL || null,
+            createdAt: new Date(),
+            lastLogin: new Date(),
+            isPremium: false,
+            cardsGenerated: 0,
+            decksCreated: 0,
+            tokenUsage: {},
+            emailVerified: user.emailVerified || (user.providerData.some(p => p.providerId === 'google.com')), // Google accounts are pre-verified
+          });
+        } else {
+          // Update last login time
+          await setDoc(userRef, {
+            lastLogin: new Date(),
+            emailVerified: user.emailVerified || (user.providerData.some(p => p.providerId === 'google.com'))
+          }, { merge: true });
+        }
+      } catch (error) {
+        console.error("Error creating/updating user document:", error);
+      }
 
       // Check email verification
       // For testing: allow access even if not verified
@@ -511,45 +651,11 @@ $(document).ready(function () {
   });
 
   // Google login (Google accounts are pre-verified)
+  // Note: This handler might be redundant since auth-modal.js handles Google auth
+  // But keeping it for backwards compatibility
   $(document).on("click", "#googleLoginBtn", async function () {
-    console.log("Google login button clicked");
-    try {
-      console.log(
-        "Attempting signInWithPopup with googleProvider",
-        googleProvider
-      );
-      const result = await signInWithPopup(auth, googleProvider);
-      console.log("signInWithPopup result:", result);
-      // Check if user document exists, if not create it
-      const userRef = doc(db, "users", result.user.uid);
-      const docSnap = await getDoc(userRef);
-      if (!docSnap.exists()) {
-        await setDoc(userRef, {
-          email: result.user.email,
-          createdAt: new Date(),
-          lastLogin: new Date(),
-          isPremium: false,
-          cardsGenerated: 0,
-          decksCreated: 0,
-          tokenUsage: {},
-          emailVerified: true, // Google accounts are pre-verified
-        });
-      }
-      hideModal("authModal");
-    } catch (error) {
-      console.error(
-        "Google login error:",
-        error,
-        error.code,
-        error.message,
-        error.stack
-      );
-      showAuthError(
-        AUTH_ERROR_MESSAGES[error.code] ||
-          "An error occurred during Google login.",
-        "loginForm"
-      );
-    }
+    console.log("[APP.JS] Google login button clicked - delegating to auth-modal.js");
+    // The auth-modal.js will handle this, but let's make sure user document is created
   });
 
   // Forgot password
@@ -1187,10 +1293,10 @@ $(document).ready(function () {
 
     // Check if we've gone past the last card
     if (currentCardIndex >= flashcards.length) {
-      console.log("Reached end of flashcards, attempting to show quiz prompt");
+      console.log("Reached end of flashcards");
       // Reset index to last card for now
       currentCardIndex = flashcards.length - 1;
-      showQuizPrompt();
+      // showQuizPrompt(); // Removed - modal disabled
       return;
     }
 
@@ -1363,7 +1469,7 @@ $(document).ready(function () {
 
     // Check if user has completed 100% of cards
     if (progress >= 100 && !sessionStorage.getItem("quizPromptShown")) {
-      showQuizPrompt();
+      // showQuizPrompt(); // Removed - modal disabled
       sessionStorage.setItem("quizPromptShown", "true");
     }
   }
@@ -1484,7 +1590,7 @@ $(document).ready(function () {
     // Show card type selection after file validation
     $("#fileInput").hide();
     $("#dropzone").hide();
-    $("#cardTypeSelection").show();
+    $("#cardTypeSelection").addClass("show");
 
     // Store the file for later processing
     window.uploadedFile = file;
@@ -1785,6 +1891,7 @@ $(document).ready(function () {
   function updateFlashcardViewer(flashcards) {
     if (!flashcards || flashcards.length === 0) {
       showFlashcardViewer(false);
+      hideEditDeckNameButton();
       // Dispatch event for flashcards cleared
       document.dispatchEvent(new CustomEvent("flashcardsCleared"));
       return;
@@ -1800,6 +1907,9 @@ $(document).ready(function () {
 
     // Show the viewer
     showFlashcardViewer(true);
+
+    // Show edit deck name button after generation
+    showEditDeckNameButton();
 
     // Dispatch event for flashcards generated
     document.dispatchEvent(
@@ -1881,6 +1991,8 @@ $(document).ready(function () {
       $("#emptyState").show();
     }
   }
+
+
 
   function showLoading(show) {
     const loadingIndicator = document.getElementById("loadingIndicator");
@@ -3767,20 +3879,70 @@ $(document).ready(function () {
 
   // Add processImageForOcclusion function
   async function processImageForOcclusion(imageData, options = {}) {
-    // For now, this is a placeholder - in a full implementation,
-    // this would show an image occlusion editor where users can draw occlusion areas
-    showErrorMessage(
-      "Image Occlusion feature is under development. The UI structure is ready, but the full image processing functionality needs to be implemented on the backend."
-    );
+    try {
+      // Get occlusion data from the editor
+      const occlusionData = window.getOcclusionData();
+      
+      if (!occlusionData || !occlusionData.image || !occlusionData.occlusions || occlusionData.occlusions.length === 0) {
+        showErrorMessage("Please create at least one occlusion area before generating flashcards.");
+        return;
+      }
 
-    // Future implementation would:
-    // 1. Display the image in an occlusion editor
-    // 2. Allow users to draw rectangular occlusion areas
-    // 3. Generate flashcards with the image and occlusion data
-    // 4. Send the image and occlusion coordinates to the backend for processing
+      console.log("Processing image occlusion with data:", occlusionData);
 
-    console.log("Image data:", imageData);
-    console.log("Options:", options);
+      // Convert data URL to blob
+      const response = await fetch(occlusionData.image);
+      const blob = await response.blob();
+
+      // Create form data
+      const formData = new FormData();
+      formData.append('image', blob, 'occlusion-image.png');
+      formData.append('occlusions', JSON.stringify(occlusionData.occlusions));
+      formData.append('imageWidth', occlusionData.imageWidth);
+      formData.append('imageHeight', occlusionData.imageHeight);
+      formData.append('cardType', options.cardType || 'image-occlusion');
+      formData.append('cardCount', options.cardCount || occlusionData.occlusions.length);
+
+      // Send to backend for processing
+      const result = await fetch('/api/process-image-occlusion', {
+        method: 'POST',
+        body: formData
+      });
+
+      if (!result.ok) {
+        throw new Error(`Server error: ${result.status}`);
+      }
+
+      const processedData = await result.json();
+      console.log("Processed image occlusion data:", processedData);
+
+      // Generate flashcards from occlusion data
+      const flashcards = occlusionData.occlusions.map((occlusion, index) => ({
+        id: `occ-${Date.now()}-${index}`,
+        type: 'image-occlusion',
+        image: occlusionData.image,
+        occlusions: [occlusion], // Each card shows one occlusion
+        allOcclusions: occlusionData.occlusions, // For context
+        front: `What is highlighted in this image?`,
+        back: occlusion.label || `Area ${index + 1}`,
+        imageWidth: occlusionData.imageWidth,
+        imageHeight: occlusionData.imageHeight
+      }));
+
+      console.log("Generated image occlusion flashcards:", flashcards);
+
+      // Update the flashcard viewer
+      updateFlashcardViewer(flashcards);
+      showFlashcardViewer(true);
+
+      showSuccessMessage(`Created ${flashcards.length} image occlusion flashcards successfully!`);
+
+    } catch (error) {
+      console.error("Error processing image occlusion:", error);
+      showErrorMessage(
+        `Failed to process image occlusion: ${error.message}. Please try again or contact support if the issue persists.`
+      );
+    }
   }
 
   // showDecksLoadingPlaceholder function moved to KnowledgeHub module

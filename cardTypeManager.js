@@ -5,9 +5,10 @@ export class CardTypeManager {
       term: {
         name: "Term & Definition",
         description: "Simple term and definition flashcards",
-        tiers: ["free", "premium"],
+        tiers: ["free", "basic", "premium"],
         maxCards: {
           free: 10,
+          basic: 25,
           premium: 100,
         },
         validate: this.validateTermCard.bind(this),
@@ -17,9 +18,9 @@ export class CardTypeManager {
       qa: {
         name: "Question & Answer",
         description: "Question and answer style cards",
-        tiers: ["free", "premium"],
+        tiers: ["basic", "premium"],
         maxCards: {
-          free: 10,
+          basic: 25,
           premium: 100,
         },
         validate: this.validateQACard.bind(this),
@@ -29,21 +30,33 @@ export class CardTypeManager {
       cloze: {
         name: "Cloze",
         description: "Fill-in-the-blank style cards",
-        tiers: ["free", "premium"],
+        tiers: ["basic", "premium"],
         maxCards: {
-          free: 5,
-          premium: 50,
+          basic: 25,
+          premium: 100,
         },
         validate: this.validateClozeCard.bind(this),
         render: this.renderClozeCard.bind(this),
         generatePrompt: this.generateClozePrompt.bind(this),
+      },
+      "image-occlusion": {
+        name: "Image Occlusion",
+        description: "Hide parts of images to create visual memory cards",
+        tiers: ["basic", "premium"],
+        maxCards: {
+          basic: 25,
+          premium: 100,
+        },
+        validate: this.validateImageOcclusionCard.bind(this),
+        render: this.renderImageOcclusionCard.bind(this),
+        generatePrompt: this.generateImageOcclusionPrompt.bind(this),
       },
       contextual: {
         name: "Contextual/Scenario-based",
         description: "Cards with real-world scenarios and explanations",
         tiers: ["premium"],
         maxCards: {
-          premium: 50,
+          premium: 100,
         },
         validate: this.validateContextualCard.bind(this),
         render: this.renderContextualCard.bind(this),
@@ -518,10 +531,11 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
       }
 
       // Add premium indicators
-      if (userTier === "free") {
+      if (userTier === "free" || userTier === "basic") {
         select.querySelectorAll("option").forEach((option) => {
-          if (option.value && !this.isCardTypeAvailable(option.value, "free")) {
-            option.textContent += " (Premium)";
+          if (option.value && !this.isCardTypeAvailable(option.value, userTier)) {
+            const upgradeText = userTier === "free" ? " (Basic/Premium)" : " (Premium)";
+            option.textContent += upgradeText;
             option.disabled = true;
           }
         });

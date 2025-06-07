@@ -60,7 +60,7 @@
             Monthly
           </button>
           <button class="billing-option" data-billing="yearly">Yearly</button>
-          <span class="save-badge">Save $35.88 with annual billing</span>
+          <span class="save-badge">Save up to $30 annually</span>
         </div>
       </div>
 
@@ -73,40 +73,68 @@
             <div class="price monthly active">$0<span>/month</span></div>
             <div class="price yearly">$0<span>/month</span></div>
           </div>
-          <p class="tier-description">Perfect for trying out the service!</p>
+          <p class="tier-description">Perfect for trying out Note2Flash!</p>
           <ul class="features">
-            <li>5 flashcard generations per month</li>
-            <li>Basic card types (Term & Definition)</li>
-            <li>Limited web content extraction</li>
-            <li>Basic deck management</li>
+            <li>3 deck generations per month</li>
+            <li>Max 10 cards per deck</li>
+            <li>1 card type (Term & Definition)</li>
+            <li>Quiz Mode</li>
+            <li>Advanced spaced repetition</li>
+            <li>Text input, file upload & web content</li>
+            <li>Limited progress tracking</li>
           </ul>
-          <button
-            class="btn btn-secondary"
-            onclick="window.location.href='index.html'"
-          >
+          <button class="btn btn-secondary" onclick="window.location.href='create-deck.html'">
             Get Started Free
+          </button>
+        </div>
+
+        <!-- Basic Tier -->
+        <div class="pricing-card">
+          <div class="competitive-badge">💎 Student Favorite</div>
+          <h3>Basic</h3>
+          <div class="price-container">
+            <div class="price monthly active">$7.99<span>/month</span></div>
+            <div class="price yearly">
+              $6.25<span>/month</span>
+              <div class="billing-note">Billed annually at $74.99</div>
+            </div>
+          </div>
+          <p class="tier-description">Better value than competitors!</p>
+          <ul class="features">
+            <li>25 deck generations per month</li>
+            <li>Up to 25 cards per deck</li>
+            <li>All card types (Term & Definition, Q&A, Cloze, Image Occlusion)</li>
+            <li>Quiz Mode - (Enhanced)</li>
+            <li>Detailed progress tracking</li>
+            <li>✨ Explainer Assistant (20 credits/month)</li>
+            <li>Text input, file upload & web content</li>
+          </ul>
+          <button class="btn btn-secondary" id="basicSubBtn">
+            Start with Basic
           </button>
         </div>
 
         <!-- Premium Tier -->
         <div class="pricing-card featured">
-          <div class="popular-badge">Most Popular</div>
+          <div class="competitive-badge premium">🚀 Power User Choice</div>
           <h3>Premium</h3>
           <div class="price-container">
             <div class="price monthly active">$14.99<span>/month</span></div>
             <div class="price yearly">
-              $12<span>/month</span>
-              <div class="billing-note">Billed annually at $144.00</div>
+              $12.49<span>/month</span>
+              <div class="billing-note">Billed annually at $149.99</div>
             </div>
           </div>
-          <p class="tier-description">All the power features you need!</p>
+          <p class="tier-description">Master faster, remember longer, ace your exams!</p>
           <ul class="features">
-            <li>Unlimited flashcard generations</li>
-            <li>All card types (Q&A, Cloze, Contextual)</li>
-            <li>Full web content extraction</li>
-            <li>Advanced deck management</li>
-            <li>Priority support</li>
-            <li>Early access to new features</li>
+            <li>100 deck generations per month</li>
+            <li>Up to 100 cards per deck</li>
+            <li>All card types (Term & Definition, Q&A, Cloze, Image Occlusion)</li>
+            <li>Quiz Mode - (Adaptive AI)</li>
+            <li>Advanced progress tracking</li>
+            <li>✨ Explainer Assistant (100 credits/month)</li>
+            <li>📝 Handwritten notes detection (OCR)</li>
+            <li>Text input, file upload & web content</li>
           </ul>
           <button class="btn btn-primary" id="premiumSubBtn">
             Get Premium
@@ -119,11 +147,11 @@
         <h2>Frequently Asked Questions</h2>
         <div class="faq-grid">
           <div class="faq-item">
-            <h3>What's included in the Free plan?</h3>
+            <h3>What's the difference between Free, Basic, and Premium?</h3>
             <p>
-              The Free plan includes 5 flashcard generations per month, basic
-              card types (Term & Definition), limited web content extraction,
-              and basic deck management. Perfect for trying out the service!
+              <strong>Free:</strong> 3 generations/month, 10 cards/deck, 2 saved decks - perfect for trying us out.<br>
+              <strong>Basic ($7.99):</strong> 25 generations/month, 25 cards/deck, 25 saved decks, image occlusion, 100 explainer credits - great for individual students.<br>
+              <strong>Premium ($14.99):</strong> 100 generations/month, 100 cards/deck, 100 saved decks, all features - perfect for serious learners.
             </p>
           </div>
           <div class="faq-item">
@@ -136,24 +164,40 @@
           <div class="faq-item">
             <h3>Can I cancel my subscription?</h3>
             <p>
-              Yes, you can cancel your Premium subscription at any time. You'll
-              continue to have access to premium features until the end of your
-              billing period, then automatically return to the Free plan.
+              Yes, you can cancel your subscription at any time. You'll
+              continue to have access to your plan features until the end of your
+              billing period.
             </p>
           </div>
           <div class="faq-item">
-            <h3>What happens if I exceed my Free plan limits?</h3>
+            <h3>What happens if I exceed my plan limits?</h3>
             <p>
               You'll be notified when you're close to your limits. You can
-              upgrade to Premium at any time to get unlimited flashcard
-              generation and access to all features.
+              upgrade to Premium at any time to get more generations and unlock all features, or purchase additional generations as needed.
             </p>
           </div>
           <div class="faq-item">
             <h3>How much do I save with annual billing?</h3>
             <p>
-              With annual billing, you pay $144/year instead of $179.88 (monthly
-              rate × 12), saving you $35.88 per year!
+              Annual billing saves you money on both plans! Basic: $74.99/year (vs $95.88 monthly), Premium: $149.99/year (vs $179.88 monthly). Save $20-30 per year!
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What is the Explainer Assistant?</h3>
+            <p>
+              Our breakthrough feature that goes beyond memorization! When you're stuck on a flashcard, click "Explain" to get AI-powered explanations that help you truly understand the concept. Ask follow-up questions, get examples, and build deep comprehension - not just rote memorization like traditional flashcard apps.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>Can I upgrade from Basic to Premium anytime?</h3>
+            <p>
+              Absolutely! You can upgrade from Basic to Premium at any time. We'll prorate your billing so you only pay the difference for the remaining time in your billing cycle.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>How do Explainer Credits work?</h3>
+            <p>
+              Credits give you flexible access to our breakthrough Explainer Assistant! Basic users get 20 credits that refill monthly, while Premium users get 100 credits monthly. Need more credits? You can purchase additional credit packs anytime at $0.10 per credit.
             </p>
           </div>
         </div>
@@ -239,6 +283,25 @@
             }
           });
         });
+
+        // Basic subscription button
+        document
+          .getElementById("basicSubBtn")
+          ?.addEventListener("click", async () => {
+            // Trigger auth modal if not logged in, handle subscription logic in app.js
+            const authModal = document.getElementById("authModal");
+            if (
+              authModal &&
+              typeof window.handleBasicSubscription === "function"
+            ) {
+              window.handleBasicSubscription();
+            } else {
+              // Fallback - show auth modal
+              if (authModal) {
+                authModal.style.display = "block";
+              }
+            }
+          });
 
         // Premium subscription button - simplified version
         // Full auth and subscription logic should be handled in app.js

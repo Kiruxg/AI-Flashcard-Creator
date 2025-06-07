@@ -1072,63 +1072,13 @@
                 <span>${deck.cardCount} cards</span>
               </div>
             </div>
-            <div class="deck-card-actions">
-              <button class="btn btn-primary view-deck-btn" data-deck-id="${
-                deck.id
-              }">
-                <i class="fas fa-eye"></i> View
-              </button>
-              <button class="btn btn-success study-deck-btn" data-deck-id="${
-                deck.id
-              }">
-                <i class="fas fa-play"></i> Study
-              </button>
-              <button class="btn btn-secondary quiz-deck-btn" data-deck-id="${
-                deck.id
-              }">
-                <i class="fas fa-graduation-cap"></i> Quiz
-              </button>
-            </div>
           </div>
         `
           )
           .join("");
 
-        // Add event listeners to deck cards
-        document.querySelectorAll(".view-deck-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const deckId = btn.dataset.deckId;
-            const deck = decks.find((d) => d.id === deckId);
-            if (deck) {
-              openDeckViewer(deck);
-            }
-          });
-        });
-
-        document.querySelectorAll(".study-deck-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const deckId = btn.dataset.deckId;
-            const deck = decks.find((d) => d.id === deckId);
-            if (deck && deck.cards && deck.cards.length > 0) {
-              startSharedDeckStudy(deck);
-            }
-          });
-        });
-
-        document.querySelectorAll(".quiz-deck-btn").forEach((btn) => {
-          btn.addEventListener("click", (e) => {
-            e.stopPropagation();
-            const deckId = btn.dataset.deckId;
-            const deck = decks.find((d) => d.id === deckId);
-            if (deck && deck.cards && deck.cards.length > 0) {
-              startQuizMode(deck);
-            }
-          });
-        });
-
-        // Make entire card clickable to view
+        // Remove the event listeners for view buttons since they no longer exist
+        // Keep the card click functionality
         document.querySelectorAll(".deck-card").forEach((card) => {
           card.addEventListener("click", (e) => {
             if (!e.target.closest("button")) {

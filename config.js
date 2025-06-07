@@ -71,7 +71,7 @@ export const PRICES = {
 
 // Free tier limits
 export const FREE_TIER_LIMITS = {
-  DECK_GENERATIONS_PER_MONTH: 5,
+  DECK_GENERATIONS_PER_MONTH: 3,
   AI_IMAGE_OCCLUSIONS: 5,
   PAGES_PER_DOCUMENT: 5,
   CHARACTERS_PER_DOCUMENT: 10000,
@@ -81,47 +81,96 @@ export const FREE_TIER_LIMITS = {
     MAX_VIDEO_LENGTH: 300, // 5 minutes in seconds
     MAX_CARDS_PER_VIDEO: 10,
   },
+  MAX_CARDS_PER_DECK: 10,
+  MAX_SAVED_DECKS: 2,
+  EXPLAINER_CREDITS: 0, // No explainer for free tier
+  FILE_UPLOAD_ENABLED: true,
+  WEB_CONTENT_ENABLED: true,
+};
+
+// Basic tier limits ($7.99)
+export const BASIC_TIER_LIMITS = {
+  DECK_GENERATIONS_PER_MONTH: 25,
+  AI_IMAGE_OCCLUSIONS: 25,
+  PAGES_PER_DOCUMENT: 20,
+  CHARACTERS_PER_DOCUMENT: 50000,
+  CARD_TYPES: ["term", "qa", "cloze", "image-occlusion"],
+  EXPORTS_PER_MONTH: 10,
+  YOUTUBE_VIDEO_LIMITS: {
+    MAX_VIDEO_LENGTH: 1200, // 20 minutes in seconds
+    MAX_CARDS_PER_VIDEO: 50,
+  },
+  MAX_CARDS_PER_DECK: 25,
+  MAX_SAVED_DECKS: 25,
+  EXPLAINER_CREDITS: 20, // 20 credits refilled monthly
+  FILE_UPLOAD_ENABLED: true,
+  WEB_CONTENT_ENABLED: true,
 };
 
 // Premium tier features (previously Ultimate)
 export const PREMIUM_TIER_FEATURES = {
   DECK_GENERATIONS_PER_MONTH: 100,
-  AI_IMAGE_OCCLUSIONS: 1000,
-  PAGES_PER_DOCUMENT: 100,
+  AI_IMAGE_OCCLUSIONS: 500,
+  PAGES_PER_DOCUMENT: 50,
   CHARACTERS_PER_DOCUMENT: 100000,
   CARD_TYPES: ["term", "qa", "cloze", "image-occlusion", "contextual"],
   EXPORTS_PER_MONTH: "unlimited",
   YOUTUBE_VIDEO_LIMITS: {
-    MAX_VIDEO_LENGTH: 2400, // 40 minutes in seconds
+    MAX_VIDEO_LENGTH: 3600, // 60 minutes in seconds
     MAX_CARDS_PER_VIDEO: 100,
   },
+  MAX_CARDS_PER_DECK: 100,
+  MAX_SAVED_DECKS: 100,
+  FILE_UPLOAD_ENABLED: true,
+  WEB_CONTENT_ENABLED: true,
   ADDITIONAL_FEATURES: [
     "100 flashcard generations per month",
     "All card types available",
-    "1000 AI image occlusions per month",
-    "Up to 100 pages per document",
+    "50 AI image occlusions per month",
+    "Up to 50 pages per document",
     "Up to 100,000 characters per document",
-    "Unlimited web content extraction",
+    "1000 web content extractions per month",
     "File uploads (PDF, images, documents)",
     "Advanced study analytics",
     "Priority support",
     "Early access to new features",
     "YouTube video to flashcards",
     "Advanced video processing",
-    "Unlimited deck management",
+    "Up to 100 saved decks",
+    "Up to 100 cards per deck",
     "All export formats",
   ],
+  EXPLAINER_CREDITS: 100, // 100 credits refilled monthly
 };
 
 // Feature descriptions for UI
 const FEATURE_DESCRIPTIONS = {
-  UNLIMITED_CARDS: "Generate unlimited flashcards",
-  UNLIMITED_DECKS: "Save unlimited decks",
+  PREMIUM_CARDS: "Generate up to 100 cards per deck",
+  PREMIUM_DECKS: "Save up to 100 decks",
   EXPORTS: "Export to various formats",
   ALL_CARD_TYPES: "Access to all card types",
   STUDY_STATISTICS: "Detailed study analytics",
   PRIORITY_SUPPORT: "Priority customer support",
   EARLY_ACCESS: "Early access to new features",
+};
+
+// Credit pricing for additional purchases
+export const CREDIT_PRICING = {
+  explainer_credits_10: {
+    credits: 10,
+    price: 1.00, // $1.00 for 10 credits ($0.10 per credit)
+    stripe_price_id: "price_explainer_credits_10"
+  },
+  explainer_credits_50: {
+    credits: 50,
+    price: 4.50, // $4.50 for 50 credits ($0.09 per credit - bulk discount)
+    stripe_price_id: "price_explainer_credits_50"
+  },
+  explainer_credits_100: {
+    credits: 100,
+    price: 8.00, // $8.00 for 100 credits ($0.08 per credit - better bulk discount)
+    stripe_price_id: "price_explainer_credits_100"
+  }
 };
 
 // Make firebaseConfig available globally for shared-decks page

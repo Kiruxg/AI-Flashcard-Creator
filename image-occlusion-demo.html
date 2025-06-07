@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Occlusion Demo - AI Flashcard Generator</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        body {
+            padding: 2rem;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        
+        .demo-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+        }
+        
+        .demo-header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+        
+        .demo-header h1 {
+            font-size: 2.5rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+        
+        .demo-header p {
+            color: #666;
+            font-size: 1.2rem;
+        }
+        
+        .demo-steps {
+            display: grid;
+            grid-template-columns: 1fr 2fr;
+            gap: 2rem;
+            margin: 2rem 0;
+        }
+        
+        .steps-sidebar {
+            background: linear-gradient(135deg, #f8f9fa, #e9ecef);
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        
+        .step-item {
+            display: flex;
+            align-items: center;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .step-item:hover {
+            transform: translateX(5px);
+            box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+        }
+        
+        .step-number {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 1rem;
+        }
+        
+        .step-content h3 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+            font-size: 1.1rem;
+        }
+        
+        .step-content p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+        }
+        
+        .demo-area {
+            background: white;
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+        }
+        
+        .feature-highlights {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+        
+        .feature-card {
+            background: linear-gradient(135deg, #fff, #f8f9fa);
+            border: 1px solid #e9ecef;
+            border-radius: 12px;
+            padding: 1.5rem;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+        
+        .feature-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .feature-icon {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #007bff, #0056b3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            color: white;
+            font-size: 1.5rem;
+        }
+        
+        .feature-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        
+        .feature-card p {
+            margin: 0;
+            color: #666;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+        
+        @media (max-width: 768px) {
+            .demo-steps {
+                grid-template-columns: 1fr;
+            }
+            
+            .demo-header h1 {
+                font-size: 2rem;
+            }
+            
+            .feature-highlights {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="demo-container">
+        <div class="demo-header">
+            <h1><i class="fas fa-image"></i> Image Occlusion Demo</h1>
+            <p>Experience the power of visual learning with AI-powered image occlusion flashcards</p>
+            <span class="image-occlusion-premium">✨ Premium Feature</span>
+        </div>
+        
+        <div class="demo-steps">
+            <div class="steps-sidebar">
+                <h3 style="margin-bottom: 1.5rem; color: #333;">How it Works</h3>
+                
+                <div class="step-item">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h3>Upload Image</h3>
+                        <p>Upload any educational image - anatomy diagrams, maps, charts, etc.</p>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h3>Draw Occlusions</h3>
+                        <p>Click and drag to create occlusion areas over important elements</p>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h3>Add Labels</h3>
+                        <p>Label each occlusion area with the correct answer or explanation</p>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h3>Generate Cards</h3>
+                        <p>AI creates interactive flashcards with your occlusion areas</p>
+                    </div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h3>Study & Learn</h3>
+                        <p>Study with spaced repetition and visual memory techniques</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="demo-area">
+                <h3 style="margin-bottom: 1rem; color: #333;">Try Image Occlusion</h3>
+                
+                <!-- Image Occlusion options -->
+                <div class="card-type-option" data-type="image-occlusion" style="display: block;">
+                    <div class="option-group">
+                        <label>
+                            <input type="file" name="occlusionImage" accept="image/*" />
+                            📸 Upload image for occlusion
+                        </label>
+                        <div class="occlusion-editor" style="display: none">
+                            <canvas id="occlusionCanvas"></canvas>
+                            <div class="occlusion-controls">
+                                <button type="button" id="addOcclusion">
+                                    <i class="fas fa-plus"></i> Draw Occlusion
+                                </button>
+                                <button type="button" id="removeOcclusion">
+                                    <i class="fas fa-trash"></i> Remove Selected
+                                </button>
+                                <button type="button" id="clearOcclusions">
+                                    <i class="fas fa-eraser"></i> Clear All
+                                </button>
+                                <button type="button" id="autoOcclusion">
+                                    <i class="fas fa-magic"></i> AI Auto-Occlusion
+                                </button>
+                            </div>
+                            <div class="occlusion-info">
+                                <i class="fas fa-info-circle"></i>
+                                Click and drag to create occlusion areas. Each area will become a separate flashcard.
+                            </div>
+                            <div class="occlusion-list" id="occlusionList"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="feature-highlights">
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-eye-slash"></i>
+                </div>
+                <h3>Visual Learning</h3>
+                <p>Cover parts of images to test visual recognition and spatial memory for enhanced learning retention.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-magic"></i>
+                </div>
+                <h3>AI-Powered</h3>
+                <p>Automatic detection of important areas in images using advanced computer vision algorithms.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-graduation-cap"></i>
+                </div>
+                <h3>Medical & Academic</h3>
+                <p>Perfect for anatomy, geography, diagrams, and any subject that benefits from visual learning.</p>
+            </div>
+            
+            <div class="feature-card">
+                <div class="feature-icon">
+                    <i class="fas fa-mobile-alt"></i>
+                </div>
+                <h3>Cross-Platform</h3>
+                <p>Study your image occlusion cards on any device with seamless synchronization across platforms.</p>
+            </div>
+        </div>
+        
+        <div style="text-align: center; margin-top: 2rem; padding: 1.5rem; background: linear-gradient(135deg, #f8f9fa, #e9ecef); border-radius: 12px;">
+            <h3 style="color: #333; margin-bottom: 1rem;">Ready to Get Started?</h3>
+            <p style="color: #666; margin-bottom: 1.5rem;">Upgrade to Premium to unlock image occlusion and other advanced features.</p>
+            <a href="pricing.html" class="btn btn-primary" style="text-decoration: none; padding: 12px 24px; font-size: 1.1rem;">
+                <i class="fas fa-crown"></i> Upgrade to Premium
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Image occlusion editor initialization
+        function initializeImageOcclusionEditor() {
+            const canvas = document.getElementById("occlusionCanvas");
+            const ctx = canvas.getContext("2d");
+            const occlusionList = document.getElementById("occlusionList");
+            
+            let currentImage = null;
+            let occlusions = [];
+            let isDrawing = false;
+            let startX, startY;
+            let selectedOcclusion = null;
+
+            // Set up canvas with proper scaling
+            function setupCanvas(image) {
+                const maxWidth = 800;
+                const maxHeight = 600;
+                
+                let { width, height } = image;
+                
+                // Scale down if too large
+                if (width > maxWidth || height > maxHeight) {
+                    const ratio = Math.min(maxWidth / width, maxHeight / height);
+                    width *= ratio;
+                    height *= ratio;
+                }
+                
+                canvas.width = width;
+                canvas.height = height;
+                canvas.style.width = width + 'px';
+                canvas.style.height = height + 'px';
+                
+                ctx.drawImage(image, 0, 0, width, height);
+                currentImage = image;
+                drawOcclusions();
+            }
+
+            // Draw all occlusions on canvas
+            function drawOcclusions() {
+                if (!currentImage) return;
+                
+                // Clear and redraw image
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+                
+                // Draw occlusions
+                occlusions.forEach((occ, index) => {
+                    ctx.fillStyle = selectedOcclusion === index ? 
+                        "rgba(0, 123, 255, 0.7)" : "rgba(0, 0, 0, 0.6)";
+                    ctx.fillRect(occ.x, occ.y, occ.width, occ.height);
+                    
+                    // Draw border
+                    ctx.strokeStyle = selectedOcclusion === index ? 
+                        "#007bff" : "#fff";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(occ.x, occ.y, occ.width, occ.height);
+                    ctx.setLineDash([]);
+                    
+                    // Draw label
+                    if (occ.label) {
+                        ctx.fillStyle = "#fff";
+                        ctx.font = "14px Arial, sans-serif";
+                        ctx.fillText(occ.label, occ.x + 5, occ.y + 20);
+                    }
+                });
+            }
+
+            // Update occlusion list display
+            function updateOcclusionList() {
+                if (!occlusionList) return;
+                
+                occlusionList.innerHTML = occlusions.map((occ, index) => `
+                    <div class="occlusion-item ${selectedOcclusion === index ? 'selected' : ''}" data-index="${index}">
+                        <div>
+                            <span class="occlusion-item-label">${occ.label || `Occlusion ${index + 1}`}</span>
+                            <span class="occlusion-item-coords">(${Math.round(occ.x)}, ${Math.round(occ.y)}, ${Math.round(occ.width)}×${Math.round(occ.height)})</span>
+                        </div>
+                        <div class="occlusion-item-actions">
+                            <button class="edit-occlusion" onclick="editOcclusion(${index})">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="delete-occlusion" onclick="deleteOcclusion(${index})">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `).join('');
+            }
+
+            // Handle image upload
+            const imageInput = document.querySelector('input[name="occlusionImage"]');
+            if (imageInput) {
+                imageInput.addEventListener("change", (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        if (!file.type.startsWith('image/')) {
+                            alert('Please upload a valid image file.');
+                            return;
+                        }
+                        
+                        const reader = new FileReader();
+                        reader.onload = (event) => {
+                            const img = new Image();
+                            img.onload = () => {
+                                setupCanvas(img);
+                                document.querySelector(".occlusion-editor").style.display = "block";
+                                occlusions = []; // Reset occlusions for new image
+                                updateOcclusionList();
+                            };
+                            img.src = event.target.result;
+                        };
+                        reader.readAsDataURL(file);
+                    }
+                });
+            }
+
+            // Canvas drawing events
+            if (canvas) {
+                canvas.addEventListener("mousedown", (e) => {
+                    const rect = canvas.getBoundingClientRect();
+                    startX = e.clientX - rect.left;
+                    startY = e.clientY - rect.top;
+                    
+                    // Check if clicking on existing occlusion
+                    const clickedOcclusion = occlusions.findIndex(occ => 
+                        startX >= occ.x && startX <= occ.x + occ.width &&
+                        startY >= occ.y && startY <= occ.y + occ.height
+                    );
+                    
+                    if (clickedOcclusion !== -1) {
+                        selectedOcclusion = clickedOcclusion;
+                        drawOcclusions();
+                        updateOcclusionList();
+                    } else {
+                        selectedOcclusion = null;
+                        isDrawing = true;
+                        updateOcclusionList();
+                    }
+                });
+
+                canvas.addEventListener("mousemove", (e) => {
+                    if (!isDrawing) return;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const currentX = e.clientX - rect.left;
+                    const currentY = e.clientY - rect.top;
+                    
+                    // Redraw image and existing occlusions
+                    drawOcclusions();
+                    
+                    // Draw current selection rectangle
+                    const width = currentX - startX;
+                    const height = currentY - startY;
+                    
+                    ctx.strokeStyle = "#007bff";
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(startX, startY, width, height);
+                    ctx.setLineDash([]);
+                    
+                    ctx.fillStyle = "rgba(0, 123, 255, 0.3)";
+                    ctx.fillRect(startX, startY, width, height);
+                });
+
+                canvas.addEventListener("mouseup", (e) => {
+                    if (!isDrawing) return;
+                    isDrawing = false;
+                    
+                    const rect = canvas.getBoundingClientRect();
+                    const endX = e.clientX - rect.left;
+                    const endY = e.clientY - rect.top;
+                    
+                    const width = endX - startX;
+                    const height = endY - startY;
+                    
+                    // Only create occlusion if it's large enough
+                    if (Math.abs(width) > 20 && Math.abs(height) > 20) {
+                        const label = prompt("Enter label for this occlusion area:", `Area ${occlusions.length + 1}`);
+                        if (label !== null) {
+                            occlusions.push({
+                                x: Math.min(startX, endX),
+                                y: Math.min(startY, endY),
+                                width: Math.abs(width),
+                                height: Math.abs(height),
+                                label: label.trim() || `Area ${occlusions.length + 1}`
+                            });
+                            drawOcclusions();
+                            updateOcclusionList();
+                        }
+                    } else {
+                        drawOcclusions(); // Redraw to remove the selection rectangle
+                    }
+                });
+            }
+
+            // Control button handlers
+            const removeBtn = document.getElementById("removeOcclusion");
+            if (removeBtn) {
+                removeBtn.addEventListener("click", () => {
+                    if (selectedOcclusion !== null) {
+                        occlusions.splice(selectedOcclusion, 1);
+                        selectedOcclusion = null;
+                        drawOcclusions();
+                        updateOcclusionList();
+                    } else {
+                        alert("Please select an occlusion area to remove.");
+                    }
+                });
+            }
+
+            const clearBtn = document.getElementById("clearOcclusions");
+            if (clearBtn) {
+                clearBtn.addEventListener("click", () => {
+                    if (occlusions.length > 0 && confirm("Are you sure you want to clear all occlusions?")) {
+                        occlusions = [];
+                        selectedOcclusion = null;
+                        drawOcclusions();
+                        updateOcclusionList();
+                    }
+                });
+            }
+
+            const autoBtn = document.getElementById("autoOcclusion");
+            if (autoBtn) {
+                autoBtn.addEventListener("click", () => {
+                    if (!currentImage) {
+                        alert("Please upload an image first.");
+                        return;
+                    }
+                    
+                    alert("AI Auto-Occlusion is a premium feature that automatically detects important areas in your images!");
+                });
+            }
+
+            // Global functions for occlusion management
+            window.editOcclusion = (index) => {
+                const occ = occlusions[index];
+                const newLabel = prompt("Edit occlusion label:", occ.label);
+                if (newLabel !== null) {
+                    occ.label = newLabel.trim() || `Area ${index + 1}`;
+                    drawOcclusions();
+                    updateOcclusionList();
+                }
+            };
+
+            window.deleteOcclusion = (index) => {
+                if (confirm("Are you sure you want to delete this occlusion?")) {
+                    occlusions.splice(index, 1);
+                    if (selectedOcclusion === index) selectedOcclusion = null;
+                    else if (selectedOcclusion > index) selectedOcclusion--;
+                    drawOcclusions();
+                    updateOcclusionList();
+                }
+            };
+
+            // Store occlusions data for form submission
+            window.getOcclusionData = () => ({
+                image: currentImage ? canvas.toDataURL() : null,
+                occlusions: occlusions,
+                imageWidth: canvas.width,
+                imageHeight: canvas.height
+            });
+        }
+
+        // Initialize when page loads
+        document.addEventListener('DOMContentLoaded', initializeImageOcclusionEditor);
+    </script>
+</body>
+</html> 

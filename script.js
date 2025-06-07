@@ -239,7 +239,7 @@ function updatePreview(data) {
     <div class="content-preview">${data.content}</div>
   `;
 
-  urlPreview.style.display = "block";
+  urlPreview.classList.add("show");
 }
 
 // Utility Functions
