@@ -20,7 +20,17 @@ const firebaseConfig = {
 
 // Initialize Firebase
 const app = initializeApp(firebaseConfig);
-const analytics = getAnalytics(app);
+
+// Initialize Analytics with support check
+let analytics = null;
+try {
+  if (typeof window !== 'undefined' && window.indexedDB) {
+    analytics = getAnalytics(app);
+  }
+} catch (error) {
+  console.log('Analytics not available:', error.message);
+}
+
 const auth = getAuth(app);
 const db = getFirestore(app);
 
@@ -52,9 +62,9 @@ const initStripe = async () => {
 
 // Pricing configuration
 export const PRICES = {
-  basic: {
-    id: "price_basic_monthly",
-    amount: 0, // Free
+  pro: {
+    id: "price_pro_monthly",
+    amount: 899, // $8.99
     interval: "month",
   },
   premium: {
@@ -72,48 +82,56 @@ export const PRICES = {
 // Free tier limits
 export const FREE_TIER_LIMITS = {
   DECK_GENERATIONS_PER_MONTH: 3,
+  SUMMARIZE_GENERATIONS_PER_MONTH: 3,
   AI_IMAGE_OCCLUSIONS: 5,
   PAGES_PER_DOCUMENT: 5,
   CHARACTERS_PER_DOCUMENT: 10000,
-  CARD_TYPES: ["term"],
+  SUMMARIZE_CHARACTER_LIMIT: 5000,
+  CARD_TYPES: ["term"], // Term & Definition only
   EXPORTS_PER_MONTH: 1,
   YOUTUBE_VIDEO_LIMITS: {
     MAX_VIDEO_LENGTH: 300, // 5 minutes in seconds
     MAX_CARDS_PER_VIDEO: 10,
   },
   MAX_CARDS_PER_DECK: 10,
-  MAX_SAVED_DECKS: 2,
+  MAX_SAVED_DECKS: 100, // Updated to 100
   EXPLAINER_CREDITS: 0, // No explainer for free tier
   FILE_UPLOAD_ENABLED: true,
   WEB_CONTENT_ENABLED: true,
+  OCR_ENABLED: false, // No OCR for free tier
 };
 
-// Basic tier limits ($7.99)
-export const BASIC_TIER_LIMITS = {
+// Pro tier limits ($8.99)
+export const PRO_TIER_LIMITS = {
   DECK_GENERATIONS_PER_MONTH: 25,
+  SUMMARIZE_GENERATIONS_PER_MONTH: 25, // Updated to 25
   AI_IMAGE_OCCLUSIONS: 25,
   PAGES_PER_DOCUMENT: 20,
   CHARACTERS_PER_DOCUMENT: 50000,
-  CARD_TYPES: ["term", "qa", "cloze", "image-occlusion"],
+  SUMMARIZE_CHARACTER_LIMIT: 25000,
+  CARD_TYPES: ["qa", "cloze", "image-occlusion"], // Q&A, Cloze, Image Occlusion
   EXPORTS_PER_MONTH: 10,
   YOUTUBE_VIDEO_LIMITS: {
     MAX_VIDEO_LENGTH: 1200, // 20 minutes in seconds
     MAX_CARDS_PER_VIDEO: 50,
   },
   MAX_CARDS_PER_DECK: 25,
-  MAX_SAVED_DECKS: 25,
+  MAX_SAVED_DECKS: 100, // Updated to 100
   EXPLAINER_CREDITS: 20, // 20 credits refilled monthly
   FILE_UPLOAD_ENABLED: true,
   WEB_CONTENT_ENABLED: true,
+  OCR_ENABLED: true, // OCR handwritten notes detection
 };
 
 // Premium tier features (previously Ultimate)
 export const PREMIUM_TIER_FEATURES = {
-  DECK_GENERATIONS_PER_MONTH: 100,
+  DECK_GENERATIONS_PER_MONTH: 50, // Updated to 50
+  SUMMARIZE_GENERATIONS_PER_MONTH: 50,
   AI_IMAGE_OCCLUSIONS: 500,
   PAGES_PER_DOCUMENT: 50,
   CHARACTERS_PER_DOCUMENT: 100000,
-  CARD_TYPES: ["term", "qa", "cloze", "image-occlusion", "contextual"],
+  SUMMARIZE_CHARACTER_LIMIT: 50000,
+  CARD_TYPES: ["term", "qa", "cloze", "contextual", "image-occlusion"], // All card types
   EXPORTS_PER_MONTH: "unlimited",
   YOUTUBE_VIDEO_LIMITS: {
     MAX_VIDEO_LENGTH: 3600, // 60 minutes in seconds
@@ -123,12 +141,16 @@ export const PREMIUM_TIER_FEATURES = {
   MAX_SAVED_DECKS: 100,
   FILE_UPLOAD_ENABLED: true,
   WEB_CONTENT_ENABLED: true,
+  OCR_ENABLED: true, // OCR handwritten notes detection
   ADDITIONAL_FEATURES: [
-    "100 flashcard generations per month",
+    "50 flashcard generations per month",
+    "50 AI summaries per month",
     "All card types available",
     "50 AI image occlusions per month",
     "Up to 50 pages per document",
     "Up to 100,000 characters per document",
+    "Advanced summarization features",
+    "Multi-document summaries",
     "1000 web content extractions per month",
     "File uploads (PDF, images, documents)",
     "Advanced study analytics",

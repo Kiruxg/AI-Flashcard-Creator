@@ -1,5 +1,5 @@
-import { auth, db } from "./supabase-config.js";
-import { showAuthModal } from "./auth-modal-supabase.js";
+import { auth, db } from "./config.js";
+import { showAuthModal } from "./auth-modal.js";
 
 class MyDecksManager {
   constructor() {

@@ -1,20 +1,10 @@
-import {
-  auth,
-  db,
-  PRICES,
-  FREE_TIER_LIMITS,
-  AUTH_ERROR_MESSAGES,
-} from "./config.js";
-import {
-  createUserWithEmailAndPassword,
-  signInWithEmailAndPassword,
-  signInWithPopup,
-  GoogleAuthProvider,
-  sendPasswordResetEmail,
-  onAuthStateChanged,
-  signOut,
-  sendEmailVerification,
-  applyActionCode,
+// Dual authentication system: Firebase for email/password, Auth0 for Google
+
+// Keep Firebase for both auth and data storage
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { 
+  getAuth
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 import {
   doc,
@@ -25,18 +15,71 @@ import {
   collection,
   getDocs,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+// Firebase config for Firestore only
+const firebaseConfig = {
+  apiKey: "AIzaSyDppFcsquQOx2NL2OoDNUqYyscERAH3Buw",
+  authDomain: "ai-flashcard-creator.firebaseapp.com",
+  projectId: "ai-flashcard-creator",
+  storageBucket: "ai-flashcard-creator.firebasestorage.app",
+  messagingSenderId: "4926247150",
+  appId: "1:4926247150:web:46d1672310259aa125e3ff",
+  measurementId: "G-PC3STEJGW2",
+};
+
+// Initialize Firebase app, Auth, and Firestore
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const db = getFirestore(firebaseApp);
+
+// Expose Firebase instances globally for auth modal
+window.auth = auth;
+window.db = db;
+
+// Pricing and tier constants (moved from config.js)
+export const PRICES = {
+  pro: {
+    id: "price_pro_monthly",
+    amount: 899, // $8.99
+    interval: "month",
+  },
+  premium: {
+    id: "price_premium_monthly",
+    amount: 1499, // $14.99
+    interval: "month",
+  },
+  premium_yearly: {
+    id: "price_premium_yearly",
+    amount: 14400, // $144.00
+    interval: "year",
+  },
+};
+
+export const FREE_TIER_LIMITS = {
+  DECK_GENERATIONS_PER_MONTH: 3,
+  AI_IMAGE_OCCLUSIONS: 5,
+  PAGES_PER_DOCUMENT: 5,
+  CHARACTERS_PER_DOCUMENT: 10000,
+  CARD_TYPES: ["term"], // Term & Definition only
+  EXPORTS_PER_MONTH: 1,
+  MAX_CARDS_PER_DECK: 10,
+  MAX_SAVED_DECKS: 100, // Updated to 100
+  OCR_ENABLED: false, // No OCR for free tier
+};
 import { SpacedRepetition } from "./spacedRepetition.js";
 import { SubscriptionManager } from "./subscription.js";
 import { DeckManager } from "./deckManager.js";
-import { CardTypeManager } from "./cardTypeManager_new.js";
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { CardTypeManager } from "./cardTypeManager.js";
+import { explainThisManager } from "./explainThisManager.js";
 import {
   initializeAuthModal,
+  initializeAuthSystem,
   showAuthModal,
   hideAuthModal,
   showResetPasswordModal,
+  getCurrentUser,
+  isAuthenticated,
+  signOutUser
 } from "./auth-modal.js";
 
 // Import utilities and dependencies
@@ -60,6 +103,19 @@ let currentCardIndex = 0;
 let flashcards = [];
 let answerStartTime = null;
 let performanceButtonTimeout = null;
+let dueCardCheckInterval = null; // For checking due cards during sessions
+let isActiveStudySession = false; // Track if we're in an active study session
+let originalDeckCards = []; // Store original deck cards for due card checking
+let isFlipped = false; // Track if current flashcard is flipped
+
+// Configuration constants
+const APP_CONFIG = {
+  QUIZ_NAME: "Generated Flashcards",
+  QUIZ_DESCRIPTION: "Quiz generated from your flashcards"
+};
+
+// Make config globally available
+window.APP_CONFIG = APP_CONFIG;
 
 // Edit deck name functionality
 function showEditDeckNameButton() {
@@ -82,7 +138,7 @@ function hideEditDeckNameButton() {
   }
   if (deckTitle) {
     deckTitle.style.display = "block";
-    deckTitle.textContent = "Flashcard Viewer";
+    deckTitle.textContent = "FlashNotes";
   }
 }
 
@@ -112,7 +168,7 @@ function initializeEditDeckName() {
     console.log("Edit button clicked!");
     
     const currentName = deckTitle.textContent.trim();
-    newDeckInput.value = currentName === "Flashcard Viewer" ? "" : currentName;
+            newDeckInput.value = currentName === "FlashNotes" ? "" : currentName;
     console.log("Setting input value to:", newDeckInput.value);
     
     // Hide title and button, show input
@@ -133,7 +189,7 @@ function initializeEditDeckName() {
     if (newName && newName !== "") {
       deckTitle.textContent = newName;
     } else {
-      deckTitle.textContent = "Flashcard Viewer";
+      deckTitle.textContent = "FlashNotes";
     }
     newDeckInput.style.display = "none";
     deckTitle.style.display = "block";
@@ -167,13 +223,13 @@ function initializeEditDeckName() {
   console.log("Edit deck name functionality initialized successfully");
 }
 
-// Initialize Firebase and auth modal
-document.addEventListener("DOMContentLoaded", function () {
-  // Initialize the centralized auth modal
-  initializeAuthModal();
-
-  // Initialize any other app functionality here
+// Initialize Authentication
+document.addEventListener("DOMContentLoaded", async function () {
+  // Initialize the complete authentication system from auth-modal.js
+  await initializeAuthSystem();
 });
+
+// Note: Auth functions have been moved to auth-modal.js for better organization
 
 $(document).ready(function () {
   // Load PDF.js worker
@@ -201,6 +257,8 @@ $(document).ready(function () {
   // Initialize variables
   let monthlyCardCount = 0;
   let spacedRepetition = new SpacedRepetition();
+  // Make spacedRepetition globally accessible
+  window.spacedRepetitionInstance = spacedRepetition;
   let lastSavedState = null;
   let isGenerating = false;
   let networkStatus = {
@@ -215,6 +273,7 @@ $(document).ready(function () {
   // Expose necessary variables to window object for saveSession
   window.flashcards = flashcards;
   window.currentCardIndex = currentCardIndex;
+  window.isFlipped = isFlipped;
 
   // Expose auth modal functions globally
   window.showAuthModal = showAuthModal;
@@ -222,9 +281,90 @@ $(document).ready(function () {
   
   // Expose edit deck name function globally
   window.initializeEditDeckName = initializeEditDeckName;
+  
+  // Expose updateLoadingMessage function globally
+  window.updateLoadingMessage = updateLoadingMessage;
 
-  // Initialize Google Auth Provider
-  const googleProvider = new GoogleAuthProvider();
+  // Function to check for due cards during study sessions
+  function checkForDueCards() {
+    if (!isActiveStudySession || !originalDeckCards.length) {
+      return;
+    }
+
+    console.log('Checking for due cards...', {
+      isActiveStudySession,
+      originalDeckCardsLength: originalDeckCards.length,
+      currentFlashcardsLength: flashcards.length
+    });
+
+    const dueCards = spacedRepetition.getDueCards(originalDeckCards);
+    console.log(`Found ${dueCards.length} total due cards from original deck`);
+    
+    // Debug: Show which cards are due
+    if (dueCards.length > 0) {
+      console.log("🕐 Due cards details:", dueCards.map(card => {
+        const cardId = card.id || `card_${originalDeckCards.indexOf(card)}`;
+        const cardData = spacedRepetition.getCardData(cardId);
+        return {
+          cardId,
+          front: card.front?.substring(0, 30) + "...",
+          state: cardData?.state,
+          dueTime: cardData?.due ? new Date(cardData.due).toLocaleString() : "unknown",
+          overdue: cardData?.due ? (Date.now() - cardData.due) / 1000 : 0
+        };
+      }));
+    }
+    
+    // Find cards that are due but not currently in the flashcards array
+    const newlyDueCards = dueCards.filter(dueCard => {
+      const cardId = dueCard.id || `card_${originalDeckCards.indexOf(dueCard)}`;
+      return !flashcards.some(flashcard => {
+        const flashcardId = flashcard.id || `card_${originalDeckCards.indexOf(flashcard)}`;
+        return flashcardId === cardId;
+      });
+    });
+
+    console.log(`Found ${newlyDueCards.length} newly due cards to add to session`);
+
+    if (newlyDueCards.length > 0) {
+      console.log(`Adding ${newlyDueCards.length} newly due cards to session`);
+      
+      // Add newly due cards to the current session
+      flashcards.push(...newlyDueCards);
+      
+      // Update window.flashcards reference
+      window.flashcards = flashcards;
+      
+      // Show notification
+      showSuccessMessage(`🔄 ${newlyDueCards.length} card(s) are now due for review and have been added to your session!`);
+      
+      // Update progress display
+      updateProgress();
+    }
+  }
+
+  // Function to start due card checking during study sessions
+  function startDueCardChecking() {
+    if (dueCardCheckInterval) {
+      clearInterval(dueCardCheckInterval);
+    }
+    
+    // Check for due cards every 15 seconds during active study sessions (faster for testing)
+    dueCardCheckInterval = setInterval(checkForDueCards, 15000);
+    console.log("Started due card checking interval (every 15 seconds)");
+    
+    // Also check immediately when starting
+    setTimeout(checkForDueCards, 1000);
+  }
+
+  // Function to stop due card checking
+  function stopDueCardChecking() {
+    if (dueCardCheckInterval) {
+      clearInterval(dueCardCheckInterval);
+      dueCardCheckInterval = null;
+      console.log("Stopped due card checking interval");
+    }
+  }
 
   // Override isPremium for testing
   subscriptionManager.isPremium = () => true;
@@ -237,137 +377,10 @@ $(document).ready(function () {
     console.warn("PDF.js library not loaded yet");
   }
 
-  // Initialize deck manager when user logs in
-  onAuthStateChanged(auth, async (user) => {
-    // Expose currentUser to window object
-    window.currentUser = user;
-    console.log(
-      "Auth state changed, user:",
-      user ? user.email : "not logged in"
-    );
+  // Dual auth: Firebase onAuthStateChanged for email/password, Auth0 authStateChanged for Google
+  // The auth state handling is now done in the DOMContentLoaded event above
 
-    // Get UI elements
-    const userMenuBtn = document.getElementById("userMenuBtn");
-    const showLoginBtn = document.getElementById("showLoginBtn");
-    const userEmail = document.getElementById("userEmail");
-    const createDeckBtn = document.getElementById("createDeckBtn");
-    const importDeckBtn = document.getElementById("importDeckBtn");
-    const loginToCreateBtn = document.getElementById("loginToCreateBtn");
 
-    if (user) {
-      currentUser = user;
-
-      // Ensure user document exists (important for Google OAuth users)
-      try {
-        const userRef = doc(db, "users", user.uid);
-        const docSnap = await getDoc(userRef);
-        
-        if (!docSnap.exists()) {
-          console.log("Creating new user document for:", user.email);
-          await setDoc(userRef, {
-            email: user.email,
-            displayName: user.displayName || null,
-            photoURL: user.photoURL || null,
-            createdAt: new Date(),
-            lastLogin: new Date(),
-            isPremium: false,
-            cardsGenerated: 0,
-            decksCreated: 0,
-            tokenUsage: {},
-            emailVerified: user.emailVerified || (user.providerData.some(p => p.providerId === 'google.com')), // Google accounts are pre-verified
-          });
-        } else {
-          // Update last login time
-          await setDoc(userRef, {
-            lastLogin: new Date(),
-            emailVerified: user.emailVerified || (user.providerData.some(p => p.providerId === 'google.com'))
-          }, { merge: true });
-        }
-      } catch (error) {
-        console.error("Error creating/updating user document:", error);
-      }
-
-      // Check email verification
-      // For testing: allow access even if not verified
-      // if (!user.emailVerified) {
-      //   showVerificationRequired();
-      //   await signOut(auth);
-      //   return;
-      // }
-
-      deckManager = new DeckManager(user.uid);
-
-      // Initialize KnowledgeHub with the deckManager instance
-      await KnowledgeHub.init(deckManager);
-      console.log("KnowledgeHub.init() completed, calling initialize()...");
-      if (!window.disableKnowledgeHubAutoInit) {
-        KnowledgeHub.initialize();
-      }
-
-      // Update desktop view
-      if (userMenuBtn) {
-        userMenuBtn.style.display = "flex";
-        userEmail.textContent = user.email;
-      }
-      if (showLoginBtn) showLoginBtn.style.display = "none";
-
-      // Update shared decks view
-      if (createDeckBtn) createDeckBtn.style.display = "block";
-      if (importDeckBtn) importDeckBtn.style.display = "block";
-      if (loginToCreateBtn) loginToCreateBtn.style.display = "none";
-
-      await loadUserDecks();
-      await loadStudyProgress();
-      await updateSubscriptionUI();
-      updatePremiumFeatures();
-
-      // Add dashboard button for logged in users
-      addDashboardButton();
-
-      // Add subscription tier check and card type update
-      await updateCardTypesForUserTier();
-    } else {
-      currentUser = null;
-      window.currentUser = null;
-      deckManager = null;
-
-      // Update desktop view
-      if (userMenuBtn) userMenuBtn.style.display = "none";
-      if (showLoginBtn) showLoginBtn.style.display = "block";
-      if (userEmail) userEmail.textContent = "";
-
-      // Update shared decks view
-      if (createDeckBtn) createDeckBtn.style.display = "none";
-      if (importDeckBtn) importDeckBtn.style.display = "none";
-      if (loginToCreateBtn) loginToCreateBtn.style.display = "block";
-
-      // Initialize KnowledgeHub without deckManager for shared decks only
-      await KnowledgeHub.init(null);
-      if (!window.disableKnowledgeHubAutoInit) {
-        KnowledgeHub.initialize();
-      }
-    }
-  });
-
-  // Auth UI functions
-  function updateAuthUI() {
-    if (currentUser) {
-      $("#userEmail").text(currentUser.email);
-      document.getElementById("userEmail").style.display = "block";
-      document.getElementById("loginBtn").style.display = "none";
-      document.getElementById("logoutBtn").style.display = "block";
-      $("#authModal").hide();
-      $("#resetPasswordModal").hide();
-      // Clear any error messages
-      $(".auth-error").remove();
-      // Clear form inputs
-      $(".auth-form input").val("");
-    } else {
-      document.getElementById("userEmail").style.display = "none";
-      document.getElementById("loginBtn").style.display = "block";
-      document.getElementById("logoutBtn").style.display = "none";
-    }
-  }
 
   function showAuthError(message, formId) {
     // Remove any existing error messages in the specific form
@@ -395,12 +408,18 @@ $(document).ready(function () {
 
   // Show login modal
   $(document).on("click", "#showLoginBtn", function () {
-    showModal("authModal");
-    // Reset to login tab
-    $("#authTabs .tab-btn").removeClass("active");
-    $("#authTabs .tab-btn[data-tab='login']").addClass("active");
-    $("#authModal .auth-form").hide();
-    $("#loginForm").show();
+    showAuthModal("login");
+  });
+
+  // Handle logout
+  $(document).on("click", "#logoutBtn, #mobileLogoutBtn", async function () {
+    try {
+      await signOutUser();
+      console.log('User logged out successfully');
+    } catch (error) {
+      console.error('Logout error:', error);
+      showNotification('Error during logout. Please try again.', 'error');
+    }
   });
 
   // Close modal when clicking the close button
@@ -691,9 +710,7 @@ $(document).ready(function () {
   // Logout
   $(document).on("click", "#logoutBtn", async function () {
     try {
-      await signOut(auth);
-      currentUser = null;
-      updateAuthUI();
+      await signOutUser();
     } catch (error) {
       console.error("Error signing out:", error);
       showNotification("Error signing out. Please try again.", "error");
@@ -712,6 +729,9 @@ $(document).ready(function () {
       showNotification("Failed to load decks: " + error.message, "error");
     }
   }
+  
+  // Make loadUserDecks globally accessible
+  window.loadUserDecks = loadUserDecks;
 
   function updateDeckList(decks = []) {
     const deckList = document.querySelector(".saved-decks");
@@ -728,6 +748,14 @@ $(document).ready(function () {
       <div class="deck-card" data-deck-id="${deck.id}">
         <h3>${deck.name}</h3>
         <p>${deck.cards ? deck.cards.length : 0} cards</p>
+        ${deck.tags && deck.tags.length > 0 ? `
+          <div class="deck-card-tags">
+            ${deck.tags.slice(0, 4).map(tag => `
+              <span class="deck-tag">${tag}</span>
+            `).join('')}
+            ${deck.tags.length > 4 ? `<span class="deck-tag-more">+${deck.tags.length - 4} more</span>` : ''}
+          </div>
+        ` : ''}
         <div class="deck-actions">
           <button class="btn btn-primary study-deck">
             <i class="fas fa-graduation-cap"></i> Study
@@ -767,6 +795,7 @@ $(document).ready(function () {
           flashcards = deck.cards;
           currentCardIndex = 0;
           isFlipped = false;
+          window.isFlipped = isFlipped;
           updateFlashcard();
           showFlashcardViewer(true);
         } catch (error) {
@@ -891,6 +920,11 @@ $(document).ready(function () {
       studyBtn.show();
       dueCountSpan.text(`(${unfamiliarCards.length} to review)`);
       studyBtn.removeClass("btn-success").addClass("btn-primary");
+    } else if (flashcards.length > 0) {
+      // Show button for new cards that haven't been studied yet
+      studyBtn.show();
+      dueCountSpan.text(`(${flashcards.length} new)`);
+      studyBtn.removeClass("btn-success").addClass("btn-primary");
     } else {
       studyBtn.hide();
     }
@@ -915,11 +949,16 @@ $(document).ready(function () {
 
   // Add study session initialization
   function initializeStudySession(deck = null) {
+    // Reset session completion flag for new session
+    window.sessionCompleted = false;
+    
     let cardsToStudy = [];
 
     if (deck) {
       // Study a specific deck
       cardsToStudy = deck.cards || [];
+      // Store original deck cards for due card checking
+      originalDeckCards = [...cardsToStudy];
     } else {
       // Study due cards from current flashcards
       const dueCards = spacedRepetition.getDueCards(flashcards);
@@ -929,6 +968,8 @@ $(document).ready(function () {
 
       // Prioritize due cards, then unfamiliar cards
       cardsToStudy = dueCards.length > 0 ? dueCards : unfamiliarCards;
+      // Store original deck cards for due card checking
+      originalDeckCards = [...flashcards];
     }
 
     if (cardsToStudy.length === 0) {
@@ -938,10 +979,15 @@ $(document).ready(function () {
       return;
     }
 
+    // Start study session tracking
+    isActiveStudySession = true;
+    startDueCardChecking();
+
     // Start study session
     flashcards = cardsToStudy;
     currentCardIndex = 0;
     isFlipped = false;
+    window.isFlipped = isFlipped;
 
     // Show study session UI
     showFlashcardViewer(true);
@@ -993,7 +1039,10 @@ $(document).ready(function () {
       return;
     }
 
+    // Set loading message for flashcard generation
+    updateLoadingMessage('Generating Flashcards');
     showLoading(true);
+    
     try {
       await processText(text, { cardType, cardCount });
       showSuccessMessage("Flashcards generated successfully!");
@@ -1013,22 +1062,32 @@ $(document).ready(function () {
     console.log("URL form submitted"); // Debug log
 
     const url = $("#urlInput").val().trim();
+    const outputType = $("input[name='urlOutputType']:checked").val(); // Get selected output type
     const cardType = $("#urlCardType").val();
     const cardCount = parseInt($("#urlCardCount").val());
+    const summaryType = $("#urlSummaryType").val();
 
-    console.log("URL:", url, "Card Type:", cardType, "Card Count:", cardCount); // Debug log
+    console.log("URL:", url, "Output Type:", outputType, "Card Type:", cardType, "Card Count:", cardCount, "Summary Type:", summaryType); // Debug log
 
     if (!url) {
       showErrorMessage("Please enter a URL");
       return;
     }
 
-    if (!cardType) {
+    // Validate based on output type
+    if (outputType === 'flashcards' && !cardType) {
       showErrorMessage("Please select a card type");
       return;
     }
 
     try {
+      // Update loading message based on output type
+      if (outputType === 'summary') {
+        updateLoadingMessage('Generating FlashNotes');
+      } else if (outputType === 'flashcards') {
+        updateLoadingMessage('Generating Flashcards');
+      }
+      
       showLoading(true);
 
       console.log("Starting fetch request to backend..."); // Debug log
@@ -1136,12 +1195,19 @@ $(document).ready(function () {
         );
       }
 
-      console.log("Starting flashcard generation..."); // Debug log
+      console.log("Starting content generation with type:", outputType); // Debug log
 
-      // Then generate flashcards from the extracted content
-      await processText(processedContent, { cardType, cardCount });
+      // Route to appropriate processing based on output type
+      if (outputType === 'summary') {
+        // Generate FlashNotes only
+        await generateSummaryFromContent(processedContent, summaryType);
+        showSummaryViewer(true);
+      } else if (outputType === 'flashcards') {
+        // Generate Flashcards only
+        await processText(processedContent, { cardType, cardCount });
+      }
 
-      console.log("Flashcard generation completed successfully!"); // Debug log
+      console.log("Content generation completed successfully!"); // Debug log
     } catch (error) {
       console.error("Error processing URL:", error);
 
@@ -1189,6 +1255,53 @@ $(document).ready(function () {
     e.preventDefault();
     $("#urlForm").submit();
   });
+
+  // Helper function to generate summary with proper parameter handling
+  async function generateSummaryFromContent(content, summaryType) {
+    // The generateSummary function looks for 'summaryType' element, but we're using 'urlSummaryType'
+    // We need to create a temporary element or modify the function call
+    
+    // Create a temporary element if needed
+    let tempElement = document.getElementById('summaryType');
+    let createdTemp = false;
+    
+    if (!tempElement) {
+      tempElement = document.createElement('select');
+      tempElement.id = 'summaryType';
+      tempElement.style.display = 'none';
+      document.body.appendChild(tempElement);
+      createdTemp = true;
+    }
+    
+    const originalValue = tempElement.value;
+    tempElement.value = summaryType || 'quick';
+    
+    try {
+      // Call the generateSummary function from index.html
+      if (window.generateSummary) {
+        await window.generateSummary(content);
+      } else {
+        // Fallback if generateSummary is not available globally
+        console.error('generateSummary function not found');
+        showErrorMessage('Summary generation feature not available');
+      }
+    } finally {
+      // Clean up
+      if (createdTemp && tempElement.parentNode) {
+        tempElement.parentNode.removeChild(tempElement);
+      } else if (tempElement) {
+        tempElement.value = originalValue;
+      }
+    }
+  }
+
+  // Helper function to show/hide summary viewer
+  function showSummaryViewer(show) {
+    const summaryContainer = document.getElementById('summaryContainer');
+    if (summaryContainer) {
+      summaryContainer.style.display = show ? 'block' : 'none';
+    }
+  }
 
   // Flashcard navigation
   function initializeFlashcardControls() {
@@ -1324,17 +1437,17 @@ $(document).ready(function () {
         performanceButtonTimeout = setTimeout(() => {
           // Only show if card is still flipped (hasn't been navigated away)
           if (flashcard.hasClass('flipped')) {
-            $(".performance-buttons").addClass("show").css("display", "flex");
+            $(".performance-buttons").addClass("show");
             $(".keyboard-hints").fadeIn(200);
           }
           performanceButtonTimeout = null;
         }, 2100); // 600ms flip animation + 1500ms delay = 2100ms total
 
         // Show helpful tooltip for new users on first card
-        if (currentCardIndex === 0 && !localStorage.getItem('spacedRepetitionTipShown')) {
+        if (currentCardIndex === 0 && !localStorage.getItem('seenSpacedRepetitionTip')) {
           setTimeout(() => {
-            showSpacedRepetitionTip();
-          }, 800);
+            showSpacedRepetitionTooltip();
+          }, 3000); // Show after performance buttons appear
         }
       }
     });
@@ -1377,6 +1490,12 @@ $(document).ready(function () {
       updateFlashcard();
     }
   }
+
+  // Expose navigateCard globally for use outside this scope
+  window.navigateCard = navigateCard;
+  
+  // Expose initializeStudySession globally for use in create-deck.html dropdown
+  window.initializeStudySession = initializeStudySession;
 
   function updateFlashcard() {
     console.log(
@@ -1426,9 +1545,13 @@ $(document).ready(function () {
     frontContent.textContent = card.front;
     cardFront.appendChild(frontContent);
     
+
+    
     const backContent = document.createElement("p");
     backContent.textContent = card.back;
     cardBack.appendChild(backContent);
+    
+
     
     // Add flip hint to front
     const flipHint = document.createElement("div");
@@ -1446,20 +1569,14 @@ $(document).ready(function () {
     const frontPronounceBtn = document.createElement("button");
     frontPronounceBtn.className = "btn-pronounce";
     frontPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-    frontPronounceBtn.onclick = (e) => {
-      e.stopPropagation();
-      speakText(flashcards[currentCardIndex].front);
-    };
+    frontPronounceBtn.setAttribute("data-text", flashcards[currentCardIndex].front);
     cardFront.appendChild(frontPronounceBtn);
 
     // Add pronunciation button to back
     const backPronounceBtn = document.createElement("button");
     backPronounceBtn.className = "btn-pronounce";
     backPronounceBtn.innerHTML = '<i class="fas fa-volume-up"></i>';
-    backPronounceBtn.onclick = (e) => {
-      e.stopPropagation();
-      speakText(flashcards[currentCardIndex].back);
-    };
+    backPronounceBtn.setAttribute("data-text", flashcards[currentCardIndex].back);
     cardBack.appendChild(backPronounceBtn);
 
     // Clear any pending performance button timeout
@@ -1470,80 +1587,24 @@ $(document).ready(function () {
 
     // Reset card state - remove flip and hide performance buttons
     $("#flashcard").removeClass("flipped");
-    $(".performance-buttons").removeClass("show").hide();
+    $(".performance-buttons").removeClass("show");
     $(".keyboard-hints").hide();
     
     console.log("app.js updateFlashcard reset - flashcard classes:", $("#flashcard")[0] ? $("#flashcard")[0].className : "not found");
 
     // Update progress
     updateProgress();
-  }
-
-  // Add text-to-speech function
-  function speakText(text) {
-    // Cancel any ongoing speech
-    if (window.speechSynthesis.speaking) {
-      window.speechSynthesis.cancel();
-    }
-
-    // Wait for voices to be loaded
-    let voices = window.speechSynthesis.getVoices();
-
-    // If voices aren't loaded yet, wait for them
-    if (voices.length === 0) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        voices = window.speechSynthesis.getVoices();
-        speakWithVoice(text, voices);
-      };
-    } else {
-      speakWithVoice(text, voices);
-    }
-  }
-
-  function speakWithVoice(text, voices) {
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    // Find a good English voice
-    const englishVoice =
-      voices.find(
-        (voice) => voice.lang.includes("en") && voice.name.includes("Female")
-      ) ||
-      voices.find((voice) => voice.lang.includes("en")) ||
-      voices[0];
-
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-    }
-
-    // Configure for ESL
-    utterance.lang = "en-US";
-    utterance.rate = 0.9; // Slightly slower for clarity
-    utterance.pitch = 1;
-    utterance.volume = 1;
-
-    // Add event listeners for better control
-    utterance.onstart = () => {
-      console.log("Speech started");
-    };
-
-    utterance.onend = () => {
-      console.log("Speech ended");
-    };
-
-    utterance.onerror = (event) => {
-      console.error("Speech error:", event);
-    };
-
-    // Ensure the speech synthesis is ready
-    if (window.speechSynthesis.paused) {
-      window.speechSynthesis.resume();
-    }
-
-    // Add a small delay before speaking to ensure proper initialization
+    
+    // Update deck tags display
+    updateDeckTags();
+    
+    // Ensure height lock is maintained during card navigation to prevent viewport jumping
     setTimeout(() => {
-      window.speechSynthesis.speak(utterance);
-    }, 100);
+      $(".grid-item:nth-child(2)").css("height", "970px");
+    }, 50); // Quick application to prevent content-based height changes
   }
+
+
 
 
 
@@ -1604,8 +1665,8 @@ $(document).ready(function () {
 
     // Create a quiz deck from current flashcards
     const quizDeck = {
-      name: "Generated Flashcard Quiz",
-      description: "Quiz generated from your flashcards",
+      name: APP_CONFIG.QUIZ_NAME,
+      description: APP_CONFIG.QUIZ_DESCRIPTION,
       cards: flashcards,
       id: `quiz_${Date.now()}`,
       createdAt: new Date().toISOString(),
@@ -1628,8 +1689,146 @@ $(document).ready(function () {
   // Flashcard flip
   $("#flashcard").on("click", function () {
     isFlipped = !isFlipped;
+    window.isFlipped = isFlipped;
     $(this).toggleClass("flipped");
   });
+
+  // Document processing functions
+  async function processDocxFile(content, fileType) {
+    try {
+      // Load mammoth.js if not already loaded
+      if (typeof mammoth === 'undefined') {
+        updateLoadingMessage('Loading document processor...');
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.4.2/mammoth.browser.min.js');
+        updateLoadingMessage('Processing document...');
+      }
+
+      if (fileType === "application/msword") {
+        // For legacy DOC files, we can only extract basic text
+        // This is a simplified approach - real DOC parsing is complex
+        throw new Error("Legacy DOC files require conversion to DOCX for full support. Please save your document as DOCX format.");
+      }
+
+      // Convert DOCX to text using mammoth
+      const result = await mammoth.extractRawText({arrayBuffer: content});
+      
+      if (!result.value || result.value.trim().length === 0) {
+        throw new Error("No text content could be extracted from this document.");
+      }
+
+      // Log any conversion warnings
+      if (result.messages && result.messages.length > 0) {
+        console.log("DOCX conversion messages:", result.messages);
+      }
+
+      return result.value;
+    } catch (error) {
+      console.error("Error processing DOCX file:", error);
+      throw new Error(`Failed to process document: ${error.message}`);
+    }
+  }
+
+  async function processPowerPointFile(content, fileType) {
+    try {
+      // For PowerPoint files, we'll use a simplified approach
+      // Full PPTX parsing requires complex libraries, so we'll implement basic text extraction
+      
+      if (fileType === "application/vnd.ms-powerpoint") {
+        throw new Error("Legacy PPT files require conversion to PPTX for full support. Please save your presentation as PPTX format.");
+      }
+
+      // Load JSZip for extracting PPTX content
+      if (typeof JSZip === 'undefined') {
+        updateLoadingMessage('Loading presentation processor...');
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js');
+        updateLoadingMessage('Extracting slides...');
+      }
+
+      const zip = await JSZip.loadAsync(content);
+      let extractedText = "";
+
+      // Extract text from slide XML files
+      const slideFiles = Object.keys(zip.files).filter(name => 
+        name.startsWith('ppt/slides/slide') && name.endsWith('.xml')
+      );
+
+      for (const slideName of slideFiles) {
+        const slideContent = await zip.file(slideName).async('text');
+        
+        // Simple regex to extract text content from XML
+        const textMatches = slideContent.match(/<a:t[^>]*>([^<]+)<\/a:t>/g);
+        if (textMatches) {
+          const slideText = textMatches
+            .map(match => match.replace(/<a:t[^>]*>([^<]+)<\/a:t>/, '$1'))
+            .join(' ');
+          extractedText += slideText + '\n\n';
+        }
+      }
+
+      if (!extractedText.trim()) {
+        throw new Error("No text content could be extracted from this presentation. Make sure the slides contain text.");
+      }
+
+      return extractedText;
+    } catch (error) {
+      console.error("Error processing PowerPoint file:", error);
+      throw new Error(`Failed to process presentation: ${error.message}`);
+    }
+  }
+
+  async function processSpreadsheetFile(content, fileType) {
+    try {
+      if (fileType === "text/csv") {
+        // Simple CSV parsing
+        const lines = content.split('\n');
+        const data = lines.map(line => {
+          // Simple CSV parsing - doesn't handle quotes properly but good enough for basic use
+          return line.split(',').map(cell => cell.trim()).join(' ');
+        }).filter(line => line.trim());
+        
+        return data.join('\n');
+      }
+
+      // For Excel files, load SheetJS
+      if (typeof XLSX === 'undefined') {
+        updateLoadingMessage('Loading spreadsheet processor...');
+        await loadScript('https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js');
+        updateLoadingMessage('Processing spreadsheet...');
+      }
+
+      if (fileType === "application/vnd.ms-excel") {
+        throw new Error("Legacy XLS files require conversion to XLSX for full support. Please save your spreadsheet as XLSX format.");
+      }
+
+      // Parse Excel file
+      const workbook = XLSX.read(content, {type: 'array'});
+      let extractedText = "";
+
+      // Process each worksheet
+      workbook.SheetNames.forEach(sheetName => {
+        const worksheet = workbook.Sheets[sheetName];
+        
+        // Convert sheet to text
+        const sheetText = XLSX.utils.sheet_to_csv(worksheet, {
+          header: 1,
+          defval: ''
+        });
+        
+        if (sheetText.trim()) {
+          extractedText += `Sheet: ${sheetName}\n${sheetText}\n\n`;
+        }
+      });
+
+      if (!extractedText.trim()) {
+        throw new Error("No data could be extracted from this spreadsheet.");
+      }
+
+      return extractedText;
+    } catch (error) {
+      console.error("Error processing spreadsheet file:", error);
+      throw new Error(`Failed to process spreadsheet: ${error.message}`);
+    }
+  }
 
   // Update file handling functions
   function validateAndProcessFile(file) {
@@ -1638,6 +1837,11 @@ $(document).ready(function () {
       "application/pdf",
       "application/msword",
       "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-powerpoint",
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+      "application/vnd.ms-excel",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/csv",
       "text/plain",
       "image/jpeg",
       "image/jpg",
@@ -1648,16 +1852,28 @@ $(document).ready(function () {
 
     if (!allowedTypes.includes(file.type)) {
       showErrorMessage(
-        "Please upload a PDF, DOC, DOCX, TXT, or image file (JPG, PNG, GIF, WebP)"
+        "Please upload a PDF, DOC, DOCX, PPT, PPTX, XLS, XLSX, CSV, TXT, or image file (JPG, PNG, GIF, WebP)"
       );
       return;
     }
 
-    // Check file size (max 10MB)
-    const maxSize = 10 * 1024 * 1024; // 10MB
+    // Check file size (max 10MB for most files, 15MB for presentations)
+    const maxSize = file.type.includes('presentation') ? 15 * 1024 * 1024 : 10 * 1024 * 1024;
+    const sizeMB = Math.round(file.size / (1024 * 1024));
+    const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+    
     if (file.size > maxSize) {
-      showErrorMessage("File size must be less than 10MB");
+      showErrorMessage(`File size (${sizeMB}MB) exceeds the ${maxSizeMB}MB limit`);
       return;
+    }
+
+    // Show helpful message for legacy formats
+    if (file.type === "application/msword" || 
+        file.type === "application/vnd.ms-powerpoint" || 
+        file.type === "application/vnd.ms-excel") {
+      showSuccessMessage(
+        `Legacy ${file.name.split('.').pop().toUpperCase()} format detected. For best results, please save as modern format (DOCX, PPTX, XLSX) if possible.`
+      );
     }
 
     // Show card type selection after file validation
@@ -1718,11 +1934,21 @@ $(document).ready(function () {
 
             case "application/msword":
             case "application/vnd.openxmlformats-officedocument.wordprocessingml.document":
-              // For DOC/DOCX files, we'll need to use a server-side conversion
-              // For now, show an error message
-              throw new Error(
-                "DOC/DOCX files are not supported in the browser. Please convert to PDF or TXT first."
-              );
+              // Process DOCX files using mammoth.js
+              text = await processDocxFile(content, file.type);
+              break;
+
+            case "application/vnd.ms-powerpoint":
+            case "application/vnd.openxmlformats-officedocument.presentationml.presentation":
+              // Process PowerPoint files
+              text = await processPowerPointFile(content, file.type);
+              break;
+
+            case "application/vnd.ms-excel":
+            case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+            case "text/csv":
+              // Process Excel/CSV files
+              text = await processSpreadsheetFile(content, file.type);
               break;
 
             case "text/plain":
@@ -1753,6 +1979,15 @@ $(document).ready(function () {
         reader.readAsArrayBuffer(file);
       } else if (file.type.startsWith("image/")) {
         reader.readAsDataURL(file);
+      } else if (
+        file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+        file.type === "application/vnd.openxmlformats-officedocument.presentationml.presentation" ||
+        file.type === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" ||
+        file.type === "application/vnd.ms-excel" ||
+        file.type === "application/vnd.ms-powerpoint" ||
+        file.type === "application/msword"
+      ) {
+        reader.readAsArrayBuffer(file);
       } else {
         reader.readAsText(file);
       }
@@ -1766,17 +2001,22 @@ $(document).ready(function () {
       return;
     }
 
+    // Check output type selection
+    const outputType = $("input[name='uploadOutputType']:checked").val();
     const cardType = $("#uploadCardType").val();
-    if (!cardType) {
+    const cardCount = parseInt($("#uploadCardCount").val());
+    const summaryType = $("#uploadSummaryType").val();
+
+    // Validate based on output type
+    if (outputType === 'flashcards' && !cardType) {
       showErrorMessage("Please select a card type");
       return;
     }
 
-    const cardCount = parseInt($("#uploadCardCount").val());
     const isPremium = subscriptionManager.isPremium();
 
-    // Validate card count based on premium status
-    if (!isPremium && cardCount > 10) {
+    // Validate card count based on premium status (only for flashcards)
+    if (outputType === 'flashcards' && !isPremium && cardCount > 10) {
       showErrorMessage(
         "Free users can only generate up to 10 cards. Please upgrade to premium for more options."
       );
@@ -1794,10 +2034,17 @@ $(document).ready(function () {
             (60 * 60 * 1000)
         );
         showErrorMessage(
-          `Free tier limit reached. Please wait ${hoursLeft} hours before generating more cards, or upgrade to premium for unlimited cards.`
+          `Free tier limit reached. Please wait ${hoursLeft} hours before generating more content, or upgrade to premium for unlimited access.`
         );
         return;
       }
+    }
+
+    // Update loading message based on output type
+    if (outputType === 'summary') {
+      updateLoadingMessage('Generating FlashNotes');
+    } else if (outputType === 'flashcards') {
+      updateLoadingMessage('Generating Flashcards');
     }
 
     // Start loading with minimum duration
@@ -1810,10 +2057,10 @@ $(document).ready(function () {
 
       // Handle different file types
       if (typeof result === "object" && result.type === "image") {
-        // For image files, check if image occlusion is selected
-        if (cardType !== "image-occlusion") {
+        // For image files, only flashcards with image occlusion are supported
+        if (outputType !== 'flashcards' || cardType !== "image-occlusion") {
           throw new Error(
-            "Image files can only be used with Image Occlusion card type. Please select 'Image Occlusion' from the card type dropdown."
+            "Image files can only be used with Flashcards and Image Occlusion card type. Please select 'Generate Flashcards' and 'Image Occlusion' from the dropdowns."
           );
         }
 
@@ -1831,8 +2078,15 @@ $(document).ready(function () {
           throw new Error("No text content could be extracted from the file");
         }
 
-        // Generate flashcards from text
-        await processText(result, { cardType, cardCount });
+        // Route to appropriate processing based on output type
+        if (outputType === 'summary') {
+          // Generate FlashNotes only
+          await generateSummaryFromContent(result, summaryType);
+          showSummaryViewer(true);
+        } else if (outputType === 'flashcards') {
+          // Generate Flashcards only
+          await processText(result, { cardType, cardCount });
+        }
       }
 
       // Ensure loading screen stays for at least 3 seconds
@@ -1888,6 +2142,7 @@ $(document).ready(function () {
             text,
             cardType,
             cardCount,
+            generateTags: true, // Request tags to be generated
             options: {
               userId: currentUser?.uid,
               isPremium: true, // Always send premium status
@@ -1937,6 +2192,14 @@ $(document).ready(function () {
       const data = await response.json();
       flashcards = data.flashcards;
 
+      // Add tags to flashcards if not provided by AI
+      flashcards = flashcards.map(card => {
+        if (!card.tags || card.tags.length === 0) {
+          card.tags = generateTagsFromContent(card.front, card.back);
+        }
+        return card;
+      });
+
       // Update UI with flashcards
       updateFlashcardViewer(flashcards);
       showFlashcardViewer(true);
@@ -1984,6 +2247,9 @@ $(document).ready(function () {
     // Show edit deck name button after generation
     showEditDeckNameButton();
 
+    // Update deck tags display
+    updateDeckTags();
+
     // Dispatch event for flashcards generated
     document.dispatchEvent(
       new CustomEvent("flashcardsGenerated", {
@@ -2018,6 +2284,58 @@ $(document).ready(function () {
         // Remove any markdown formatting
         .replace(/[*_`#]/g, "")
     );
+  }
+
+  // Helper function to generate tags from flashcard content
+  function generateTagsFromContent(front, back) {
+    const content = `${front} ${back}`.toLowerCase();
+    const tags = [];
+    
+    // Common academic/educational terms
+    const termCategories = {
+      'science': ['atom', 'molecule', 'chemical', 'biology', 'physics', 'chemistry', 'reaction', 'element', 'compound', 'energy', 'force'],
+      'history': ['war', 'century', 'ancient', 'empire', 'revolution', 'king', 'queen', 'battle', 'treaty', 'civilization'],
+      'language': ['grammar', 'verb', 'noun', 'sentence', 'vocabulary', 'pronunciation', 'conjugation', 'plural', 'tense'],
+      'math': ['equation', 'formula', 'calculate', 'solve', 'theorem', 'geometry', 'algebra', 'number', 'fraction', 'decimal'],
+      'literature': ['author', 'novel', 'poem', 'character', 'plot', 'theme', 'metaphor', 'symbolism', 'narrative'],
+      'geography': ['country', 'capital', 'continent', 'river', 'mountain', 'ocean', 'climate', 'population', 'border'],
+      'business': ['profit', 'revenue', 'market', 'customer', 'strategy', 'management', 'economics', 'finance', 'investment'],
+      'technology': ['computer', 'software', 'algorithm', 'data', 'network', 'programming', 'digital', 'internet', 'database']
+    };
+    
+    // Check for category matches
+    for (const [category, keywords] of Object.entries(termCategories)) {
+      if (keywords.some(keyword => content.includes(keyword))) {
+        tags.push(category);
+        break; // Only add one category tag
+      }
+    }
+    
+    // Extract important nouns and concepts (simple extraction)
+    const words = content.split(/\s+/);
+    const importantWords = words.filter(word => 
+      word.length > 4 && 
+      !['what', 'when', 'where', 'which', 'this', 'that', 'these', 'those', 'with', 'from', 'they', 'them', 'have', 'been', 'were', 'will', 'would', 'could', 'should'].includes(word)
+    );
+    
+    // Add 1-2 specific terms
+    const specificTerms = importantWords.slice(0, 2).map(word => 
+      word.replace(/[^a-zA-Z]/g, '').toLowerCase()
+    ).filter(word => word.length > 3);
+    
+    tags.push(...specificTerms);
+    
+    // Add difficulty level based on content complexity
+    if (content.length > 200 || words.length > 30) {
+      tags.push('advanced');
+    } else if (content.length > 100 || words.length > 15) {
+      tags.push('intermediate');
+    } else {
+      tags.push('basic');
+    }
+    
+    // Remove duplicates and limit to 4 tags
+    return [...new Set(tags)].slice(0, 4);
   }
 
   // Add a function to validate AI response
@@ -2061,11 +2379,29 @@ $(document).ready(function () {
       $(".deck-title-container").addClass("show");
       // Reinitialize flashcard controls when showing the viewer
       initializeFlashcardControls();
+      // Reset session counter and completion flag for new deck
+      $("#sessionCounter").remove();
+      window.sessionCompleted = false;
+      
+      // Lock grid-item height to prevent viewport jumping when performance buttons appear
+      setTimeout(() => {
+        $(".grid-item:nth-child(2)").css("height", "970px");
+      }, 100); // Small delay to ensure layout is settled
     } else {
       $("#flashcardViewer").hide();
       $("#emptyState").show();
       // Hide the deck title container when no flashcards
       $(".deck-title-container").removeClass("show");
+      // Clean up session counter when hiding viewer
+      $("#sessionCounter").remove();
+      // Remove height lock when hiding viewer
+      $(".grid-item:nth-child(2)").css("height", "");
+      $(".flashcard-viewer").css("height", "");
+      
+      // Stop session tracking when viewer is closed
+      isActiveStudySession = false;
+      stopDueCardChecking();
+      originalDeckCards = [];
     }
   }
 
@@ -3026,7 +3362,7 @@ $(document).ready(function () {
 
     mobileLogoutBtn.addEventListener("click", async () => {
       try {
-        await signOut(auth);
+        await signOutUser();
         mobileMenu.classList.remove("show");
       } catch (error) {
         console.error("Error signing out:", error);
@@ -3035,7 +3371,8 @@ $(document).ready(function () {
     });
 
     // Update mobile user menu when auth state changes
-    auth.onAuthStateChanged((user) => {
+    window.addEventListener('authStateChanged', (event) => {
+      const { user } = event.detail;
       if (user) {
         mobileUserEmail.textContent = user.email;
         mobileShowLoginBtn.style.display = "none";
@@ -3230,15 +3567,66 @@ $(document).ready(function () {
       // Cancel any ongoing speech
       speechSynthesis.cancel();
 
-      const utterance = new SpeechSynthesisUtterance(textToSpeak);
-      utterance.rate = 0.8;
-      utterance.pitch = 1;
-      utterance.volume = 1;
+      // Wait for voices to be loaded
+      let voices = speechSynthesis.getVoices();
 
-      speechSynthesis.speak(utterance);
+      // If voices aren't loaded yet, wait for them
+      if (voices.length === 0) {
+        speechSynthesis.onvoiceschanged = () => {
+          voices = speechSynthesis.getVoices();
+          speakWithSelectedVoice(textToSpeak, voices);
+        };
+      } else {
+        speakWithSelectedVoice(textToSpeak, voices);
+      }
     } else {
       console.warn("Speech synthesis not supported in this browser");
     }
+  }
+
+  function speakWithSelectedVoice(text, voices) {
+    const utterance = new SpeechSynthesisUtterance(text);
+
+    // Find a female English voice (user preference)
+    const femaleVoice = voices.find(
+      (voice) => voice.lang.includes("en") && voice.name.includes("Female")
+    );
+    const englishVoice = voices.find((voice) => voice.lang.includes("en"));
+    const selectedVoice = femaleVoice || englishVoice || voices[0];
+
+    if (selectedVoice) {
+      utterance.voice = selectedVoice;
+      console.log("Using voice:", selectedVoice.name);
+    }
+
+    // Configure for clarity (user preference)
+    utterance.lang = "en-US";
+    utterance.rate = 0.9; // Slightly slower for clarity
+    utterance.pitch = 1;
+    utterance.volume = 1;
+
+    // Add event listeners for better control
+    utterance.onstart = () => {
+      console.log("Speech started with", selectedVoice?.name || "default voice");
+    };
+
+    utterance.onend = () => {
+      console.log("Speech ended");
+    };
+
+    utterance.onerror = (event) => {
+      console.error("Speech error:", event);
+    };
+
+    // Ensure the speech synthesis is ready
+    if (speechSynthesis.paused) {
+      speechSynthesis.resume();
+    }
+
+    // Add a small delay before speaking to ensure proper initialization
+    setTimeout(() => {
+      speechSynthesis.speak(utterance);
+    }, 100);
   }
 
   // Auto-initialize TTS on DOM ready and set up mutation observer for dynamic content
@@ -3529,8 +3917,9 @@ $(document).ready(function () {
   });
 
   // Update card type options when user logs in or subscription changes
-  auth.onAuthStateChanged(async (user) => {
-    if (user) {
+  window.addEventListener('authStateChanged', async (event) => {
+    const { user, isAuthenticated } = event.detail;
+    if (isAuthenticated) {
       await updateCardTypesForUserTier();
     }
   });
@@ -3762,10 +4151,16 @@ $(document).ready(function () {
       return;
     }
 
+    // Start session tracking
+    isActiveStudySession = true;
+    originalDeckCards = [...flashcards]; // Store original deck for due card checking
+    startDueCardChecking();
+
     // Start study session
     flashcards = cardsToStudy;
     currentCardIndex = 0;
     isFlipped = false;
+    window.isFlipped = isFlipped;
 
     // Show study session UI
     showFlashcardViewer(true);
@@ -4086,6 +4481,7 @@ $(document).ready(function () {
 // Knowledge Hub Module
 const KnowledgeHub = {
   deckManager: null,
+  selectedTags: new Set(), // Track selected tags
 
   async init(deckManager) {
     this.deckManager = deckManager;
@@ -4124,7 +4520,12 @@ const KnowledgeHub = {
           deck.description?.toLowerCase().includes(searchQuery);
         const matchesLevel =
           levelFilter === "all" || deck.level === levelFilter;
-        return matchesCategory && matchesSearch && matchesLevel;
+        
+        // NEW: Add tag filtering
+        const matchesTags = this.selectedTags.size === 0 || 
+                          (deck.tags && deck.tags.some(tag => this.selectedTags.has(tag)));
+
+        return matchesCategory && matchesSearch && matchesLevel && matchesTags;
       });
       console.log("Filtered decks to display:", decks);
 
@@ -4150,13 +4551,145 @@ const KnowledgeHub = {
         }
       });
 
-      // Display decks with loading state false
+      // Display decks and update tag filters for current category
       this.displayDecks(decks, false);
+      this.updateTagFilters(activeCategory, decks);
     } catch (error) {
       console.error("Error filtering decks:", error);
       showNotification("Failed to load decks. Please try again.", "error");
       this.displayDecks([], false);
     }
+  },
+
+  // NEW: Update tag filters based on current category
+  async updateTagFilters(activeCategory, filteredDecks) {
+    try {
+      // Get all tags from decks in the current category
+      const categoryTags = new Map(); // tag -> count
+      
+      filteredDecks.forEach(deck => {
+        if (deck.tags) {
+          deck.tags.forEach(tag => {
+            categoryTags.set(tag, (categoryTags.get(tag) || 0) + 1);
+          });
+        }
+      });
+
+      // Create or update tag filter UI
+      this.renderTagFilters(categoryTags, activeCategory);
+      
+    } catch (error) {
+      console.error("Error updating tag filters:", error);
+    }
+  },
+
+  // NEW: Render tag filter chips
+  renderTagFilters(categoryTags, activeCategory) {
+    let tagFilterContainer = document.getElementById('tagFilters');
+    
+    // Create container if it doesn't exist
+    if (!tagFilterContainer) {
+      const hubControls = document.querySelector('.hub-controls');
+      if (hubControls) {
+        tagFilterContainer = document.createElement('div');
+        tagFilterContainer.id = 'tagFilters';
+        tagFilterContainer.className = 'tag-filter-section';
+        hubControls.insertAdjacentElement('afterend', tagFilterContainer);
+      } else {
+        return; // Can't find where to put it
+      }
+    }
+
+    // Clear existing content
+    tagFilterContainer.innerHTML = '';
+
+    if (categoryTags.size === 0) {
+      tagFilterContainer.style.display = 'none';
+      return;
+    }
+
+    // Create header and tag filters
+    const categoryName = this.getCategoryDisplayName(activeCategory);
+    tagFilterContainer.innerHTML = `
+      <div class="tag-filter-header">
+        <h4>Filter ${categoryName} by topic:</h4>
+        <button class="btn btn-link btn-small clear-tags" ${this.selectedTags.size === 0 ? 'style="display: none;"' : ''}>
+          <i class="fas fa-times"></i> Clear filters
+        </button>
+      </div>
+      <div class="tag-filter-chips">
+        ${Array.from(categoryTags.entries())
+          .sort((a, b) => b[1] - a[1]) // Sort by count (most popular first)
+          .slice(0, 12) // Limit to top 12 tags
+          .map(([tag, count]) => `
+            <button class="tag-filter-chip ${this.selectedTags.has(tag) ? 'active' : ''}" 
+                    data-tag="${tag}">
+              <span class="tag-name">${tag}</span>
+              <span class="tag-count">${count}</span>
+            </button>
+          `).join('')}
+      </div>
+    `;
+
+    tagFilterContainer.style.display = 'block';
+    
+    // Add event listeners
+    this.attachTagFilterListeners(tagFilterContainer);
+  },
+
+  // NEW: Attach event listeners to tag filters
+  attachTagFilterListeners(container) {
+    // Tag chip clicks
+    container.querySelectorAll('.tag-filter-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        const tag = chip.dataset.tag;
+        
+        if (this.selectedTags.has(tag)) {
+          this.selectedTags.delete(tag);
+          chip.classList.remove('active');
+        } else {
+          this.selectedTags.add(tag);
+          chip.classList.add('active');
+        }
+        
+        // Update clear button visibility
+        const clearBtn = container.querySelector('.clear-tags');
+        clearBtn.style.display = this.selectedTags.size > 0 ? 'inline-flex' : 'none';
+        
+        // Re-filter decks
+        this.filterDecks();
+      });
+    });
+
+    // Clear filters button
+    const clearBtn = container.querySelector('.clear-tags');
+    if (clearBtn) {
+      clearBtn.addEventListener('click', () => {
+        this.selectedTags.clear();
+        container.querySelectorAll('.tag-filter-chip').forEach(chip => {
+          chip.classList.remove('active');
+        });
+        clearBtn.style.display = 'none';
+        this.filterDecks();
+      });
+    }
+  },
+
+  // NEW: Get display name for category
+  getCategoryDisplayName(category) {
+    const categoryMap = {
+      'all': 'All Trades',
+      'electrician': 'Electrician',
+      'plumber': 'Plumber/Pipefitter', 
+      'hvac': 'HVAC/Refrigeration',
+      'welder': 'Welder',
+      'carpenter': 'Carpenter',
+      'heavy-equipment': 'Heavy Equipment',
+      'sprinkler': 'Sprinkler Fitter',
+      'sheet-metal': 'Sheet Metal',
+      'safety': 'Safety & OSHA'
+    };
+    return categoryMap[category] || category;
   },
 
   // Display decks in the grid
@@ -4207,6 +4740,16 @@ const KnowledgeHub = {
           <p class="deck-card-description">${
             deck.description || "No description provided"
           }</p>
+          
+          ${deck.tags && deck.tags.length > 0 ? `
+            <div class="deck-card-tags">
+              ${deck.tags.slice(0, 3).map(tag => `
+                <span class="deck-tag">${tag}</span>
+              `).join('')}
+              ${deck.tags.length > 3 ? `<span class="deck-tag-more">+${deck.tags.length - 3}</span>` : ''}
+            </div>
+          ` : ''}
+          
           <div class="deck-card-stats">
             <span class="deck-card-stat">
               <i class="fas fa-eye"></i> ${deck.stats?.views || 0} views
@@ -4600,6 +5143,10 @@ const KnowledgeHub = {
       tab.addEventListener("click", () => {
         categoryTabs.forEach((t) => t.classList.remove("active"));
         tab.classList.add("active");
+        
+        // Clear tag filters when switching categories
+        this.selectedTags.clear();
+        
         this.filterDecks();
       });
     });
@@ -4725,6 +5272,7 @@ async function getSharedDecks() {
           "Fundamental electrical concepts and safety procedures for electrical apprentices",
         category: "electrician",
         level: "beginner",
+        tags: ["ohms-law", "safety", "residential", "circuits"],
         stats: { views: 1245, favorites: 89, downloads: 234 },
         cards: [
           {
@@ -4757,6 +5305,7 @@ async function getSharedDecks() {
           "Essential plumbing knowledge for apprentices and journeymen",
         category: "plumber",
         level: "beginner",
+        tags: ["pipes", "pressure", "troubleshooting", "tools"],
         stats: { views: 987, favorites: 67, downloads: 156 },
         cards: [
           {
@@ -4771,87 +5320,6 @@ async function getSharedDecks() {
           {
             front: "What is the difference between supply and drain lines?",
             back: "Supply lines bring fresh water to fixtures under pressure, while drain lines remove wastewater using gravity",
-          },
-        ],
-      },
-      {
-        id: "hvac-refrigeration",
-        name: "HVAC & Refrigeration Basics",
-        description:
-          "Core concepts in heating, ventilation, air conditioning, and refrigeration systems",
-        category: "hvac",
-        level: "intermediate",
-        stats: { views: 756, favorites: 45, downloads: 98 },
-        cards: [
-          {
-            front:
-              "What is the ideal relative humidity range for indoor comfort?",
-            back: "Between 30-50% relative humidity for optimal comfort and health",
-          },
-          {
-            front: "What does SEER rating measure?",
-            back: "Seasonal Energy Efficiency Ratio - measures the cooling efficiency of air conditioners and heat pumps",
-          },
-        ],
-      },
-      {
-        id: "welding-safety",
-        name: "Welding Safety Fundamentals",
-        description:
-          "Critical safety procedures and equipment for welding operations",
-        category: "welder",
-        level: "beginner",
-        stats: { views: 642, favorites: 78, downloads: 123 },
-        cards: [
-          {
-            front: "What PPE is required for arc welding?",
-            back: "Welding helmet with proper filter lens, welding gloves, flame-resistant clothing, safety boots, and respiratory protection when needed",
-          },
-          {
-            front: "What causes porosity in welds?",
-            back: "Contamination from moisture, oil, rust, or inadequate shielding gas coverage",
-          },
-        ],
-      },
-      {
-        id: "carpentry-tools",
-        name: "Essential Carpentry Tools",
-        description: "Must-know tools and their proper usage in carpentry work",
-        category: "carpenter",
-        level: "beginner",
-        stats: { views: 543, favorites: 34, downloads: 87 },
-        cards: [
-          {
-            front: "What is the difference between a rip cut and a cross cut?",
-            back: "A rip cut is parallel to the wood grain, while a cross cut is perpendicular to the grain",
-          },
-          {
-            front: "What is the standard spacing for wall studs?",
-            back: '16 inches on center (OC) or 24 inches on center, with 16" OC being most common',
-          },
-        ],
-      },
-      {
-        id: "osha-safety-basics",
-        name: "OSHA Safety Basics",
-        description:
-          "Fundamental workplace safety regulations and best practices",
-        category: "safety",
-        level: "beginner",
-        stats: { views: 892, favorites: 112, downloads: 201 },
-        cards: [
-          {
-            front: "What does OSHA stand for?",
-            back: "Occupational Safety and Health Administration",
-          },
-          {
-            front:
-              "At what height must fall protection be used in construction?",
-            back: "6 feet or higher in construction work",
-          },
-          {
-            front: "What are the 'Fatal Four' in construction?",
-            back: "Falls, Struck by Object, Electrocution, and Caught-in/Between accidents",
           },
         ],
       },
@@ -4887,7 +5355,7 @@ function initializeUserMenuDropdown() {
     if (logoutBtn) {
       logoutBtn.addEventListener("click", async () => {
         try {
-          await signOut(auth);
+          await signOutUser();
           showNotification("Logged out successfully", "success");
           window.location.href = "/";
         } catch (error) {
@@ -4967,6 +5435,37 @@ function showAnswerFeedback(answer, updatedCard) {
 function handlePerformanceAnswer(answer) {
   const card = flashcards[currentCardIndex];
 
+  // ===== SPACED REPETITION DEBUGGING =====
+  const answerLabels = {
+    1: "AGAIN (Forgot completely)",
+    2: "HARD (Struggled to remember)", 
+    3: "GOOD (Remembered correctly)",
+    4: "EASY (Too easy)"
+  };
+
+  console.log("🎯 PERFORMANCE BUTTON CLICKED:", answerLabels[answer] || `Unknown (${answer})`);
+  console.log("📋 Current Card:", {
+    index: currentCardIndex,
+    front: card.front?.substring(0, 50) + "...",
+    back: card.back?.substring(0, 50) + "..."
+  });
+
+  // Check current spaced repetition state BEFORE processing
+  const cardId = card.id || `card_${currentCardIndex}`;
+  const spacedRepData = window.spacedRepetitionInstance?.getCardData(cardId);
+  
+  console.log("🧠 BEFORE Processing - Spaced Repetition State:", {
+    cardId,
+    state: spacedRepData?.state || "new",
+    interval: spacedRepData?.interval || 0,
+    repetitions: spacedRepData?.repetitions || 0,
+    easeFactor: spacedRepData?.easeFactor || 2500,
+    due: spacedRepData?.due ? new Date(spacedRepData.due).toLocaleString() : "never",
+    isNew: !spacedRepData || spacedRepData.state === "new",
+    isLearning: spacedRepData?.state === "learning",
+    isReview: spacedRepData?.state === "review"
+  });
+
   // Clear any pending performance button timeout
   if (performanceButtonTimeout) {
     clearTimeout(performanceButtonTimeout);
@@ -4977,6 +5476,8 @@ function handlePerformanceAnswer(answer) {
   const responseTime = answerStartTime
     ? (Date.now() - answerStartTime) / 1000
     : null;
+
+  console.log("⏱️ Response Time:", responseTime ? `${responseTime.toFixed(2)}s` : "not measured");
 
   // Reset answer start time for next card
   answerStartTime = null;
@@ -4993,78 +5494,143 @@ function handlePerformanceAnswer(answer) {
   // Show discreet feedback
   showAnswerFeedback(answer);
 
+  // Debug session state
+  console.log("📊 Session State:", {
+    isActiveStudySession,
+    totalCardsInSession: flashcards.length,
+    currentCardIndex,
+    originalDeckSize: originalDeckCards.length,
+    dueCardCheckingActive: !!dueCardCheckInterval
+  });
+
+  // Auto-fix: If session tracking isn't active but we have flashcards, start it
+  if (!isActiveStudySession && flashcards.length > 0) {
+    console.warn("⚠️ SESSION TRACKING NOT ACTIVE - Auto-starting session tracking");
+    isActiveStudySession = true;
+    originalDeckCards = [...flashcards];
+    startDueCardChecking();
+    console.log("✅ Session tracking auto-started:", {
+      isActiveStudySession,
+      originalDeckSize: originalDeckCards.length,
+      dueCardCheckingActive: !!dueCardCheckInterval
+    });
+  }
+
   // Update progress immediately
   updateProgress();
 
   // Hide performance buttons immediately for better UX
-  $(".performance-buttons").removeClass("show").hide();
+  $(".performance-buttons").removeClass("show");
   $(".keyboard-hints").hide();
 
-  // Move to next card after a brief delay
+  // Move to next card after a brief delay to allow feedback visibility
   setTimeout(() => {
-    navigateCard("next");
+    window.navigateCard("next");
 
     // Reset the card state for the next card (flip cards)
     $("#flashcard").removeClass("flipped");
-    $(".performance-buttons").removeClass("show").hide();
+    $(".performance-buttons").removeClass("show");
     $(".keyboard-hints").hide();
     
     // Reset legacy card state (for non-flip cards)
     $("#showAnswerBtn").show();
     $(".card-back").hide();
-  }, 600); // Reduced delay for better flow
+  }, 300); // Quick transition for responsive feel
 
   // Optional: Integrate with spaced repetition system if available
   if (typeof SpacedRepetition !== 'undefined' && window.spacedRepetitionInstance) {
     const cardId = card.id || `card_${currentCardIndex}`;
     try {
+      console.log("🔄 Processing with SpacedRepetition.answerCard()...");
       window.spacedRepetitionInstance.answerCard(cardId, answer, responseTime);
+      
+      // Check state AFTER processing
+      const updatedSpacedRepData = window.spacedRepetitionInstance.getCardData(cardId);
+      console.log("🧠 AFTER Processing - Spaced Repetition State:", {
+        cardId,
+        state: updatedSpacedRepData?.state || "new",
+        interval: updatedSpacedRepData?.interval || 0,
+        repetitions: updatedSpacedRepData?.repetitions || 0,
+        easeFactor: updatedSpacedRepData?.easeFactor || 2500,
+        due: updatedSpacedRepData?.due ? new Date(updatedSpacedRepData.due).toLocaleString() : "never",
+        nextReviewIn: updatedSpacedRepData?.due ? Math.round((updatedSpacedRepData.due - Date.now()) / 1000) + "s" : "never",
+        isNew: !updatedSpacedRepData || updatedSpacedRepData.state === "new",
+        isLearning: updatedSpacedRepData?.state === "learning",
+        isReview: updatedSpacedRepData?.state === "review",
+        willShowAgainSoon: updatedSpacedRepData?.due && (updatedSpacedRepData.due - Date.now()) < 300000 // within 5 minutes
+      });
+
+      // Special logging for learning cards
+      if (updatedSpacedRepData?.state === "learning") {
+        console.log("📚 LEARNING CARD DETECTED:", {
+          learningStep: updatedSpacedRepData.learningStep || 0,
+          willReappearIn: updatedSpacedRepData?.due ? Math.round((updatedSpacedRepData.due - Date.now()) / 1000) + " seconds" : "unknown",
+          isWithinSession: updatedSpacedRepData?.due && (updatedSpacedRepData.due - Date.now()) < 300000 // 5 minutes
+        });
+      }
+
+      // Check if this card should be added back to session soon
+      if (updatedSpacedRepData?.due && (updatedSpacedRepData.due - Date.now()) < 300000) {
+        console.log("⚠️ CARD WILL REAPPEAR SOON - Will be picked up by due card checker");
+      }
+
     } catch (error) {
-      console.log("Spaced repetition integration not available:", error);
+      console.error("❌ Spaced repetition integration error:", error);
     }
+  } else {
+    console.warn("⚠️ SpacedRepetition not available");
   }
+
+  console.log("=" .repeat(80)); // Visual separator
 }
 
-// Show spaced repetition tip for new users
-function showSpacedRepetitionTip() {
+// Show spaced repetition tooltip for new users
+function showSpacedRepetitionTooltip() {
   const tooltip = $(`
-    <div class="spaced-repetition-tip">
-      <div class="tip-content">
+    <div class="performance-tooltip">
+      <div class="tooltip-header">
         <i class="fas fa-brain"></i>
-        <h4>Smart Spaced Repetition</h4>
-        <p>Rate how well you knew this card:</p>
-        <ul>
-          <li><span class="tip-again">Again</span> - Completely forgot</li>
-          <li><span class="tip-hard">Hard</span> - Struggled to remember</li>
-          <li><span class="tip-good">Good</span> - Remembered correctly</li>
-          <li><span class="tip-easy">Easy</span> - Too easy</li>
-        </ul>
-        <p><small>This helps optimize when you'll see cards again for maximum retention!</small></p>
-        <button class="btn btn-primary btn-small" onclick="dismissSpacedRepetitionTip()">Got it!</button>
+        <h5>Smart Spaced Repetition</h5>
       </div>
+      <div class="tooltip-content">
+        <p>Rate how well you knew this card:</p>
+        <ul class="tooltip-buttons">
+          <li><span class="tooltip-button-demo again">Again</span> Completely forgot</li>
+          <li><span class="tooltip-button-demo hard">Hard</span> Struggled to remember</li>
+          <li><span class="tooltip-button-demo good">Good</span> Remembered correctly</li>
+          <li><span class="tooltip-button-demo easy">Easy</span> Too easy</li>
+        </ul>
+        <p>This optimizes when you'll see cards again!</p>
+      </div>
+      <button class="tooltip-dismiss" onclick="dismissSpacedRepetitionTooltip()">Got it!</button>
     </div>
   `);
 
-  $("body").append(tooltip);
-  tooltip.fadeIn(300);
-
-  // Auto-dismiss after 10 seconds
+  $(".performance-buttons").append(tooltip);
+  
+  // Show tooltip with animation
   setTimeout(() => {
-    dismissSpacedRepetitionTip();
-  }, 10000);
+    tooltip.addClass("show");
+  }, 100);
+
+  // Auto-dismiss after 8 seconds
+  setTimeout(() => {
+    dismissSpacedRepetitionTooltip();
+  }, 8000);
 }
 
-function dismissSpacedRepetitionTip() {
-  $(".spaced-repetition-tip").fadeOut(300, function() {
-    $(this).remove();
-  });
+function dismissSpacedRepetitionTooltip() {
+  $(".performance-tooltip").removeClass("show");
+  setTimeout(() => {
+    $(".performance-tooltip").remove();
+  }, 300);
   localStorage.setItem('seenSpacedRepetitionTip', 'true');
 }
 
-// Make dismissSpacedRepetitionTip globally available
-window.dismissSpacedRepetitionTip = dismissSpacedRepetitionTip;
+// Make dismissSpacedRepetitionTooltip globally available
+window.dismissSpacedRepetitionTooltip = dismissSpacedRepetitionTooltip;
 
-// Enhanced progress tracking with practice/confident counts
+// Anki-style session progress tracking
 function updateProgress() {
   const totalCards = flashcards.length;
   const viewedCards = currentCardIndex + 1;
@@ -5074,50 +5640,181 @@ function updateProgress() {
   $("#progressBar").css("width", `${progress}%`);
   $("#progressText").text(`Card ${viewedCards}/${totalCards}`);
 
-  // Calculate practice/confident counts using the 4-level system
-  let needPracticeCount = 0;
-  let confidentCount = 0;
+  // Calculate remaining cards in session (Anki-style)
+  const remainingCards = totalCards - viewedCards;
 
-  flashcards.forEach((card) => {
-    if (card.metadata && card.metadata.performance) {
-      // Count "Again" and "Hard" as needing practice
-      if (card.metadata.performance === 1 || card.metadata.performance === 2) {
-        needPracticeCount++;
-      } 
-      // Count "Easy" as confident (Good is neutral)
-      else if (card.metadata.performance === 4) {
-        confidentCount++;
-      }
-    }
-  });
+     // Update or create session counter display
+   let sessionCounter = $("#sessionCounter");
+   if (sessionCounter.length === 0) {
+     // Create the session counter if it doesn't exist
+     // Hide it only in quiz mode, show it in flashcard mode
+     const isQuizMode = window.location.pathname.includes('quiz.html');
+     const displayStyle = isQuizMode ? 'display: none;' : '';
+     
+     $(".progress-info").after(`
+       <div id="sessionCounter" class="session-counter" style="${displayStyle}">
+         <span class="session-remaining">
+           <i class="fas fa-cards"></i> 
+           <span class="count">0</span> remaining in session
+         </span>
+       </div>
+     `);
+     sessionCounter = $("#sessionCounter");
+   }
 
-  // Update or create counts display
-  let countsDisplay = $("#practiceConfidentCounts");
-  if (countsDisplay.length === 0) {
-    // Create the counts display if it doesn't exist
-    $("#progressText").after(`
-      <div id="practiceConfidentCounts" class="practice-confident-counts">
-        <span class="need-practice-count">
-          <i class="fas fa-exclamation-triangle"></i> 
-          Need Practice: <span class="count">0</span>
-        </span>
-        <span class="confident-count">
-          <i class="fas fa-check-circle"></i> 
-          Confident: <span class="count">0</span>
-        </span>
-      </div>
-    `);
-    countsDisplay = $("#practiceConfidentCounts");
-  }
+     // Initialize session completion flag if not exists
+   if (typeof window.sessionCompleted === 'undefined') {
+     window.sessionCompleted = false;
+   }
 
-  // Update the counts
-  countsDisplay.find(".need-practice-count .count").text(needPracticeCount);
-  countsDisplay.find(".confident-count .count").text(confidentCount);
+     // Update the counter (only show in flashcard mode, not quiz mode)
+   const isQuizMode = window.location.pathname.includes('quiz.html');
+   
+   if (remainingCards > 0) {
+     sessionCounter.find(".count").text(remainingCards);
+     if (!isQuizMode) {
+       sessionCounter.show(); // Show in flashcard mode only
+     }
+   } else if (!window.sessionCompleted && currentCardIndex === totalCards - 1) {
+     // Session complete - only show once AND only when on the last card
+     window.sessionCompleted = true;
+     sessionCounter.find(".session-remaining").html(`
+       <i class="fas fa-check-circle"></i> 
+       Session complete! All ${totalCards} cards reviewed
+     `);
+     sessionCounter.removeClass("session-counter").addClass("session-complete");
+     // Auto-hide after 3 seconds
+     setTimeout(() => {
+       sessionCounter.fadeOut();
+     }, 3000);
+   }
 
   // Check if user has completed 100% of cards
   if (progress >= 100 && !sessionStorage.getItem("quizPromptShown")) {
     // showQuizPrompt(); // Removed - modal disabled
     sessionStorage.setItem("quizPromptShown", "true");
+  }
+}
+
+// Update deck-level tags display
+function updateDeckTags() {
+  const container = document.getElementById("deckTagsContainer");
+  const tagsList = document.getElementById("deckTagsList");
+  
+  if (!container || !tagsList || !flashcards || flashcards.length === 0) {
+    if (container) container.style.display = "none";
+    return;
+  }
+
+  // Aggregate and categorize tags from all flashcards
+  const tagCategories = {
+    subject: new Set(), // Main subject categories
+    subcategory: new Set(), // Subject subcategories
+    difficulty: new Set(), // Difficulty levels
+    format: new Set(), // Content format types
+    concept: new Map() // Key concepts with frequency
+  };
+
+  // Define tag category patterns
+  const categoryPatterns = {
+    subject: /^(science|mathematics|history|language|technology|arts)$/i,
+    subcategory: /^(biology|chemistry|physics|astronomy|geology|environmental|algebra|calculus|geometry|statistics|trigonometry|discrete|ancient|medieval|modern|world|military|political|cultural|grammar|vocabulary|literature|writing|speaking|comprehension|programming|networking|ai|databases|web|mobile|finance|marketing|management|entrepreneurship|economics|business|visual|performing|music|design|architecture|digital)$/i,
+    difficulty: /^(basic|intermediate|advanced)$/i,
+    format: /^(definition|example|comparison|process)$/i
+  };
+
+  // Process tags from all flashcards
+  flashcards.forEach(card => {
+    if (card.tags && Array.isArray(card.tags)) {
+      card.tags.forEach(tag => {
+        // Categorize tag
+        if (categoryPatterns.subject.test(tag)) {
+          tagCategories.subject.add(tag);
+        } else if (categoryPatterns.subcategory.test(tag)) {
+          tagCategories.subcategory.add(tag);
+        } else if (categoryPatterns.difficulty.test(tag)) {
+          tagCategories.difficulty.add(tag);
+        } else if (categoryPatterns.format.test(tag)) {
+          tagCategories.format.add(tag);
+        } else {
+          // Track concept frequency
+          const count = tagCategories.concept.get(tag) || 0;
+          tagCategories.concept.set(tag, count + 1);
+        }
+      });
+    }
+  });
+
+  // Sort concepts by frequency
+  const sortedConcepts = Array.from(tagCategories.concept.entries())
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 3) // Take top 3 concepts
+    .map(([tag]) => tag);
+
+  // Create ordered tag array: Subject → Difficulty → Key Concepts
+  const orderedTags = [];
+  
+  // Add only the primary subject (most frequent)
+  if (tagCategories.subject.size > 0) {
+    const subjectArray = Array.from(tagCategories.subject);
+    orderedTags.push(subjectArray[0]); // Take only the first (most relevant) subject
+  }
+  
+  // Add only one difficulty level (most frequent)
+  if (tagCategories.difficulty.size > 0) {
+    // Count difficulty occurrences across all cards to find the most common
+    const difficultyCount = {};
+    flashcards.forEach(card => {
+      if (card.tags && Array.isArray(card.tags)) {
+        card.tags.forEach(tag => {
+          if (categoryPatterns.difficulty.test(tag)) {
+            difficultyCount[tag] = (difficultyCount[tag] || 0) + 1;
+          }
+        });
+      }
+    });
+    
+    // Get the most frequent difficulty level
+    const mostCommonDifficulty = Object.entries(difficultyCount)
+      .sort(([,a], [,b]) => b - a)[0];
+    
+    if (mostCommonDifficulty) {
+      orderedTags.push(mostCommonDifficulty[0]);
+    }
+  }
+  
+  // Add key concepts (limit to top 3)
+  if (sortedConcepts.length > 0) {
+    orderedTags.push(...sortedConcepts);
+  }
+
+  // Generate simple horizontal tag display
+  const allTagsHTML = orderedTags.length > 0 ? 
+    orderedTags.map(tag => `
+      <span class="deck-tag" data-tag="${tag}">
+        ${tag}
+      </span>
+    `).join('') : '';
+
+  // Update the container
+  if (allTagsHTML.trim()) {
+    tagsList.innerHTML = allTagsHTML;
+    container.style.display = "block";
+
+    // Add click handlers for tags
+    tagsList.querySelectorAll('.deck-tag').forEach(tag => {
+      tag.addEventListener('click', () => {
+        const tagValue = tag.dataset.tag;
+        // Toggle active state
+        tag.classList.toggle('active');
+        // Dispatch event for tag filtering
+        document.dispatchEvent(new CustomEvent('tagFilter', {
+          detail: { tag: tagValue, active: tag.classList.contains('active') }
+        }));
+      });
+    });
+  } else {
+    container.style.display = "none";
   }
 }
 
@@ -5161,3 +5858,137 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 });
+
+// ... existing code ...
+
+// Enhanced tag generation with more sophisticated analysis
+function generateTagsFromContent(front, back) {
+  const content = `${front} ${back}`.toLowerCase();
+  const tags = new Set();
+  
+  // Academic subject categories with expanded keywords
+  const subjectCategories = {
+    'science': {
+      keywords: ['atom', 'molecule', 'chemical', 'biology', 'physics', 'chemistry', 'reaction', 'element', 'compound', 'energy', 'force', 'cell', 'organism', 'evolution', 'genetic', 'quantum', 'nuclear', 'organic', 'inorganic', 'experiment', 'theory', 'hypothesis', 'research', 'data', 'analysis', 'observation', 'conclusion'],
+      subcategories: ['biology', 'chemistry', 'physics', 'astronomy', 'geology', 'environmental']
+    },
+    'mathematics': {
+      keywords: ['equation', 'formula', 'calculate', 'solve', 'theorem', 'geometry', 'algebra', 'number', 'fraction', 'decimal', 'function', 'derivative', 'integral', 'matrix', 'vector', 'statistics', 'probability', 'trigonometry', 'calculus', 'arithmetic', 'proof', 'logic', 'set', 'graph'],
+      subcategories: ['algebra', 'calculus', 'geometry', 'statistics', 'trigonometry', 'discrete']
+    },
+    'history': {
+      keywords: ['war', 'century', 'ancient', 'empire', 'revolution', 'king', 'queen', 'battle', 'treaty', 'civilization', 'dynasty', 'period', 'era', 'movement', 'reform', 'conquest', 'colonization', 'independence', 'democracy', 'monarchy', 'republic', 'federation', 'alliance'],
+      subcategories: ['ancient', 'medieval', 'modern', 'world', 'military', 'political', 'cultural']
+    },
+    'language': {
+      keywords: ['grammar', 'verb', 'noun', 'sentence', 'vocabulary', 'pronunciation', 'conjugation', 'plural', 'tense', 'adjective', 'adverb', 'preposition', 'conjunction', 'article', 'phrase', 'clause', 'idiom', 'metaphor', 'simile', 'rhetoric', 'literature', 'poetry', 'prose'],
+      subcategories: ['grammar', 'vocabulary', 'literature', 'writing', 'speaking', 'comprehension']
+    },
+    'technology': {
+      keywords: ['computer', 'software', 'algorithm', 'data', 'network', 'programming', 'digital', 'internet', 'database', 'code', 'application', 'system', 'hardware', 'interface', 'security', 'cloud', 'artificial', 'intelligence', 'machine', 'learning', 'blockchain', 'cybersecurity'],
+      subcategories: ['programming', 'networking', 'ai', 'databases', 'web', 'mobile']
+    },
+    'business': {
+      keywords: ['profit', 'revenue', 'market', 'customer', 'strategy', 'management', 'economics', 'finance', 'investment', 'business', 'company', 'organization', 'leadership', 'marketing', 'sales', 'accounting', 'entrepreneurship', 'startup', 'venture', 'capital'],
+      subcategories: ['finance', 'marketing', 'management', 'entrepreneurship', 'economics']
+    },
+    'arts': {
+      keywords: ['art', 'music', 'dance', 'theater', 'film', 'design', 'architecture', 'sculpture', 'painting', 'drawing', 'composition', 'performance', 'exhibition', 'gallery', 'museum', 'creative', 'aesthetic', 'style', 'technique', 'medium'],
+      subcategories: ['visual', 'performing', 'music', 'design', 'architecture', 'digital']
+    }
+  };
+
+  // Analyze content for subject categories
+  let maxMatches = 0;
+  let primarySubject = null;
+  let subjectSubcategory = null;
+
+  for (const [subject, data] of Object.entries(subjectCategories)) {
+    const matches = data.keywords.filter(keyword => content.includes(keyword)).length;
+    if (matches > maxMatches) {
+      maxMatches = matches;
+      primarySubject = subject;
+      
+      // Find most relevant subcategory
+      const subcategoryMatches = data.subcategories.map(subcat => ({
+        subcat,
+        matches: content.split(/\s+/).filter(word => word.includes(subcat)).length
+      }));
+      subjectSubcategory = subcategoryMatches.sort((a, b) => b.matches - a.matches)[0]?.subcat;
+    }
+  }
+
+  // Add primary subject and subcategory if found
+  if (primarySubject) {
+    tags.add(primarySubject);
+    if (subjectSubcategory) {
+      tags.add(subjectSubcategory);
+    }
+  }
+
+  // Extract key concepts using NLP-like techniques
+  const words = content.split(/\s+/);
+  const stopWords = new Set(['the', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'with', 'by', 'about', 'as', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'shall', 'should', 'can', 'could', 'may', 'might', 'must', 'a', 'an', 'this', 'that', 'these', 'those', 'my', 'your', 'his', 'her', 'its', 'our', 'their']);
+  
+  // Find important terms (nouns and key phrases)
+  const importantTerms = words
+    .filter(word => 
+      word.length > 3 && 
+      !stopWords.has(word) &&
+      /^[a-zA-Z]+$/.test(word) // Only pure words, no numbers or special chars
+    )
+    .map(word => word.toLowerCase());
+
+  // Count term frequency
+  const termFrequency = {};
+  importantTerms.forEach(term => {
+    termFrequency[term] = (termFrequency[term] || 0) + 1;
+  });
+
+  // Add top 2 most frequent terms as tags
+  const topTerms = Object.entries(termFrequency)
+    .sort(([,a], [,b]) => b - a)
+    .slice(0, 2)
+    .map(([term]) => term);
+  
+  topTerms.forEach(term => tags.add(term));
+
+  // Add difficulty level based on content analysis
+  const wordCount = words.length;
+  const avgWordLength = words.reduce((sum, word) => sum + word.length, 0) / wordCount;
+  const hasComplexTerms = words.some(word => word.length > 12);
+  const hasTechnicalTerms = Object.values(subjectCategories).some(data => 
+    data.keywords.some(keyword => content.includes(keyword))
+  );
+
+  if (wordCount > 50 || avgWordLength > 8 || hasComplexTerms || hasTechnicalTerms) {
+    tags.add('advanced');
+  } else if (wordCount > 25 || avgWordLength > 6) {
+    tags.add('intermediate');
+  } else {
+    tags.add('basic');
+  }
+
+  // Add format/type tags based on content structure
+  if (content.includes('?') || content.includes('what is') || content.includes('define')) {
+    tags.add('definition');
+  }
+  if (content.includes('example') || content.includes('instance') || content.includes('such as')) {
+    tags.add('example');
+  }
+  if (content.includes('compare') || content.includes('versus') || content.includes('difference')) {
+    tags.add('comparison');
+  }
+  if (content.includes('process') || content.includes('steps') || content.includes('procedure')) {
+    tags.add('process');
+  }
+
+  // Convert Set to Array and limit to 5 most relevant tags
+  return Array.from(tags).slice(0, 5);
+}
+
+// ... existing code ...
+
+
+
+// ... existing code ...

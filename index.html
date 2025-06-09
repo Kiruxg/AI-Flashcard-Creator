@@ -14,10 +14,9 @@
       content="black-translucent"
     />
     <meta name="format-detection" content="telephone=no" />
-    <meta
-      http-equiv="Cross-Origin-Opener-Policy"
-      content="same-origin-allow-popups"
-    />
+    <!-- Comprehensive CSP for Auth0, Firebase, and Stripe -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.stripe.com https://www.gstatic.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com https://*.firebaseio.com https://www.googletagmanager.com https://www.google-analytics.com https://region1.google-analytics.com https://apis.google.com https://*.googleapis.com https://cdn.auth0.com https://*.auth0.com; connect-src 'self' https://*.googleapis.com https://*.firebaseio.com https://*.google-analytics.com https://api.stripe.com https://cdn.auth0.com https://*.auth0.com; frame-src 'self' https://js.stripe.com https://*.google.com https://hooks.stripe.com https://*.firebaseapp.com https://*.firebaseusercontent.com https://*.auth0.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://*.googleapis.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; font-src 'self' data: blob: https: https://fonts.gstatic.com https://fonts.googleapis.com https://*.googleapis.com https://*.gstatic.com https://*.google.com https://*.googleusercontent.com https://cdnjs.cloudflare.com;">
+    <!-- Removed Cross-Origin-Opener-Policy that was blocking Google OAuth popup communication -->
     <title>Note2Flash - AI-Powered Flashcard Generator</title>
     <link rel="stylesheet" href="styles.css" />
     <!-- Font Awesome -->
@@ -45,14 +44,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
     <!-- File type detection -->
     <script src="https://cdn.jsdelivr.net/npm/file-type@18.7.1/browser.min.js"></script>
-    <!-- Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.39.7/dist/umd/supabase.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script type="module" src="./supabase-config.js"></script>
-    <script type="module" src="./config.js"></script>
+        <!-- Auth0 SDK for Google Authentication with better loading -->
+    <script>
+      // Auth0 loading is now handled in auth-modal.js
+      console.log('[HTML] Auth0 loading consolidated into auth-modal.js');
+      
+      // Clear any stale Auth0 parameters on page load (when not processing a callback)
+      document.addEventListener('DOMContentLoaded', function() {
+        const urlParams = new URLSearchParams(window.location.search);
+        const hasAuthParams = urlParams.has('code') || urlParams.has('error') || urlParams.has('state');
+        
+        // If we have auth params but no valid state, clear them
+        if (hasAuthParams && !sessionStorage.getItem('auth0_state')) {
+          console.log('[AUTH0] Clearing stale authentication parameters');
+          window.history.replaceState({}, document.title, window.location.pathname);
+        }
+      });
+    </script>
     <script type="module" src="./spacedRepetition.js"></script>
     <script type="module" src="./deckManager.js"></script>
     <script src="./text-requirements.js"></script>
+    <script type="module" src="./summarizeManager.js"></script>
+
     <script type="module" src="./app.js"></script>
     
     <style>
@@ -78,7 +92,6 @@
         transition: transform 0.8s ease !important;
         transform-style: preserve-3d !important;
         border-radius: 12px !important;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
         min-height: 400px !important;
         max-height: 400px !important;
         display: block !important;
@@ -138,22 +151,6 @@
         font-size: 1.1em;
       }
 
-      .flip-hint {
-        position: absolute;
-        bottom: 15px;
-        right: 20px;
-        font-size: 0.9rem;
-        color: #6c757d;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-        opacity: 0.7;
-        transition: opacity 0.3s;
-      }
-
-      .flashcard:hover .flip-hint {
-        opacity: 1;
-      }
 
       /* Ensure flashcard container takes full space */
       .flashcard-container {
@@ -189,11 +186,6 @@
           max-height: 350px !important;
         }
 
-        .flip-hint {
-          font-size: 0.8rem !important;
-          bottom: 12px !important;
-          right: 15px !important;
-        }
 
         .flashcard-container {
           min-height: 400px !important;
@@ -229,13 +221,13 @@
     <!-- Hero Section -->
     <section class="hero">
       <div class="hero-content">
-        <h1>Transform Your Notes into Smart Flashcards</h1>
+        <h1>Transform Your Notes into Smart Study Materials</h1>
         <p class="hero-subtitle">
-          Drop in your PDFs, paste YouTube links, upload lecture notes, or snap photos—our AI creates perfect flashcards from any source in seconds.
+          Drop in your PDFs, paste YouTube links, upload lecture notes, or snap photos—our AI creates perfect flashcards and FlashNotes from any source in seconds.
         </p>
         <div class="hero-cta">
           <a href="create-deck.html" class="btn btn-primary btn-large"
-            >Create Free Flashcards</a
+            >Create Free Study Materials</a
           >
           <a href="#how-it-works" class="btn btn-secondary btn-large"
             >See How It Works</a
@@ -255,7 +247,7 @@
             </div>
             <h3>AI-Powered Learning</h3>
             <p>
-              Tired of staring at walls of text? Our AI instantly transforms boring lecture notes into engaging flashcards that actually stick in your brain.
+              Tired of staring at walls of text? Our AI instantly transforms boring lecture notes into engaging study guides to help you ace your exams.
             </p>
           </div>
           <div class="feature-card">
@@ -362,6 +354,7 @@
         style="display: none; margin-bottom: 1rem"
       >
         <span id="flashcardQuotaText"></span>
+        <span id="summarizeQuotaText" style="margin-left: 1.5rem"></span>
         <span id="occlusionQuotaText" style="margin-left: 1.5rem"></span>
         <button
           id="upgradeBtn"
@@ -375,7 +368,7 @@
       <div class="grid-container">
         <!-- Left Column - Input Section -->
         <div class="grid-item">
-          <h2>Create Flashcards</h2>
+          <h2>Study Smarter, Not Harder</h2>
           <div class="input-tabs">
             <button class="tab-btn active" data-tab="text">Text Input</button>
             <button class="tab-btn" data-tab="content">Content Upload</button>
@@ -403,8 +396,26 @@ Examples:
                 <span class="recommended">(300+ recommended for best results)</span>
               </div>
               
+              <!-- AI Output Options -->
+              <div class="ai-output-options">
+                <div class="output-toggle">
+                  <label class="toggle-option">
+                    <input type="radio" name="outputType" value="summary" checked>
+                    <span class="toggle-label">
+                      <i class="fas fa-sticky-note"></i> Create FlashNotes
+                    </span>
+                  </label>
+                  <label class="toggle-option">
+                    <input type="radio" name="outputType" value="flashcards">
+                    <span class="toggle-label">
+                      <i class="fas fa-layer-group"></i> Generate Flashcards
+                    </span>
+                  </label>
+                </div>
+              </div>
 
-              <div class="generation-options">
+              <!-- Flashcard Options (shown when flashcards or both selected) -->
+              <div class="generation-options" id="flashcardOptions" style="display: none;">
                       <select id="textCardType" class="select-input">
         <option value="term">Term & Definition</option>
         <option value="qa">Question & Answer</option>
@@ -419,12 +430,21 @@ Examples:
                 </select>
               </div>
 
+              <!-- FlashNotes Options (shown when summary or both selected) -->
+              <div class="generation-options" id="summaryOptions">
+                <select id="summaryType" class="select-input">
+                  <option value="quick">Bullet Point FlashNotes</option>
+                  <option value="detailed" class="pro-option">Paragraph FlashNotes (Pro+)</option>
+                  <option value="study" class="premium-option">Study Guide (Premium)</option>
+                </select>
+              </div>
+
               <button
                 type="submit"
                 class="btn btn-primary"
                 id="generateFromTextBtn"
               >
-                <i class="fas fa-magic"></i> Generate Flashcards
+                <i class="fas fa-magic"></i> <span id="generateButtonText">Generate Flashcards</span>
               </button>
             </form>
           </div>
@@ -445,8 +465,26 @@ Examples:
               />
             </div>
 
-            <!-- Card Type Selection -->
-            <div id="cardTypeSelection">
+            <!-- AI Output Options -->
+            <div class="ai-output-options">
+              <div class="output-toggle">
+                <label class="toggle-option">
+                  <input type="radio" name="uploadOutputType" value="summary" checked>
+                  <span class="toggle-label">
+                    <i class="fas fa-sticky-note"></i> Create FlashNotes
+                  </span>
+                </label>
+                <label class="toggle-option">
+                  <input type="radio" name="uploadOutputType" value="flashcards">
+                  <span class="toggle-label">
+                    <i class="fas fa-layer-group"></i> Generate Flashcards
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Flashcard Options (shown when flashcards or both selected) -->
+            <div class="generation-options" id="uploadFlashcardOptions" style="display: none;">
                       <select id="uploadCardType" class="select-input">
           <option value="term" selected>Term & Definition</option>
           <option value="qa">Question & Answer</option>
@@ -460,8 +498,21 @@ Examples:
                 <option value="15">15 cards (Premium)</option>
                 <option value="20">20 cards (Premium)</option>
               </select>
+            </div>
+
+            <!-- FlashNotes Options (shown when summary or both selected) -->
+            <div class="generation-options" id="uploadSummaryOptions">
+              <select id="uploadSummaryType" class="select-input">
+                <option value="quick">Bullet Point FlashNotes</option>
+                <option value="detailed" class="pro-option">Paragraph FlashNotes (Pro+)</option>
+                <option value="study" class="premium-option">Study Guide (Premium)</option>
+              </select>
+            </div>
+
+            <!-- Card Type Selection -->
+            <div id="cardTypeSelection">
               <button id="generateCardsBtn" class="btn btn-primary">
-                Generate Cards
+                <i class="fas fa-magic"></i> <span id="uploadGenerateButtonText">Generate FlashNotes</span>
               </button>
             </div>
           </div>
@@ -500,7 +551,26 @@ Examples:
                   </div>
                   <div id="previewContent" class="preview-content"></div>
                 </div>
-                <div class="generation-options">
+                <!-- AI Output Options -->
+                <div class="ai-output-options">
+                  <div class="output-toggle">
+                    <label class="toggle-option">
+                      <input type="radio" name="urlOutputType" value="summary" checked>
+                      <span class="toggle-label">
+                        <i class="fas fa-sticky-note"></i> Create FlashNotes
+                      </span>
+                    </label>
+                    <label class="toggle-option">
+                      <input type="radio" name="urlOutputType" value="flashcards">
+                      <span class="toggle-label">
+                        <i class="fas fa-layer-group"></i> Generate Flashcards
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Flashcard Options (shown when flashcards or both selected) -->
+                <div class="generation-options" id="urlFlashcardOptions" style="display: none;">
                           <select id="urlCardType" class="select-input">
           <option value="term">Term & Definition</option>
           <option value="qa">Question & Answer</option>
@@ -514,13 +584,23 @@ Examples:
                     <option value="20" class="premium-option">20 cards</option>
                   </select>
                 </div>
+
+                <!-- FlashNotes Options (shown when summary or both selected) -->
+                <div class="generation-options" id="urlSummaryOptions">
+                  <select id="urlSummaryType" class="select-input">
+                    <option value="quick">Bullet Point FlashNotes</option>
+                    <option value="detailed" class="pro-option">Paragraph FlashNotes (Pro+)</option>
+                    <option value="study" class="premium-option">Study Guide (Premium)</option>
+                  </select>
+                </div>
+
                 <button
                   type="submit"
                   class="btn btn-primary"
                   id="generateFromUrlBtn"
                   disabled
                 >
-                  <i class="fas fa-magic"></i> Generate Flashcards
+                  <i class="fas fa-magic"></i> <span id="urlGenerateButtonText">Generate FlashNotes</span>
                 </button>
               </div>
               <p class="url-help">
@@ -540,7 +620,7 @@ Examples:
         <!-- Right Column - Flashcard Viewer -->
         <div class="grid-item">
           <div class="deck-title-container">
-            <h2 id="deckTitle" class="deck-title">Flashcard Viewer</h2>
+            <h2 id="deckTitle" class="deck-title">FlashNotes</h2>
             <button id="editDeckNameBtn" class="btn-edit-deck-name" style="display: none;" title="Edit deck name">
               <i class="fas fa-edit"></i>
             </button>
@@ -581,7 +661,17 @@ Examples:
                 <div class="progress-bar">
                   <div id="progressBar" class="progress"></div>
                 </div>
-                <span id="progressText">0/0 cards reviewed</span>
+                <div class="progress-info">
+                  <span id="progressText">0/0 cards reviewed</span>
+                  <button id="takeQuizBtn" class="btn btn-quiz">
+                    <i class="fas fa-graduation-cap"></i> Take Quiz
+                  </button>
+                </div>
+              </div>
+              <div id="deckTagsContainer" class="deck-tags-container" style="display: none;">
+                <div id="deckTagsList" class="deck-tags-list">
+                  <!-- Deck tags will be populated here -->
+                </div>
               </div>
               <div id="flashcard" class="flashcard">
                 <div class="flashcard-inner">
@@ -617,6 +707,15 @@ Examples:
                     <i class="fas fa-chevron-right"></i>
                   </button>
                 </div>
+                
+                <!-- Explain This Button -->
+                <div class="explain-this-section">
+                  <button id="explainThisBtn" class="btn btn-explain" title="Get AI-powered explanation">
+                    <i class="fas fa-lightbulb"></i> Explain This!
+                    <small>Unlimited</small>
+                  </button>
+                </div>
+                
                 <div class="performance-buttons">
                   <button class="btn btn-danger" data-performance="1" title="I completely forgot this - show again soon (Keyboard: 1)">
                     <i class="fas fa-times"></i> Again
@@ -638,14 +737,37 @@ Examples:
                 <div class="keyboard-hints">
                   <small><i class="fas fa-keyboard"></i> Quick keys: 1-Again | 2-Hard | 3-Good | 4-Easy</small>
                 </div>
-
-                <!-- Quiz Button - redirects to centralized quiz -->
-                <div class="quiz-actions">
-                  <button id="takeQuizBtn" class="btn btn-primary">
-                    <i class="fas fa-graduation-cap"></i> Take Quiz
-                  </button>
-                </div>
               </div>
+            </div>
+          </div>
+
+          <!-- FlashNotes Viewer -->
+          <div id="summaryContainer" class="summary-container" style="display: none;">
+            <div class="summary-header">
+              <h3><i class="fas fa-sticky-note"></i> FlashNotes</h3>
+              <div class="summary-actions">
+                <button id="generateFlashcardsFromSummary" class="btn btn-primary btn-sm" style="display: none;">
+                  <i class="fas fa-layer-group"></i> Create Flashcards
+                </button>
+                <button id="exportSummary" class="btn btn-secondary btn-sm">
+                  <i class="fas fa-download"></i> Export
+                </button>
+                <button id="shareSummary" class="btn btn-secondary btn-sm">
+                  <i class="fas fa-share"></i> Share
+                </button>
+              </div>
+            </div>
+            <div id="summaryContent" class="summary-content">
+              <div id="summarizeLoading" class="loading-state" style="display: none;">
+                <div class="spinner"></div>
+                <p>Generating FlashNotes...</p>
+              </div>
+              <div id="summaryText" class="summary-text"></div>
+            </div>
+            <div class="summary-stats">
+              <span id="summaryWordCount">0 words</span>
+              <span id="summaryReadTime">~0 min read</span>
+              <span id="timeSaved">Time saved: ~0 min</span>
             </div>
           </div>
         </div>
@@ -688,11 +810,12 @@ Examples:
             <h3>Free</h3>
             <p class="price">$0/month</p>
             <ul class="features">
-              <li>✓ 3 AI deck generations/month</li>
-              <li>✓ Max 10 cards per deck</li>
-              <li>✓ 2 total saved decks</li>
-              <li>✓ Basic card types</li>
-              <li>✓ File uploads & web content</li>
+              <li>3 AI deck generations/month</li>
+              <li>Max 10 cards per deck</li>
+              <li>1 card type (Term & Definition)</li>
+              <li>Quiz mode</li>
+              <li>Text input, file upload & web content</li>
+              <li>Limited progress tracking</li>
             </ul>
             <button
               class="btn btn-secondary"
@@ -703,20 +826,20 @@ Examples:
           </div>
 
           <div class="pricing-card">
-            <h3>Basic</h3>
-            <p class="price">$7.99/month</p>
+                          <h3>Pro</h3>
+              <p class="price">$8.99/month</p>
             <ul class="features">
-              <li>✓ 25 AI deck generations/month</li>
-              <li>✓ Up to 25 cards per deck</li>
-              <li>✓ Up to 25 saved decks</li>
-              <li>✓ All card types (including Image Occlusion)</li>
-              <li>✓ Explainer Assistant (20 credits/month)</li>
+              <li>25 AI deck generations/month</li>
+              <li>Up to 25 cards per deck</li>
+              <li>Up to 25 saved decks</li>
+              <li>All card types (including Image Occlusion)</li>
+              <li>✨ Explain This! (20 credits/month)</li>
             </ul>
             <button
               class="btn btn-secondary"
-              id="basicHomepageBtn"
+              id="proHomepageBtn"
             >
-              Start with Basic
+              Start with Pro
             </button>
           </div>
 
@@ -726,11 +849,11 @@ Examples:
             <p class="price">$14.99/month</p>
             <p class="save">Perfect for serious students</p>
             <ul class="features">
-              <li>✓ 100 AI deck generations/month</li>
-              <li>✓ Up to 100 cards per deck</li>
-              <li>✓ Up to 100 saved decks</li>
-              <li>✓ All card types & advanced features</li>
-              <li>✓ Explainer Assistant (100 credits/month)</li>
+              <li>100 AI deck generations/month</li>
+              <li>Up to 100 cards per deck</li>
+              <li>Up to 100 saved decks</li>
+              <li>All card types & advanced features</li>
+              <li>✨ Explain This! (100 credits/month)</li>
             </ul>
             <button
               class="btn btn-primary"
@@ -757,10 +880,137 @@ Examples:
       </div>
     </div>
 
+    <!-- Explain This Modal -->
+    <div id="explainModal" class="modal">
+      <div class="modal-content explain-modal-content">
+        <span class="close">&times;</span>
+        <div class="explain-header">
+          <h2><i class="fas fa-lightbulb"></i> Explain This!</h2>
+          <div class="explain-credits-info">
+            <span id="modalCreditsCount">Unlimited explanations</span>
+          </div>
+        </div>
+        
+        <div class="explain-content">
+          <div class="current-card-context">
+            <div class="card-preview">
+              <div class="preview-front">
+                <strong>Question:</strong>
+                <p id="explainCardFront"></p>
+              </div>
+              <div class="preview-back">
+                <strong>Answer:</strong>
+                <p id="explainCardBack"></p>
+              </div>
+            </div>
+          </div>
+          
+          <div class="explanation-section">
+            <div id="explainLoading" class="explain-loading" style="display: none;">
+              <div class="spinner"></div>
+              <p>Generating explanation...</p>
+            </div>
+            
+            <div id="explanationContent" class="explanation-content" style="display: none;">
+              <div class="explanation-header">
+                <h3><i class="fas fa-brain"></i> AI Explanation</h3>
+                <div class="explanation-actions">
+                  <button id="saveExplanationBtn" class="btn btn-small btn-secondary" title="Save to notebook">
+                    <i class="fas fa-bookmark"></i> Save
+                  </button>
+                  <button id="speakExplanationBtn" class="btn btn-small btn-secondary" title="Listen to explanation">
+                    <i class="fas fa-volume-up"></i> Listen
+                  </button>
+                </div>
+              </div>
+              <div id="explanationText" class="explanation-text"></div>
+              
+              <!-- Rating Section -->
+              <div class="explanation-rating">
+                <p>Was this explanation helpful?</p>
+                <div class="rating-buttons">
+                  <button class="btn btn-rating btn-thumbs-up" data-rating="up">
+                    <i class="fas fa-thumbs-up"></i> Helpful
+                  </button>
+                  <button class="btn btn-rating btn-thumbs-down" data-rating="down">
+                    <i class="fas fa-thumbs-down"></i> Not helpful
+                  </button>
+                </div>
+              </div>
+              
+              <!-- Follow-up Questions (Premium Only) -->
+              <div id="followUpSection" class="follow-up-section" style="display: none;">
+                <h4><i class="fas fa-question-circle"></i> Ask a Follow-up Question</h4>
+                <div class="follow-up-input">
+                  <textarea id="followUpQuestion" placeholder="Ask a more specific question about this concept..." rows="3"></textarea>
+                  <button id="askFollowUpBtn" class="btn btn-primary">
+                    <i class="fas fa-paper-plane"></i> Ask Question
+                  </button>
+                </div>
+                <div id="followUpResponse" class="follow-up-response" style="display: none;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="explain-footer">
+          <div class="explanation-controls">
+            <button id="explainAgainBtn" class="btn btn-secondary" style="display: none;">
+              <i class="fas fa-redo"></i> Explain Again
+            </button>
+            <button id="buyCreditsBtn" class="btn btn-outline-primary" style="display: none;">
+              <i class="fas fa-plus"></i> Buy More Credits
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Explanation History Modal -->
+    <div id="explanationHistoryModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2><i class="fas fa-history"></i> Explanation History</h2>
+        <div id="explanationHistoryContent" class="explanation-history-content">
+          <!-- History items will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <!-- Buy Credits Modal -->
+    <div id="buyCreditsModal" class="modal">
+      <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2><i class="fas fa-shopping-cart"></i> Buy Explainer Credits</h2>
+        <div class="credits-packages">
+          <div class="credit-package" data-package="10">
+            <h3>10 Credits</h3>
+            <p class="price">$2.50</p>
+            <p class="price-per-credit">$0.25 per credit</p>
+            <button class="btn btn-primary">Buy Now</button>
+          </div>
+          <div class="credit-package featured" data-package="50">
+            <div class="best-value">Best Value</div>
+            <h3>50 Credits</h3>
+            <p class="price">$11.25</p>
+            <p class="price-per-credit">$0.225 per credit</p>
+            <button class="btn btn-primary">Buy Now</button>
+          </div>
+          <div class="credit-package" data-package="100">
+            <h3>100 Credits</h3>
+            <p class="price">$20.00</p>
+            <p class="price-per-credit">$0.20 per credit</p>
+            <button class="btn btn-primary">Buy Now</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Scripts -->
     <script type="module" src="./config.js"></script>
     <script type="module" src="./spacedRepetition.js"></script>
     <script type="module" src="./deckManager.js"></script>
+    <script type="module" src="./explainThisManager.js"></script>
     <script type="module" src="./app.js"></script>
     <script type="module">
       import { initializeNavigation } from "./nav-template.js";
@@ -850,8 +1100,8 @@ Examples:
 
             // Create a quiz deck from current flashcards
             const quizDeck = {
-              name: "Generated Flashcard Quiz",
-              description: "Quiz generated from your flashcards",
+              name: window.APP_CONFIG?.QUIZ_NAME || "Generated Flashcard Quiz",
+              description: window.APP_CONFIG?.QUIZ_DESCRIPTION || "Quiz generated from your flashcards",
               cards: window.flashcards,
               id: `quiz_${Date.now()}`,
               createdAt: new Date().toISOString(),
@@ -1047,11 +1297,11 @@ Examples:
         }, 500);
 
         // Homepage pricing button event listeners
-        const basicHomepageBtn = document.getElementById("basicHomepageBtn");
+        const proHomepageBtn = document.getElementById("proHomepageBtn");
         const premiumHomepageBtn = document.getElementById("premiumHomepageBtn");
 
-        if (basicHomepageBtn) {
-          basicHomepageBtn.addEventListener("click", () => {
+        if (proHomepageBtn) {
+          proHomepageBtn.addEventListener("click", () => {
             window.location.href = "pricing.html";
           });
         }
@@ -1061,7 +1311,337 @@ Examples:
             window.location.href = "pricing.html";
           });
         }
+
+        // Initialize summarize feature
+        initializeSummarizeFeature();
+        
+        // Initialize output type toggles for all tabs
+        initializeAllOutputToggles();
       });
+
+      // Summarize Feature Functions
+      function initializeSummarizeFeature() {
+        const outputRadios = document.querySelectorAll('input[name="outputType"]');
+        const flashcardOptions = document.getElementById('flashcardOptions');
+        const summaryOptions = document.getElementById('summaryOptions');
+        const generateButtonText = document.getElementById('generateButtonText');
+        const textForm = document.getElementById('textForm');
+
+        // Handle output type changes
+        outputRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            const selectedType = e.target.value;
+            updateUIForOutputType(selectedType);
+          });
+        });
+
+        // Handle form submission
+        textForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const selectedType = document.querySelector('input[name="outputType"]:checked').value;
+          const textContent = document.getElementById('textInput').value.trim();
+          
+          if (textContent.length < 100) {
+            showNotification('Please enter at least 100 characters for better results.', 'warning');
+            return;
+          }
+
+          await handleContentGeneration(selectedType, textContent);
+        });
+
+        // Initialize summary action buttons
+        initializeSummaryActions();
+      }
+
+      function updateUIForOutputType(type) {
+        const flashcardOptions = document.getElementById('flashcardOptions');
+        const summaryOptions = document.getElementById('summaryOptions');
+        const generateButtonText = document.getElementById('generateButtonText');
+
+        switch(type) {
+          case 'flashcards':
+            flashcardOptions.style.display = 'flex';
+            summaryOptions.style.display = 'none';
+            generateButtonText.textContent = 'Generate Flashcards';
+            break;
+          case 'summary':
+            flashcardOptions.style.display = 'none';
+            summaryOptions.style.display = 'flex';
+            generateButtonText.textContent = 'Generate FlashNotes';
+            break;
+        }
+      }
+
+      // Initialize output toggles for all tabs
+      function initializeAllOutputToggles() {
+        // Upload tab toggles
+        const uploadRadios = document.querySelectorAll('input[name="uploadOutputType"]');
+        uploadRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            updateUploadUIForOutputType(e.target.value);
+          });
+        });
+
+        // URL tab toggles  
+        const urlRadios = document.querySelectorAll('input[name="urlOutputType"]');
+        urlRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            updateUrlUIForOutputType(e.target.value);
+          });
+        });
+      }
+
+      function updateUploadUIForOutputType(type) {
+        const flashcardOptions = document.getElementById('uploadFlashcardOptions');
+        const summaryOptions = document.getElementById('uploadSummaryOptions');
+        const generateButtonText = document.getElementById('uploadGenerateButtonText');
+
+        switch(type) {
+          case 'flashcards':
+            flashcardOptions.style.display = 'flex';
+            summaryOptions.style.display = 'none';
+            generateButtonText.textContent = 'Generate Flashcards';
+            break;
+          case 'summary':
+            flashcardOptions.style.display = 'none';
+            summaryOptions.style.display = 'flex';
+            generateButtonText.textContent = 'Generate FlashNotes';
+            break;
+        }
+      }
+
+      function updateUrlUIForOutputType(type) {
+        const flashcardOptions = document.getElementById('urlFlashcardOptions');
+        const summaryOptions = document.getElementById('urlSummaryOptions');
+        const generateButtonText = document.getElementById('urlGenerateButtonText');
+
+        switch(type) {
+          case 'flashcards':
+            flashcardOptions.style.display = 'flex';
+            summaryOptions.style.display = 'none';
+            generateButtonText.textContent = 'Generate Flashcards';
+            break;
+          case 'summary':
+            flashcardOptions.style.display = 'none';
+            summaryOptions.style.display = 'flex';
+            generateButtonText.textContent = 'Generate FlashNotes';
+            break;
+        }
+      }
+
+      async function handleContentGeneration(type, content) {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const flashcardContainer = document.getElementById('flashcardContainer');
+        const summaryContainer = document.getElementById('summaryContainer');
+
+        try {
+          // Update loading message based on content type
+          if (type === 'summary') {
+            window.updateLoadingMessage('Generating FlashNotes');
+          } else if (type === 'flashcards') {
+            window.updateLoadingMessage('Generating Flashcards');
+          }
+          
+          loadingIndicator.style.display = 'flex';
+
+          if (type === 'summary') {
+            await generateSummary(content);
+            summaryContainer.style.display = 'block';
+          }
+
+          if (type === 'flashcards') {
+            // Use existing flashcard generation logic
+            await window.processText(content);
+          }
+
+        } catch (error) {
+          console.error('Error generating content:', error);
+          showNotification('Failed to generate content. Please try again.', 'error');
+        } finally {
+          loadingIndicator.style.display = 'none';
+        }
+      }
+
+      async function generateSummary(content) {
+        const summaryType = document.getElementById('summaryType')?.value || 'detailed';
+        const summaryTextElement = document.getElementById('summaryText');
+        const summaryWordCount = document.getElementById('summaryWordCount');
+        const summaryReadTime = document.getElementById('summaryReadTime');
+        const timeSaved = document.getElementById('timeSaved');
+        const generateFlashcardsBtn = document.getElementById('generateFlashcardsFromSummary');
+
+        if (!window.summarizeManager) {
+          showNotification('Summarize feature not available. Please refresh the page.', 'error');
+          return;
+        }
+
+        try {
+          const summary = await window.summarizeManager.generateSummary(content, {
+            type: summaryType,
+            includeKeyPoints: true
+          });
+
+          if (summary) {
+            // Display the summary
+            summaryTextElement.innerHTML = formatSummary(summary, summaryType);
+            
+            // Update stats
+            const wordCount = summary.split(' ').length;
+            const readTime = Math.ceil(wordCount / 200); // Average reading speed
+            const originalWords = content.split(' ').length;
+            const originalReadTime = Math.ceil(originalWords / 200);
+            const savedTime = Math.max(0, originalReadTime - readTime);
+
+            summaryWordCount.textContent = `${wordCount} words`;
+            summaryReadTime.textContent = `~${readTime} min read`;
+            timeSaved.textContent = `Time saved: ~${savedTime} min`;
+
+            // Show create flashcards button for summary
+            generateFlashcardsBtn.style.display = 'inline-block';
+            generateFlashcardsBtn.onclick = () => generateFlashcardsFromSummary(summary);
+
+            showNotification('Summary generated successfully!', 'success');
+          }
+        } catch (error) {
+          console.error('Error generating summary:', error);
+          showNotification('Failed to generate summary. Please try again.', 'error');
+        }
+      }
+
+      function formatSummary(summary, type) {
+        switch(type) {
+          case 'bullet':
+            // Convert to bullet points if not already formatted
+            if (!summary.includes('•') && !summary.includes('-')) {
+              const sentences = summary.split('. ');
+              return '<ul>' + sentences.map(s => `<li>${s.trim()}</li>`).join('') + '</ul>';
+            }
+            return summary.replace(/•/g, '<li>').replace(/- /g, '<li>');
+          case 'study':
+            // Highlight important terms
+            return summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          default:
+            return summary;
+        }
+      }
+
+      async function generateFlashcardsFromSummary(summary) {
+        try {
+          showNotification('Generating flashcards from summary...', 'info');
+          await window.processText(summary);
+          showNotification('Flashcards generated from summary!', 'success');
+        } catch (error) {
+          console.error('Error generating flashcards from summary:', error);
+          showNotification('Failed to generate flashcards from summary.', 'error');
+        }
+      }
+
+      function initializeSummaryActions() {
+        // Export summary
+        const exportBtn = document.getElementById('exportSummary');
+        if (exportBtn) {
+          exportBtn.addEventListener('click', async () => {
+            const summaryText = document.getElementById('summaryText').textContent;
+            if (summaryText && window.summarizeManager) {
+              // Use the tier-restricted export method
+              await window.summarizeManager.exportFlashNotes(summaryText, 'flashnotes.txt');
+            } else if (summaryText) {
+              // Fallback for when summarizeManager is not available
+              exportSummaryAsText(summaryText);
+            }
+          });
+        }
+
+        // Share summary
+        const shareBtn = document.getElementById('shareSummary');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', () => {
+            const summaryText = document.getElementById('summaryText').textContent;
+            if (summaryText && navigator.share) {
+              navigator.share({
+                title: 'AI Generated Summary',
+                text: summaryText
+              });
+            } else {
+              // Fallback: copy to clipboard
+              navigator.clipboard.writeText(summaryText).then(() => {
+                showNotification('Summary copied to clipboard!', 'success');
+              });
+            }
+          });
+        }
+      }
+
+      function exportSummaryAsText(summary) {
+        const blob = new Blob([summary], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'summary.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('Summary exported!', 'success');
+      }
+
+      function showNotification(message, type = 'info') {
+        // Use existing notification system from app.js
+        if (window.showSuccessMessage && type === 'success') {
+          window.showSuccessMessage(message);
+        } else if (window.showErrorMessage && type === 'error') {
+          window.showErrorMessage(message);
+        } else {
+          // Create a simple notification for other types
+          console.log(`${type.toUpperCase()}: ${message}`);
+          createSimpleNotification(message, type);
+        }
+      }
+
+      function createSimpleNotification(message, type) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          padding: 12px 20px;
+          border-radius: 4px;
+          color: white;
+          font-weight: 500;
+          z-index: 10000;
+          max-width: 300px;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        `;
+        
+        // Set background color based on type
+        switch(type) {
+          case 'success':
+            notification.style.backgroundColor = '#28a745';
+            break;
+          case 'error':
+            notification.style.backgroundColor = '#dc3545';
+            break;
+          case 'info':
+          default:
+            notification.style.backgroundColor = '#17a2b8';
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 3000);
+      }
+
+      // Expose functions globally for use in app.js
+      window.generateSummary = generateSummary;
+      window.generateFlashcardsFromSummary = generateFlashcardsFromSummary;
     </script>
 
     <!-- Horizontal Scroll on Vertical Scroll Script - REMOVED -->
@@ -1190,7 +1770,7 @@ Examples:
 
     <!-- Add necessary scripts -->
     <script type="module">
-      import { CardTypeManager } from "./cardTypeManager_new.js";
+      import { CardTypeManager } from "./cardTypeManager.js";
 
       // Initialize card type manager
       const cardTypeManager = new CardTypeManager();

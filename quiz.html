@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Quiz Mode - Note2Flash</title>
     <link rel="stylesheet" href="styles.css" />
@@ -241,6 +241,25 @@
       .quiz-nav-buttons {
         display: flex;
         gap: 1rem;
+      }
+
+      .revision-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        margin-left: 1rem;
+        padding: 0.25rem 0.75rem;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 12px;
+        font-size: 0.85rem;
+        color: #64748b;
+        font-weight: 500;
+      }
+
+      .revision-indicator i {
+        font-size: 0.8rem;
+        color: #94a3b8;
       }
 
       .explanation-container {
@@ -622,7 +641,7 @@
             question = {
               id: `${card.id || Math.random()}_term`,
               type: "multiple-choice",
-              question: `What is the definition of: ${card.front}?`,
+              question: `What is the definition of ${card.front}?`,
               correctAnswer: card.back,
               explanation: card.explanation,
               options: [],
@@ -633,7 +652,10 @@
             if (clozeParts && clozeParts.length > 0) {
               const firstCloze = clozeParts[0];
               const correctAnswer = firstCloze.replace(/[{}]/g, "");
-              const questionText = card.front.replace(firstCloze, "_____");
+              
+              // Replace the first cloze with blank and remove curly braces from all other terms
+              let questionText = card.front.replace(firstCloze, "_____");
+              questionText = questionText.replace(/\{([^}]+)\}/g, "$1");
 
               question = {
                 id: `${card.id || Math.random()}_cloze`,
@@ -647,11 +669,18 @@
           }
 
           if (question) {
-            // Generate plausible wrong answers
-            question.options = generateMultipleChoiceOptions(
-              question.correctAnswer,
-              cards
-            );
+            // Generate plausible wrong answers - use specialized logic for cloze questions
+            if (card.type === "cloze") {
+              question.options = generateClozeOptions(
+                question.correctAnswer,
+                cards
+              );
+            } else {
+              question.options = generateMultipleChoiceOptions(
+                question.correctAnswer,
+                cards
+              );
+            }
             questions.push(question);
           }
         });
@@ -676,33 +705,176 @@
           .filter((answer) => answer && answer !== correctAnswer)
           .filter((answer, index, arr) => arr.indexOf(answer) === index); // Remove duplicates
 
-        // Add random wrong answers
-        while (options.length < 4 && otherAnswers.length > 0) {
-          const randomIndex = Math.floor(Math.random() * otherAnswers.length);
-          const wrongAnswer = otherAnswers.splice(randomIndex, 1)[0];
-          if (!options.includes(wrongAnswer)) {
-            options.push(wrongAnswer);
+        // Filter out obviously bad distractors (numbers only, too short, etc.)
+        const goodDistractors = otherAnswers.filter((answer) => {
+          // Remove pure numbers or very short answers
+          if (/^\d+$/.test(answer.trim()) || answer.trim().length < 5) {
+            return false;
+          }
+          
+          // Remove answers that are too similar to correct answer
+          if (answer.toLowerCase().includes(correctAnswer.toLowerCase()) || 
+              correctAnswer.toLowerCase().includes(answer.toLowerCase())) {
+            return false;
+          }
+          
+          // Prefer answers with similar characteristics (length, structure)
+          const correctLength = correctAnswer.length;
+          const answerLength = answer.length;
+          const lengthRatio = Math.min(correctLength, answerLength) / Math.max(correctLength, answerLength);
+          
+          return lengthRatio > 0.3; // At least 30% similar length
+        });
+
+        // Sort distractors by quality and add the best ones
+        const sortedDistractors = goodDistractors.sort((a, b) => {
+          // Prefer answers with similar word count
+          const correctWordCount = correctAnswer.split(' ').length;
+          const aWordCount = a.split(' ').length;
+          const bWordCount = b.split(' ').length;
+          
+          const aWordDiff = Math.abs(correctWordCount - aWordCount);
+          const bWordDiff = Math.abs(correctWordCount - bWordCount);
+          
+          return aWordDiff - bWordDiff;
+        });
+
+        // Add the best distractors
+        let addedCount = 0;
+        for (const distractor of sortedDistractors) {
+          if (options.length >= 4) break;
+          if (!options.includes(distractor)) {
+            options.push(distractor);
+            addedCount++;
           }
         }
 
-        // Fill remaining slots with generic wrong answers if needed
+        // If we still need more options and have less quality distractors, add them
+        if (options.length < 4) {
+          for (const answer of otherAnswers) {
+            if (options.length >= 4) break;
+            if (!options.includes(answer) && !goodDistractors.includes(answer)) {
+              // Only add if it's not a pure number
+              if (!/^\d+$/.test(answer.trim())) {
+                options.push(answer);
+              }
+            }
+          }
+        }
+
+        // Fill remaining slots with contextually appropriate wrong answers if needed
         const genericWrongAnswers = [
-          "Not applicable",
-          "None of the above",
-          "Insufficient information",
-          "All of the above",
+          "A process used in manufacturing",
+          "A safety procedure or protocol",
+          "A measurement or calculation method",
+          "A regulatory requirement or standard",
         ];
 
         while (options.length < 4) {
           const generic = genericWrongAnswers[options.length - 1];
-          if (!options.includes(generic)) {
+          if (generic && !options.includes(generic)) {
             options.push(generic);
           } else {
-            options.push(`Option ${options.length}`);
+            options.push(`Alternative definition ${options.length}`);
           }
         }
 
         return shuffleArray(options);
+      }
+
+      function generateClozeOptions(correctAnswer, allCards) {
+        const options = [correctAnswer];
+
+        // For cloze questions, we need short, contextually appropriate distractors
+        const otherAnswers = allCards
+          .map((card) => {
+            if (card.type === "cloze") {
+              const clozeParts = card.front.match(/\{([^}]+)\}/g);
+              return clozeParts ? clozeParts.map(part => part.replace(/[{}]/g, "")) : [];
+            }
+            return null;
+          })
+          .filter(answers => answers)
+          .flat()
+          .filter((answer) => answer && answer !== correctAnswer)
+          .filter((answer, index, arr) => arr.indexOf(answer) === index); // Remove duplicates
+
+        // Filter to only include short, appropriate answers for fill-in-the-blank
+        const appropriateDistractors = otherAnswers.filter((answer) => {
+          // Must be short (single word or very brief phrase)
+          if (answer.length > 20 || answer.split(' ').length > 3) {
+            return false;
+          }
+          
+          // Remove if it contains sentence-like structure
+          if (answer.includes('.') || answer.includes(',') || answer.includes('(')) {
+            return false;
+          }
+          
+          // Remove numbers only unless the correct answer is also a number
+          if (/^\d+$/.test(answer.trim()) && !/^\d+$/.test(correctAnswer.trim())) {
+            return false;
+          }
+          
+          return true;
+        });
+
+        // Add the best distractors
+        for (const distractor of appropriateDistractors) {
+          if (options.length >= 4) break;
+          if (!options.includes(distractor)) {
+            options.push(distractor);
+          }
+        }
+
+        // If we need more options, generate contextually appropriate ones based on the correct answer
+        const contextualDistractors = generateContextualClozeDistractors(correctAnswer);
+        
+        for (const distractor of contextualDistractors) {
+          if (options.length >= 4) break;
+          if (!options.includes(distractor)) {
+            options.push(distractor);
+          }
+        }
+
+        // Final fallback - generic single letter/number options
+        const fallbackOptions = ['A', 'B', 'D', 'E', '1', '2', '3', '4'];
+        for (const fallback of fallbackOptions) {
+          if (options.length >= 4) break;
+          if (!options.includes(fallback)) {
+            options.push(fallback);
+          }
+        }
+
+        return shuffleArray(options);
+      }
+
+      function generateContextualClozeDistractors(correctAnswer) {
+        const distractors = [];
+        
+        // If it's a letter (like Class C), suggest other letters
+        if (/^[A-Z]$/.test(correctAnswer)) {
+          const letters = ['A', 'B', 'D', 'E', 'F'];
+          return letters.filter(letter => letter !== correctAnswer);
+        }
+        
+        // If it's a number, suggest other numbers
+        if (/^\d+$/.test(correctAnswer)) {
+          const num = parseInt(correctAnswer);
+          return [num - 1, num + 1, num * 2].filter(n => n > 0 && n !== num).map(String);
+        }
+        
+        // For other types, provide contextually appropriate options
+        if (correctAnswer.toLowerCase().includes('electrical') || correctAnswer.toLowerCase().includes('fire')) {
+          return ['K', 'A', 'B'];
+        }
+        
+        if (correctAnswer.toLowerCase().includes('safety') || correctAnswer.toLowerCase().includes('protection')) {
+          return ['primary', 'secondary', 'emergency'];
+        }
+        
+        // Generic short alternatives
+        return ['standard', 'basic', 'primary', 'secondary'];
       }
 
       function loadQuestion() {
@@ -712,17 +884,29 @@
         }
 
         const question = currentQuiz.questions[currentQuestionIndex];
-        questionStartTime = new Date();
+        const isRevisiting = userAnswers[currentQuestionIndex] !== undefined;
+        
+        if (!isRevisiting) {
+          questionStartTime = new Date();
+        }
 
         // Update progress
         updateProgress();
 
-        // Update question content
-        document.getElementById(
-          "questionNumberDetail"
-        ).textContent = `Question ${currentQuestionIndex + 1} of ${
-          currentQuiz.questions.length
-        }`;
+        // Update question content with revision indicator
+        const questionNumberElement = document.getElementById("questionNumberDetail");
+        if (isRevisiting) {
+          questionNumberElement.innerHTML = `
+            <span>Question ${currentQuestionIndex + 1} of ${currentQuiz.questions.length}</span>
+            <span class="revision-indicator">
+              <i class="fas fa-history"></i> Reviewing
+            </span>
+          `;
+        } else {
+          questionNumberElement.textContent = `Question ${currentQuestionIndex + 1} of ${
+            currentQuiz.questions.length
+          }`;
+        }
 
         // Show/hide context
         const contextContainer = document.getElementById("questionContext");
@@ -755,15 +939,43 @@
           optionsContainer.appendChild(optionButton);
         });
 
-        // Hide explanation
-        document
-          .getElementById("explanationContainer")
-          .classList.remove("show");
+        // If revisiting, restore previous state
+        if (isRevisiting) {
+          const userAnswer = userAnswers[currentQuestionIndex];
+          
+          // Find and select the previously chosen option
+          const optionButtons = document.querySelectorAll(".option-button");
+          optionButtons.forEach((btn) => {
+            const option = btn.dataset.option;
+            
+            if (option === userAnswer.selectedAnswer) {
+              btn.classList.add("selected");
+            }
+            
+            if (option === question.correctAnswer) {
+              btn.classList.add("correct");
+            } else if (option === userAnswer.selectedAnswer && !userAnswer.isCorrect) {
+              btn.classList.add("incorrect");
+            }
+            
+            // Disable all buttons since this question was already answered
+            btn.disabled = true;
+          });
+
+          // Show explanation if available
+          if (question.explanation && currentQuiz.settings.showExplanations) {
+            document.getElementById("explanationText").textContent = question.explanation;
+            document.getElementById("explanationContainer").classList.add("show");
+          }
+        } else {
+          // Hide explanation for new questions
+          document.getElementById("explanationContainer").classList.remove("show");
+        }
 
         // Update navigation buttons
         updateNavigationButtons();
 
-        // Clear any previous selection
+        // Update next button state
         updateNextButton();
       }
 

@@ -13,7 +13,7 @@ import multer from "multer";
 import * as cheerio from "cheerio";
 import axios from "axios";
 import { fileURLToPath } from "url";
-import { dirname, join } from "path";
+import { dirname, join, extname } from "path";
 import { promises as fs } from "fs";
 import {
   extractTextFromPDF,
@@ -22,7 +22,7 @@ import {
   technicalTerminologyProcessor,
   technicalDiagramProcessor,
 } from "./utils/contentProcessing.js";
-import { CardTypeManager } from "./cardTypeManager_new.js";
+import { CardTypeManager } from "./cardTypeManager.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -44,8 +44,11 @@ const app = express();
 
 // Create uploads directory if it doesn't exist
 const uploadsDir = join(__dirname, "uploads");
-if (!fs.access(uploadsDir)) {
-  fs.mkdir(uploadsDir);
+try {
+  await fs.access(uploadsDir);
+} catch {
+  await fs.mkdir(uploadsDir, { recursive: true });
+  console.log('Created uploads directory');
 }
 
 // Configure multer storage
@@ -57,7 +60,7 @@ const storage = multer.diskStorage({
     const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
     cb(
       null,
-      file.fieldname + "-" + uniqueSuffix + path.extname(file.originalname)
+      file.fieldname + "-" + uniqueSuffix + extname(file.originalname)
     );
   },
 });
@@ -117,6 +120,8 @@ app.use(
           "https://region1.google-analytics.com",
           "https://apis.google.com",
           "https://*.googleapis.com",
+          "https://cdn.auth0.com",
+          "https://*.auth0.com",
         ],
         styleSrc: [
           "'self'",
@@ -135,11 +140,14 @@ app.use(
         imgSrc: ["'self'", "data:", "https:"],
         connectSrc: [
           "'self'",
+          "http://localhost:12345",
           "https://api.openai.com",
           "https://*.googleapis.com",
           "https://*.firebaseio.com",
           "https://*.google-analytics.com",
           "https://api.stripe.com",
+          "https://cdn.auth0.com",
+          "https://*.auth0.com",
         ],
         frameSrc: [
           "'self'",
@@ -148,6 +156,7 @@ app.use(
           "https://hooks.stripe.com",
           "https://*.firebaseapp.com",
           "https://*.firebaseusercontent.com",
+          "https://*.auth0.com",
         ],
         objectSrc: ["'none'"],
         fontSrc: [
@@ -187,6 +196,8 @@ app.use(
       "http://localhost:3000",
       "http://127.0.0.1:5500",
       "http://localhost:5500",
+      "http://localhost:12345",
+      "http://127.0.0.1:12345",
     ],
     methods: ["GET", "POST", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -488,6 +499,115 @@ app.post("/api/generate-flashcards", async (req, res) => {
     });
   }
 });
+
+// Summarize Content Endpoint
+app.post("/api/generate-summary", async (req, res) => {
+  try {
+    const { content, options = {} } = req.body;
+
+    if (!content || typeof content !== 'string') {
+      return res.status(400).json({
+        error: "Missing required parameter",
+        details: "Content text is required"
+      });
+    }
+
+    if (content.length < 50) {
+      return res.status(400).json({
+        error: "Content too short",
+        details: "Content must be at least 50 characters long"
+      });
+    }
+
+    const summaryType = options.type || 'detailed';
+    const includeKeyPoints = options.includeKeyPoints !== false;
+
+    // Build the appropriate prompt based on summary type
+    const systemPrompt = buildSummarySystemPrompt(summaryType, includeKeyPoints);
+    const userPrompt = `Please summarize the following content:\n\n${content}`;
+
+    // Generate summary using OpenAI
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 800,
+    });
+
+    const summary = response.choices[0].message.content.trim();
+
+    // Calculate metrics
+    const metrics = calculateSummaryMetrics(content, summary);
+
+    res.json({
+      summary,
+      type: summaryType,
+      metrics,
+      generatedAt: new Date().toISOString()
+    });
+
+  } catch (error) {
+    console.error("Error generating summary:", error);
+    res.status(500).json({
+      error: "Failed to generate summary",
+      details: error.message
+    });
+  }
+});
+
+function buildSummarySystemPrompt(type, includeKeyPoints) {
+  let basePrompt = "You are an expert content summarizer. Create a clear, concise summary of the provided content.";
+  
+  switch(type) {
+    case 'quick':
+      basePrompt += " Provide a brief 2-3 sentence summary highlighting the main points.";
+      break;
+    case 'detailed':
+      basePrompt += " Provide a comprehensive paragraph summarizing all key concepts and important details.";
+      break;
+    case 'bullet':
+      basePrompt += " Provide a bullet-point list of the main concepts and key takeaways. Use bullet points (•) or dashes (-) to format the list.";
+      break;
+    case 'study':
+      basePrompt += " Create a study-focused summary with important terms highlighted using **bold** formatting and key concepts organized for learning.";
+      break;
+    default:
+      basePrompt += " Provide a balanced summary that captures the essential information while remaining concise.";
+  }
+  
+  if (includeKeyPoints) {
+    basePrompt += " Include the most important terms and concepts that would be valuable for study purposes.";
+  }
+  
+  basePrompt += " Make the summary informative, well-structured, and easy to understand.";
+  
+  return basePrompt;
+}
+
+function calculateSummaryMetrics(originalContent, summary) {
+  const originalWords = originalContent.split(/\s+/).filter(word => word.length > 0).length;
+  const summaryWords = summary.split(/\s+/).filter(word => word.length > 0).length;
+  
+  const compressionRatio = summaryWords / originalWords;
+  const reductionPercentage = Math.round((1 - compressionRatio) * 100);
+  
+  const originalReadingTime = Math.ceil(originalWords / 200); // 200 words per minute average
+  const summaryReadingTime = Math.ceil(summaryWords / 200);
+  const timeSaved = Math.max(0, originalReadingTime - summaryReadingTime);
+  
+  return {
+    originalWords,
+    summaryWords,
+    compressionRatio: Math.round(compressionRatio * 100) / 100,
+    reductionPercentage,
+    originalReadingTime,
+    summaryReadingTime,
+    timeSaved
+  };
+}
 
 // Add a new endpoint for image occlusion processing
 app.post(
@@ -975,9 +1095,92 @@ app.post("/api/fetch-web-content", async (req, res) => {
   }
 });
 
+// Helper function to check robots.txt compliance
+async function checkRobotsTxt(url) {
+  try {
+    const urlObj = new URL(url);
+    const robotsUrl = `${urlObj.protocol}//${urlObj.host}/robots.txt`;
+    
+    console.log(`Checking robots.txt at: ${robotsUrl}`);
+    
+    try {
+      const robotsResponse = await axios.get(robotsUrl, {
+        timeout: 5000,
+        headers: {
+          'User-Agent': 'Note2Flash-Bot/1.0 (+https://note2flash.com/about)'
+        }
+      });
+      
+      const robotsContent = robotsResponse.data;
+      console.log(`Found robots.txt:`, robotsContent.substring(0, 200) + '...');
+      
+      // Parse robots.txt content
+      const lines = robotsContent.split('\n');
+      let currentUserAgent = null;
+      let isRelevant = false;
+      
+      for (const line of lines) {
+        const trimmedLine = line.trim();
+        
+        if (trimmedLine.toLowerCase().startsWith('user-agent:')) {
+          const userAgent = trimmedLine.substring(11).trim();
+          // Check if this rule applies to us
+          // Only match if it's * (all bots) or specifically mentions our bot name
+          isRelevant = userAgent === '*' || 
+                      userAgent.toLowerCase().includes('note2flash');
+          currentUserAgent = userAgent;
+        } else if (isRelevant && trimmedLine.toLowerCase().startsWith('disallow:')) {
+          const disallowPath = trimmedLine.substring(9).trim();
+          
+          // Check if the URL path matches the disallowed path
+          if (disallowPath === '/') {
+            console.log(`Robots.txt disallows all access for ${currentUserAgent}`);
+            return { allowed: false, reason: 'Robots.txt disallows all access' };
+          } else if (disallowPath && urlObj.pathname.startsWith(disallowPath)) {
+            console.log(`Robots.txt disallows access to ${disallowPath} for ${currentUserAgent}`);
+            return { allowed: false, reason: `Robots.txt disallows access to ${disallowPath}` };
+          }
+        }
+      }
+      
+      console.log('Robots.txt allows access');
+      return { allowed: true };
+      
+    } catch (robotsError) {
+      // If robots.txt doesn't exist or can't be fetched, assume access is allowed
+      console.log('No robots.txt found or error fetching it, assuming access allowed');
+      return { allowed: true };
+    }
+    
+  } catch (error) {
+    console.error('Error checking robots.txt:', error);
+    // If we can't check robots.txt due to URL parsing error, etc., be conservative
+    return { allowed: false, reason: 'Unable to verify robots.txt compliance' };
+  }
+}
+
 async function fetchWebContent(url) {
   try {
-    const response = await axios.get(url);
+    // First check robots.txt compliance
+    const robotsCheck = await checkRobotsTxt(url);
+    if (!robotsCheck.allowed) {
+      throw new Error(`Access denied: ${robotsCheck.reason}`);
+    }
+    
+    // Add a small delay to be respectful
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    const response = await axios.get(url, {
+      timeout: 10000,
+      headers: {
+        'User-Agent': 'Note2Flash-Bot/1.0 (+https://note2flash.com/about)',
+        'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+        'Accept-Language': 'en-US,en;q=0.5',
+        'Accept-Encoding': 'gzip, deflate',
+        'Cache-Control': 'no-cache'
+      }
+    });
+    
     const html = response.data;
 
     // Use cheerio to parse the HTML and extract relevant content
@@ -997,6 +1200,8 @@ async function fetchWebContent(url) {
       .text()
       .trim()
       .replace(/\s+/g, " ");
+
+    console.log(`Successfully extracted content from ${url}: ${content.length} characters`);
 
     return {
       title,

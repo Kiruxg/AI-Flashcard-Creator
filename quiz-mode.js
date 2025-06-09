@@ -101,8 +101,8 @@ class QuizModeManager {
 
     // Create a quiz deck from current flashcards
     const quizDeck = {
-      name: "Generated Flashcard Quiz",
-      description: "Quiz generated from your flashcards",
+      name: window.APP_CONFIG?.QUIZ_NAME || "Generated Flashcard Quiz",
+      description: window.APP_CONFIG?.QUIZ_DESCRIPTION || "Quiz generated from your flashcards",
       cards: window.flashcards,
       id: `quiz_${Date.now()}`,
       createdAt: new Date().toISOString(),
@@ -143,10 +143,81 @@ class QuizModeManager {
     // Filter out the correct answer and get unique incorrect options
     const otherAnswers = allCards
       .map((card) => card.back)
-      .filter((answer) => answer !== correctAnswer);
+      .filter((answer) => answer !== correctAnswer)
+      .filter((answer, index, arr) => arr.indexOf(answer) === index); // Remove duplicates
 
-    // Shuffle and take first 3
-    return this.shuffleArray(otherAnswers).slice(0, 3);
+    // Filter out obviously bad distractors (numbers only, too short, etc.)
+    const goodDistractors = otherAnswers.filter((answer) => {
+      // Remove pure numbers or very short answers
+      if (/^\d+$/.test(answer.trim()) || answer.trim().length < 5) {
+        return false;
+      }
+      
+      // Remove answers that are too similar to correct answer
+      if (answer.toLowerCase().includes(correctAnswer.toLowerCase()) || 
+          correctAnswer.toLowerCase().includes(answer.toLowerCase())) {
+        return false;
+      }
+      
+      // Prefer answers with similar characteristics (length, structure)
+      const correctLength = correctAnswer.length;
+      const answerLength = answer.length;
+      const lengthRatio = Math.min(correctLength, answerLength) / Math.max(correctLength, answerLength);
+      
+      return lengthRatio > 0.3; // At least 30% similar length
+    });
+
+    // Sort distractors by quality
+    const sortedDistractors = goodDistractors.sort((a, b) => {
+      // Prefer answers with similar word count
+      const correctWordCount = correctAnswer.split(' ').length;
+      const aWordCount = a.split(' ').length;
+      const bWordCount = b.split(' ').length;
+      
+      const aWordDiff = Math.abs(correctWordCount - aWordCount);
+      const bWordDiff = Math.abs(correctWordCount - bWordCount);
+      
+      return aWordDiff - bWordDiff;
+    });
+
+    const options = [];
+    
+    // Add the best distractors first
+    for (const distractor of sortedDistractors) {
+      if (options.length >= 3) break;
+      options.push(distractor);
+    }
+
+    // If we need more options, add from remaining answers (excluding pure numbers)
+    if (options.length < 3) {
+      for (const answer of otherAnswers) {
+        if (options.length >= 3) break;
+        if (!goodDistractors.includes(answer) && !options.includes(answer)) {
+          // Only add if it's not a pure number
+          if (!/^\d+$/.test(answer.trim())) {
+            options.push(answer);
+          }
+        }
+      }
+    }
+
+    // Fill remaining slots with contextually appropriate wrong answers if needed
+    const genericWrongAnswers = [
+      "A process used in manufacturing",
+      "A safety procedure or protocol",
+      "A measurement or calculation method",
+    ];
+
+    while (options.length < 3) {
+      const generic = genericWrongAnswers[options.length];
+      if (generic && !options.includes(generic)) {
+        options.push(generic);
+      } else {
+        options.push(`Alternative definition ${options.length + 1}`);
+      }
+    }
+
+    return options.slice(0, 3);
   }
 
   shuffleArray(array) {

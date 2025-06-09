@@ -14,7 +14,7 @@ Transform your study materials into interactive flashcards using AI. Perfect for
 ## Tech Stack
 
 - Next.js 14 with TypeScript
-- Supabase for authentication and database
+- Firebase for authentication and database
 - OpenAI API for content processing
 - Stripe for payments
 - TailwindCSS for styling
@@ -29,8 +29,8 @@ Transform your study materials into interactive flashcards using AI. Perfect for
 3. Set up environment variables:
    Create a `.env.local` file with:
    ```
-   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+   FIREBASE_PROJECT_ID=your_firebase_project_id
+FIREBASE_API_KEY=your_firebase_api_key
    OPENAI_API_KEY=your_openai_api_key
    STRIPE_SECRET_KEY=your_stripe_secret_key
    NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key

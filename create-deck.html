@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Create Flashcards | Note2Flash</title>
+    <title>Study Smarter, Not Harder | Note2Flash</title>
     <link rel="stylesheet" href="styles.css" />
     <!-- Font Awesome -->
     <link
@@ -137,9 +137,6 @@
         font-size: 1.1em;
       }
 
-      .flashcard:hover .flip-hint {
-        opacity: 1;
-      }
 
       /* Ensure flashcard container takes full space */
       .flashcard-container {
@@ -175,15 +172,120 @@
           max-height: 350px !important;
         }
 
-        .flip-hint {
-          font-size: 0.8rem !important;
-          bottom: 12px !important;
-          right: 15px !important;
-        }
 
         .flashcard-container {
           min-height: 400px !important;
           padding: 15px !important;
+        }
+      }
+
+      /* Flashcard Actions Dropdown */
+      .flashcard-actions-dropdown {
+        position: relative;
+        display: inline-block;
+      }
+
+      .btn-actions {
+        background: #f8f9fa;
+        border: 1px solid #dee2e6;
+        color: #6c757d;
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        font-size: 16px;
+        width: 40px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .btn-actions:hover {
+        background: #e9ecef;
+        color: #495057;
+        border-color: #adb5bd;
+      }
+
+      .dropdown-menu {
+        position: absolute;
+        top: 100%;
+        right: 0;
+        background: white;
+        border: 1px solid #dee2e6;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        min-width: 200px;
+        z-index: 1000;
+        display: none;
+        padding: 8px 0;
+        margin-top: 4px;
+      }
+
+      .dropdown-menu.show {
+        display: block;
+        animation: dropdownFadeIn 0.2s ease;
+      }
+
+      @keyframes dropdownFadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .dropdown-item {
+        display: flex;
+        align-items: center;
+        padding: 10px 16px;
+        color: #495057;
+        text-decoration: none;
+        font-size: 14px;
+        transition: background-color 0.15s ease;
+        border: none;
+        background: none;
+        width: 100%;
+        cursor: pointer;
+      }
+
+      .dropdown-item:hover {
+        background-color: #f8f9fa;
+        color: #495057;
+        text-decoration: none;
+      }
+
+      .dropdown-item i {
+        margin-right: 12px;
+        width: 16px;
+        text-align: center;
+        font-size: 14px;
+      }
+
+      .dropdown-item span {
+        flex: 1;
+      }
+
+      .dropdown-item small {
+        margin-left: 8px;
+        color: #6c757d;
+        font-size: 12px;
+      }
+
+      /* Different icon colors */
+      .dropdown-item:nth-child(1) i { color: #28a745; } /* Study Now - Green */
+      .dropdown-item:nth-child(2) i { color: #007bff; } /* Take Quiz - Blue */
+      .dropdown-item:nth-child(3) i { color: #6c757d; } /* Save - Gray */
+      .dropdown-item:nth-child(4) i { color: #fd7e14; } /* Export - Orange */
+
+      /* Mobile responsive */
+      @media (max-width: 768px) {
+        .dropdown-menu {
+          right: -10px;
+          min-width: 160px;
         }
       }
     </style>
@@ -196,7 +298,7 @@
       <div class="grid-container">
         <!-- Left Column - Input Section -->
         <div class="grid-item">
-          <h2>Create Flashcards</h2>
+          <h2>Study Smarter, Not Harder</h2>
           <div class="input-tabs">
             <button class="tab-btn active" data-tab="text">Text Input</button>
             <button class="tab-btn" data-tab="content">Content Upload</button>
@@ -224,8 +326,26 @@ Examples:
                 <span class="recommended">(300+ recommended for best results)</span>
               </div>
               
+              <!-- AI Output Options -->
+              <div class="ai-output-options">
+                <div class="output-toggle">
+                  <label class="toggle-option">
+                    <input type="radio" name="outputType" value="summary" checked>
+                    <span class="toggle-label">
+                      <i class="fas fa-sticky-note"></i> Create FlashNotes
+                    </span>
+                  </label>
+                  <label class="toggle-option">
+                    <input type="radio" name="outputType" value="flashcards">
+                    <span class="toggle-label">
+                      <i class="fas fa-layer-group"></i> Generate Flashcards
+                    </span>
+                  </label>
+                </div>
+              </div>
 
-              <div class="generation-options">
+              <!-- Flashcard Options (shown when flashcards selected) -->
+              <div class="generation-options" id="flashcardOptions" style="display: none;">
                       <select id="textCardType" class="select-input">
         <option value="term">Term & Definition</option>
         <option value="qa">Question & Answer</option>
@@ -240,14 +360,21 @@ Examples:
                 </select>
               </div>
 
-
+              <!-- FlashNotes Options (shown when summary selected) -->
+              <div class="generation-options" id="summaryOptions">
+                <select id="summaryType" class="select-input">
+                  <option value="quick">Bullet Point FlashNotes</option>
+                  <option value="detailed" class="pro-option">Paragraph FlashNotes (Pro+)</option>
+                  <option value="study" class="premium-option">Study Guide (Premium)</option>
+                </select>
+              </div>
 
               <button
                 type="submit"
                 class="btn btn-primary"
                 id="generateFromTextBtn"
               >
-                <i class="fas fa-magic"></i> Generate Flashcards
+                <i class="fas fa-magic"></i> <span id="generateButtonText">Create FlashNotes</span>
               </button>
             </form>
           </div>
@@ -268,8 +395,26 @@ Examples:
               />
             </div>
 
-            <!-- Card Type Selection -->
-            <div id="cardTypeSelection">
+            <!-- AI Output Options -->
+            <div class="ai-output-options">
+              <div class="output-toggle">
+                <label class="toggle-option">
+                  <input type="radio" name="uploadOutputType" value="summary" checked>
+                  <span class="toggle-label">
+                    <i class="fas fa-sticky-note"></i> Create FlashNotes
+                  </span>
+                </label>
+                <label class="toggle-option">
+                  <input type="radio" name="uploadOutputType" value="flashcards">
+                  <span class="toggle-label">
+                    <i class="fas fa-layer-group"></i> Generate Flashcards
+                  </span>
+                </label>
+              </div>
+            </div>
+
+            <!-- Flashcard Options (shown when flashcards selected) -->
+            <div class="generation-options" id="uploadFlashcardOptions" style="display: none;">
                       <select id="uploadCardType" class="select-input">
           <option value="term" selected>Term & Definition</option>
           <option value="qa">Question & Answer</option>
@@ -283,9 +428,21 @@ Examples:
                 <option value="15">15 cards (Premium)</option>
                 <option value="20">20 cards (Premium)</option>
               </select>
+            </div>
 
+            <!-- FlashNotes Options (shown when summary selected) -->
+            <div class="generation-options" id="uploadSummaryOptions">
+              <select id="uploadSummaryType" class="select-input">
+                <option value="quick">Bullet Point FlashNotes</option>
+                <option value="detailed" class="pro-option">Paragraph FlashNotes (Pro+)</option>
+                <option value="study" class="premium-option">Study Guide (Premium)</option>
+              </select>
+            </div>
+
+            <!-- Card Type Selection -->
+            <div id="cardTypeSelection">
               <button id="generateCardsBtn" class="btn btn-primary">
-                Generate Cards
+                <i class="fas fa-magic"></i> <span id="uploadGenerateButtonText">Create FlashNotes</span>
               </button>
             </div>
           </div>
@@ -324,7 +481,27 @@ Examples:
                   </div>
                   <div id="previewContent" class="preview-content"></div>
                 </div>
-                <div class="generation-options">
+                
+                <!-- AI Output Options -->
+                <div class="ai-output-options">
+                  <div class="output-toggle">
+                    <label class="toggle-option">
+                      <input type="radio" name="urlOutputType" value="summary" checked>
+                      <span class="toggle-label">
+                        <i class="fas fa-sticky-note"></i> Create FlashNotes
+                      </span>
+                    </label>
+                    <label class="toggle-option">
+                      <input type="radio" name="urlOutputType" value="flashcards">
+                      <span class="toggle-label">
+                        <i class="fas fa-layer-group"></i> Generate Flashcards
+                      </span>
+                    </label>
+                  </div>
+                </div>
+
+                <!-- Flashcard Options (shown when flashcards selected) -->
+                <div class="generation-options" id="urlFlashcardOptions" style="display: none;">
                           <select id="urlCardType" class="select-input">
           <option value="term">Term & Definition</option>
           <option value="qa">Question & Answer</option>
@@ -339,13 +516,22 @@ Examples:
                   </select>
                 </div>
 
+                <!-- FlashNotes Options (shown when summary selected) -->
+                <div class="generation-options" id="urlSummaryOptions">
+                  <select id="urlSummaryType" class="select-input">
+                    <option value="quick">Bullet Point FlashNotes</option>
+                    <option value="detailed" class="pro-option">Paragraph FlashNotes (Pro+)</option>
+                    <option value="study" class="premium-option">Study Guide (Premium)</option>
+                  </select>
+                </div>
+
                 <button
                   type="submit"
                   class="btn btn-primary"
                   id="generateFromUrlBtn"
                   disabled
                 >
-                  <i class="fas fa-magic"></i> Generate Flashcards
+                  <i class="fas fa-magic"></i> <span id="urlGenerateButtonText">Create FlashNotes</span>
                 </button>
               </div>
               <p class="url-help">
@@ -365,7 +551,7 @@ Examples:
         <!-- Right Column - Flashcard Viewer -->
         <div class="grid-item">
           <div class="deck-title-container">
-            <h2 id="deckTitle" class="deck-title">Flashcard Viewer</h2>
+            <h2 id="deckTitle" class="deck-title">FlashNotes</h2>
             <button id="editDeckNameBtn" class="btn-edit-deck-name" style="display: none;" title="Edit deck name">
               <i class="fas fa-edit"></i>
             </button>
@@ -406,7 +592,38 @@ Examples:
                 <div class="progress-bar">
                   <div id="progressBar" class="progress"></div>
                 </div>
-                <span id="progressText">0/0 cards reviewed</span>
+                <div class="progress-info">
+                  <span id="progressText">0/0 cards reviewed</span>
+                  <div class="flashcard-actions-dropdown">
+                    <button id="actionsDropdownBtn" class="btn btn-actions" title="More actions">
+                      <i class="fas fa-ellipsis-v"></i>
+                    </button>
+                    <div id="actionsDropdownMenu" class="dropdown-menu">
+                      <a href="#" id="studyNowAction" class="dropdown-item">
+                        <i class="fas fa-play"></i>
+                        <span>Study Now</span>
+                        <small class="due-count"></small>
+                      </a>
+                      <a href="#" id="takeQuizAction" class="dropdown-item">
+                        <i class="fas fa-graduation-cap"></i>
+                        <span>Take Quiz</span>
+                      </a>
+                      <a href="#" id="saveEditAction" class="dropdown-item">
+                        <i class="fas fa-save"></i>
+                        <span>Save and Edit</span>
+                      </a>
+                      <a href="#" id="exportAction" class="dropdown-item">
+                        <i class="fas fa-download"></i>
+                        <span>Export</span>
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div id="deckTagsContainer" class="deck-tags-container" style="display: none;">
+                <div id="deckTagsList" class="deck-tags-list">
+                  <!-- Deck tags will be populated here -->
+                </div>
               </div>
               <div id="flashcard" class="flashcard">
                 <div class="flashcard-inner">
@@ -464,13 +681,36 @@ Examples:
                 <div class="keyboard-hints">
                   <small><i class="fas fa-keyboard"></i> Quick keys: 1-Again | 2-Hard | 3-Good | 4-Easy</small>
                 </div>
-
-                <!-- Quiz Button - redirects to centralized quiz -->
-                <div class="quiz-actions">
-                  <button id="takeQuizBtn" class="btn btn-primary">
-                    <i class="fas fa-graduation-cap"></i> Take Quiz
+              </div>
+            </div>
+            
+            <!-- Summary Container for FlashNotes -->
+            <div id="summaryContainer" class="summary-container" style="display: none;">
+              <div class="summary-header">
+                <h3><i class="fas fa-sticky-note"></i> FlashNotes</h3>
+                <div class="summary-actions">
+                  <button id="generateFlashcardsFromSummary" class="btn btn-primary btn-sm" style="display: none;">
+                    <i class="fas fa-layer-group"></i> Create Flashcards
+                  </button>
+                  <button id="exportSummary" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-download"></i> Export
+                  </button>
+                  <button id="shareSummary" class="btn btn-secondary btn-sm">
+                    <i class="fas fa-share"></i> Share
                   </button>
                 </div>
+              </div>
+              <div id="summaryContent" class="summary-content">
+                <div id="summarizeLoading" class="loading-state" style="display: none;">
+                  <div class="spinner"></div>
+                  <p>Generating FlashNotes...</p>
+                </div>
+                <div id="summaryText" class="summary-text"></div>
+              </div>
+              <div class="summary-stats">
+                <span id="summaryWordCount">0 words</span>
+                <span id="summaryReadTime">~0 min read</span>
+                <span id="timeSaved">Time saved: ~0 min</span>
               </div>
             </div>
           </div>
@@ -484,7 +724,10 @@ Examples:
       import { initializeNavigation } from "./nav-template.js";
       document.addEventListener("DOMContentLoaded", initializeNavigation);
     </script>
+    <script type="module" src="./spacedRepetition.js"></script>
+    <script type="module" src="./deckManager.js"></script>
     <script src="./text-requirements.js"></script>
+    <script type="module" src="./summarizeManager.js"></script>
     <script type="module" src="./app.js"></script>
     <script type="module">
       import { initializeFooter } from "./footer-template.js";
@@ -521,11 +764,31 @@ Examples:
 
 
 
+        // Function to update Study Now action with due count
+        function updateStudyNowAction() {
+          const studyNowAction = document.getElementById("studyNowAction");
+          const dueCountEl = studyNowAction?.querySelector(".due-count");
+          
+          if (!studyNowAction || !dueCountEl) return;
+
+          if (!window.flashcards || window.flashcards.length === 0) {
+            return;
+          }
+
+          // Show count for new cards
+          if (window.flashcards.length > 0) {
+            dueCountEl.textContent = `(${window.flashcards.length} new)`;
+          }
+        }
+
         // Listen for flashcards generated event to store flashcards globally
         document.addEventListener("flashcardsGenerated", function(event) {
           if (event.detail && event.detail.flashcards) {
             window.flashcards = event.detail.flashcards;
             console.log("Flashcards stored globally:", window.flashcards.length, "cards");
+            
+            // Update the Study Now action
+            updateStudyNowAction();
           }
         });
 
@@ -535,11 +798,53 @@ Examples:
           console.log("Flashcards cleared from global storage");
         });
 
-        // Add event listener for Take Quiz button
-        const takeQuizBtn = document.getElementById("takeQuizBtn");
-        if (takeQuizBtn) {
-          takeQuizBtn.addEventListener("click", function() {
-            // Check if we have flashcards available
+        // Initialize Flashcard Actions Dropdown
+        const actionsDropdownBtn = document.getElementById("actionsDropdownBtn");
+        const actionsDropdownMenu = document.getElementById("actionsDropdownMenu");
+        
+        if (actionsDropdownBtn && actionsDropdownMenu) {
+          // Toggle dropdown on click
+          actionsDropdownBtn.addEventListener("click", function(e) {
+            e.stopPropagation();
+            actionsDropdownMenu.classList.toggle("show");
+          });
+
+          // Close dropdown when clicking outside
+          document.addEventListener("click", function(e) {
+            if (!actionsDropdownBtn.contains(e.target) && !actionsDropdownMenu.contains(e.target)) {
+              actionsDropdownMenu.classList.remove("show");
+            }
+          });
+
+          // Study Now Action
+          document.getElementById("studyNowAction").addEventListener("click", function(e) {
+            e.preventDefault();
+            actionsDropdownMenu.classList.remove("show");
+            
+            if (!window.flashcards || window.flashcards.length === 0) {
+              alert("No flashcards available. Please generate flashcards first.");
+              return;
+            }
+
+            // Call the initializeStudySession function from app.js
+            if (typeof window.initializeStudySession === 'function') {
+              window.initializeStudySession();
+            } else {
+              // Fallback: trigger the study now button click
+              const studyNowBtn = document.getElementById("studyNowBtn");
+              if (studyNowBtn) {
+                studyNowBtn.click();
+              } else {
+                alert("Study functionality not available. Please try again.");
+              }
+            }
+          });
+
+          // Take Quiz Action
+          document.getElementById("takeQuizAction").addEventListener("click", function(e) {
+            e.preventDefault();
+            actionsDropdownMenu.classList.remove("show");
+            
             if (!window.flashcards || window.flashcards.length === 0) {
               alert("No flashcards available. Please generate flashcards first.");
               return;
@@ -547,8 +852,8 @@ Examples:
 
             // Create a quiz deck from current flashcards
             const quizDeck = {
-              name: "Generated Flashcard Quiz",
-              description: "Quiz generated from your flashcards",
+              name: window.APP_CONFIG?.QUIZ_NAME || "Generated Flashcard Quiz",
+              description: window.APP_CONFIG?.QUIZ_DESCRIPTION || "Quiz generated from your flashcards",
               cards: window.flashcards,
               id: `quiz_${Date.now()}`,
               createdAt: new Date().toISOString(),
@@ -557,6 +862,55 @@ Examples:
             // Store the deck in sessionStorage and redirect to quiz.html
             sessionStorage.setItem("quizDeck", JSON.stringify(quizDeck));
             window.location.href = "quiz.html";
+          });
+
+          // Save and Edit Action
+          document.getElementById("saveEditAction").addEventListener("click", function(e) {
+            e.preventDefault();
+            actionsDropdownMenu.classList.remove("show");
+            
+            if (!window.flashcards || window.flashcards.length === 0) {
+              alert("No flashcards available. Please generate flashcards first.");
+              return;
+            }
+
+            // For now, show a placeholder - you can implement this later
+            alert("Save and Edit functionality will be implemented soon!");
+          });
+
+          // Export Action
+          document.getElementById("exportAction").addEventListener("click", function(e) {
+            e.preventDefault();
+            actionsDropdownMenu.classList.remove("show");
+            
+            if (!window.flashcards || window.flashcards.length === 0) {
+              alert("No flashcards available. Please generate flashcards first.");
+              return;
+            }
+
+            // Create a simple deck object for export
+            const deckToExport = {
+              name: "Generated Flashcards",
+              description: "Exported flashcard deck",
+              cards: window.flashcards,
+              id: `export_${Date.now()}`,
+              createdAt: new Date().toISOString(),
+            };
+
+            // Call export function if available
+            if (typeof window.exportDeck === 'function') {
+              window.exportDeck(deckToExport);
+            } else {
+              // Fallback: simple JSON download
+              const dataStr = JSON.stringify(deckToExport, null, 2);
+              const dataBlob = new Blob([dataStr], {type: 'application/json'});
+              const url = URL.createObjectURL(dataBlob);
+              const link = document.createElement('a');
+              link.href = url;
+              link.download = 'flashcards.json';
+              link.click();
+              URL.revokeObjectURL(url);
+            }
           });
         }
 
@@ -776,6 +1130,334 @@ Examples:
           setupFlipClassWatcher();
         }, 500);
       });
+    </script>
+    
+    <script>
+      // FlashNotes and Output Type Management
+      document.addEventListener("DOMContentLoaded", function() {
+        initializeSummarizeFeature();
+        initializeAllOutputToggles();
+        initializeSummaryActions();
+      });
+
+      function initializeSummarizeFeature() {
+        const outputRadios = document.querySelectorAll('input[name="outputType"]');
+        const flashcardOptions = document.getElementById('flashcardOptions');
+        const summaryOptions = document.getElementById('summaryOptions');
+        const generateButtonText = document.getElementById('generateButtonText');
+        const textForm = document.getElementById('textForm');
+
+        // Handle output type changes
+        outputRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            const selectedType = e.target.value;
+            updateUIForOutputType(selectedType);
+          });
+        });
+
+        // Handle form submission
+        textForm.addEventListener('submit', async (e) => {
+          e.preventDefault();
+          const selectedType = document.querySelector('input[name="outputType"]:checked').value;
+          const textContent = document.getElementById('textInput').value.trim();
+          
+          if (textContent.length < 100) {
+            showNotification('Please enter at least 100 characters for better results.', 'warning');
+            return;
+          }
+
+          await handleContentGeneration(selectedType, textContent);
+        });
+
+        // Initialize summary action buttons
+        initializeSummaryActions();
+      }
+
+      function updateUIForOutputType(type) {
+        const flashcardOptions = document.getElementById('flashcardOptions');
+        const summaryOptions = document.getElementById('summaryOptions');
+        const generateButtonText = document.getElementById('generateButtonText');
+
+        switch(type) {
+          case 'flashcards':
+            flashcardOptions.style.display = 'flex';
+            summaryOptions.style.display = 'none';
+            generateButtonText.textContent = 'Generate Flashcards';
+            break;
+          case 'summary':
+            flashcardOptions.style.display = 'none';
+            summaryOptions.style.display = 'flex';
+            generateButtonText.textContent = 'Generate FlashNotes';
+            break;
+        }
+      }
+
+      // Initialize output toggles for all tabs
+      function initializeAllOutputToggles() {
+        // Upload tab toggles
+        const uploadRadios = document.querySelectorAll('input[name="uploadOutputType"]');
+        uploadRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            updateUploadUIForOutputType(e.target.value);
+          });
+        });
+
+        // URL tab toggles  
+        const urlRadios = document.querySelectorAll('input[name="urlOutputType"]');
+        urlRadios.forEach(radio => {
+          radio.addEventListener('change', (e) => {
+            updateUrlUIForOutputType(e.target.value);
+          });
+        });
+      }
+
+      function updateUploadUIForOutputType(type) {
+        const flashcardOptions = document.getElementById('uploadFlashcardOptions');
+        const summaryOptions = document.getElementById('uploadSummaryOptions');
+        const generateButtonText = document.getElementById('uploadGenerateButtonText');
+
+        switch(type) {
+          case 'flashcards':
+            flashcardOptions.style.display = 'flex';
+            summaryOptions.style.display = 'none';
+            generateButtonText.textContent = 'Generate Flashcards';
+            break;
+          case 'summary':
+            flashcardOptions.style.display = 'none';
+            summaryOptions.style.display = 'flex';
+            generateButtonText.textContent = 'Generate FlashNotes';
+            break;
+        }
+      }
+
+      function updateUrlUIForOutputType(type) {
+        const flashcardOptions = document.getElementById('urlFlashcardOptions');
+        const summaryOptions = document.getElementById('urlSummaryOptions');
+        const generateButtonText = document.getElementById('urlGenerateButtonText');
+
+        switch(type) {
+          case 'flashcards':
+            flashcardOptions.style.display = 'flex';
+            summaryOptions.style.display = 'none';
+            generateButtonText.textContent = 'Generate Flashcards';
+            break;
+          case 'summary':
+            flashcardOptions.style.display = 'none';
+            summaryOptions.style.display = 'flex';
+            generateButtonText.textContent = 'Generate FlashNotes';
+            break;
+        }
+      }
+
+      async function handleContentGeneration(type, content) {
+        const loadingIndicator = document.getElementById('loadingIndicator');
+        const flashcardContainer = document.getElementById('flashcardContainer');
+        const summaryContainer = document.getElementById('summaryContainer');
+
+        try {
+          // Update loading message based on content type
+          if (type === 'summary') {
+            window.updateLoadingMessage('Generating FlashNotes');
+          } else if (type === 'flashcards') {
+            window.updateLoadingMessage('Generating Flashcards');
+          }
+          
+          loadingIndicator.style.display = 'flex';
+
+          if (type === 'summary') {
+            await generateSummary(content);
+            summaryContainer.style.display = 'block';
+          }
+
+          if (type === 'flashcards') {
+            // Use existing flashcard generation logic
+            await window.processText(content);
+          }
+
+        } catch (error) {
+          console.error('Error generating content:', error);
+          showNotification('Failed to generate content. Please try again.', 'error');
+        } finally {
+          loadingIndicator.style.display = 'none';
+        }
+      }
+
+      async function generateSummary(content) {
+        const summaryType = document.getElementById('summaryType')?.value || 'detailed';
+        const summaryTextElement = document.getElementById('summaryText');
+        const summaryWordCount = document.getElementById('summaryWordCount');
+        const summaryReadTime = document.getElementById('summaryReadTime');
+        const timeSaved = document.getElementById('timeSaved');
+        const generateFlashcardsBtn = document.getElementById('generateFlashcardsFromSummary');
+
+        if (!window.summarizeManager) {
+          showNotification('Summarize feature not available. Please refresh the page.', 'error');
+          return;
+        }
+
+        try {
+          const summary = await window.summarizeManager.generateSummary(content, {
+            type: summaryType,
+            includeKeyPoints: true
+          });
+
+          if (summary) {
+            // Display the summary
+            summaryTextElement.innerHTML = formatSummary(summary, summaryType);
+            
+            // Update stats
+            const wordCount = summary.split(' ').length;
+            const readTime = Math.ceil(wordCount / 200); // Average reading speed
+            const originalWords = content.split(' ').length;
+            const originalReadTime = Math.ceil(originalWords / 200);
+            const savedTime = Math.max(0, originalReadTime - readTime);
+
+            summaryWordCount.textContent = `${wordCount} words`;
+            summaryReadTime.textContent = `~${readTime} min read`;
+            timeSaved.textContent = `Time saved: ~${savedTime} min`;
+
+            // Show create flashcards button for summary
+            generateFlashcardsBtn.style.display = 'inline-block';
+            generateFlashcardsBtn.onclick = () => generateFlashcardsFromSummary(summary);
+
+            showNotification('Summary generated successfully!', 'success');
+          }
+        } catch (error) {
+          console.error('Error generating summary:', error);
+          showNotification('Failed to generate summary. Please try again.', 'error');
+        }
+      }
+
+      function formatSummary(summary, type) {
+        switch(type) {
+          case 'bullet':
+            // Convert to bullet points if not already formatted
+            if (!summary.includes('•') && !summary.includes('-')) {
+              const sentences = summary.split('. ');
+              return '<ul>' + sentences.map(s => `<li>${s.trim()}</li>`).join('') + '</ul>';
+            }
+            return summary.replace(/•/g, '<li>').replace(/- /g, '<li>');
+          case 'study':
+            // Highlight important terms
+            return summary.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+          default:
+            return summary;
+        }
+      }
+
+      async function generateFlashcardsFromSummary(summary) {
+        try {
+          showNotification('Generating flashcards from summary...', 'info');
+          await window.processText(summary);
+          showNotification('Flashcards generated from summary!', 'success');
+        } catch (error) {
+          console.error('Error generating flashcards from summary:', error);
+          showNotification('Failed to generate flashcards from summary.', 'error');
+        }
+      }
+
+      function initializeSummaryActions() {
+        // Export summary
+        const exportBtn = document.getElementById('exportSummary');
+        if (exportBtn) {
+          exportBtn.addEventListener('click', async () => {
+            const summaryText = document.getElementById('summaryText').textContent;
+            if (summaryText && window.summarizeManager) {
+              // Use the tier-restricted export method
+              await window.summarizeManager.exportFlashNotes(summaryText, 'flashnotes.txt');
+            } else if (summaryText) {
+              // Fallback for when summarizeManager is not available
+              exportSummaryAsText(summaryText);
+            }
+          });
+        }
+
+        // Share summary
+        const shareBtn = document.getElementById('shareSummary');
+        if (shareBtn) {
+          shareBtn.addEventListener('click', () => {
+            const summaryText = document.getElementById('summaryText').textContent;
+            if (summaryText && navigator.share) {
+              navigator.share({
+                title: 'AI Generated Summary',
+                text: summaryText
+              });
+            } else {
+              // Fallback: copy to clipboard
+              navigator.clipboard.writeText(summaryText).then(() => {
+                showNotification('Summary copied to clipboard!', 'success');
+              });
+            }
+          });
+        }
+      }
+
+      function exportSummaryAsText(summary) {
+        const blob = new Blob([summary], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'summary.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showNotification('Summary exported!', 'success');
+      }
+
+      function showNotification(message, type = 'info') {
+        // Use existing notification system from app.js
+        if (window.showSuccessMessage && type === 'success') {
+          window.showSuccessMessage(message);
+        } else if (window.showErrorMessage && type === 'error') {
+          window.showErrorMessage(message);
+        } else {
+          // Create a simple notification for other types
+          console.log(`${type.toUpperCase()}: ${message}`);
+          createSimpleNotification(message, type);
+        }
+      }
+
+      function createSimpleNotification(message, type) {
+        // Create notification element
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+          position: fixed;
+          top: 20px;
+          right: 20px;
+          padding: 12px 20px;
+          border-radius: 4px;
+          color: white;
+          font-weight: 500;
+          z-index: 10000;
+          max-width: 300px;
+          box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        `;
+        
+        // Set background color based on type
+        switch(type) {
+          case 'success':
+            notification.style.backgroundColor = '#28a745';
+            break;
+          case 'error':
+            notification.style.backgroundColor = '#dc3545';
+            break;
+          case 'info':
+          default:
+            notification.style.backgroundColor = '#17a2b8';
+        }
+        
+        document.body.appendChild(notification);
+        
+        // Auto-remove after 3 seconds
+        setTimeout(() => {
+          if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
+          }
+        }, 3000);
+      }
     </script>
   </body>
 </html>

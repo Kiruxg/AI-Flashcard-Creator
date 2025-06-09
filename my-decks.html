@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>My Decks - Note2Flash</title>
     <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
@@ -12,8 +12,7 @@
       rel="stylesheet"
       href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
     />
-    <!-- Supabase -->
-    <script src="https://unpkg.com/@supabase/supabase-js"></script>
+
     <!-- Other Dependencies -->
     <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   </head>
@@ -144,11 +143,10 @@
     </div>
 
     <!-- Scripts -->
-    <script type="module" src="./supabase-config.js"></script>
     <script type="module" src="./config.js"></script>
     <script type="module" src="./app.js"></script>
     <script type="module" src="./my-decks.js"></script>
-    <script type="module" src="./auth-modal-supabase.js"></script>
+    <script type="module" src="./auth-modal.js"></script>
     <script type="module">
       import { initializeNavigation } from "./nav-template.js";
       document.addEventListener("DOMContentLoaded", initializeNavigation);

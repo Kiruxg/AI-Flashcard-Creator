@@ -10,7 +10,7 @@
     "import": "node import-decks.js"
   },
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.10",
+
     "axios": "^1.9.0",
     "cheerio": "^1.0.0",
     "cors": "^2.8.5",

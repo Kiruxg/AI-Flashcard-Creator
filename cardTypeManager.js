@@ -5,10 +5,10 @@ export class CardTypeManager {
       term: {
         name: "Term & Definition",
         description: "Simple term and definition flashcards",
-        tiers: ["free", "basic", "premium"],
+        tiers: ["free"], // Only available in free tier
         maxCards: {
           free: 10,
-          basic: 25,
+          pro: 25,
           premium: 100,
         },
         validate: this.validateTermCard.bind(this),
@@ -18,9 +18,9 @@ export class CardTypeManager {
       qa: {
         name: "Question & Answer",
         description: "Question and answer style cards",
-        tiers: ["basic", "premium"],
+        tiers: ["pro", "premium"],
         maxCards: {
-          basic: 25,
+          pro: 25,
           premium: 100,
         },
         validate: this.validateQACard.bind(this),
@@ -30,9 +30,9 @@ export class CardTypeManager {
       cloze: {
         name: "Cloze",
         description: "Fill-in-the-blank style cards",
-        tiers: ["basic", "premium"],
+        tiers: ["pro", "premium"],
         maxCards: {
-          basic: 25,
+          pro: 25,
           premium: 100,
         },
         validate: this.validateClozeCard.bind(this),
@@ -42,9 +42,9 @@ export class CardTypeManager {
       "image-occlusion": {
         name: "Image Occlusion",
         description: "Hide parts of images to create visual memory cards",
-        tiers: ["basic", "premium"],
+        tiers: ["pro", "premium"], // Available in pro and premium
         maxCards: {
-          basic: 25,
+          pro: 25,
           premium: 100,
         },
         validate: this.validateImageOcclusionCard.bind(this),
@@ -531,10 +531,10 @@ IMPORTANT: You must respond with a valid JSON object containing an array of flas
       }
 
       // Add premium indicators
-      if (userTier === "free" || userTier === "basic") {
+      if (userTier === "free" || userTier === "pro") {
         select.querySelectorAll("option").forEach((option) => {
           if (option.value && !this.isCardTypeAvailable(option.value, userTier)) {
-            const upgradeText = userTier === "free" ? " (Basic/Premium)" : " (Premium)";
+            const upgradeText = userTier === "free" ? " (Pro/Premium)" : " (Premium)";
             option.textContent += upgradeText;
             option.disabled = true;
           }

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.ico" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Pricing - Note2Flash</title>
     <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
@@ -54,7 +54,8 @@
     <div class="container">
       <!-- Pricing Hero Section -->
       <div class="pricing-hero">
-        <h1>Turn any content into flashcards in seconds</h1>
+        <h1>Turn any content into FlashNotes and Flashcards in seconds</h1>
+        <p class="hero-subtitle">The complete AI study workflow: Understand → Practice → Master</p>
         <div class="billing-toggle">
           <button class="billing-option active" data-billing="monthly">
             Monthly
@@ -73,50 +74,50 @@
             <div class="price monthly active">$0<span>/month</span></div>
             <div class="price yearly">$0<span>/month</span></div>
           </div>
-          <p class="tier-description">Perfect for trying out Note2Flash!</p>
+          <p class="tier-description">Try FlashNotes and discover smarter studying!</p>
           <ul class="features">
-            <li>3 deck generations per month</li>
-            <li>Max 10 cards per deck</li>
-            <li>1 card type (Term & Definition)</li>
-            <li>Quiz Mode</li>
-            <li>Advanced spaced repetition</li>
-            <li>Text input, file upload & web content</li>
-            <li>Limited progress tracking</li>
+            <li>🗒️ 3 FlashNotes generations per month</li>
+            <li>✨ Basic FlashNotes (Bullet Point format)</li>
+            <li>📚 3 flashcard deck generations per month (Term & Definition)</li>
+            <li>📥 1 export per month (FlashNotes + flashcards)</li>
+            <li>🎯 Basic quiz mode & progress tracking</li>
+            <li>📤 Text input, file upload & web content</li>
           </ul>
           <button class="btn btn-secondary" onclick="window.location.href='create-deck.html'">
-            Get Started Free
+            Try FlashNotes Free
           </button>
         </div>
 
-        <!-- Basic Tier -->
+        <!-- Pro Tier -->
         <div class="pricing-card">
-          <div class="competitive-badge">💎 Student Favorite</div>
-          <h3>Basic</h3>
+          <div class="competitive-badge">💎 Student Essential</div>
+          <h3>Pro</h3>
           <div class="price-container">
-            <div class="price monthly active">$7.99<span>/month</span></div>
+            <div class="price monthly active">$8.99<span>/month</span></div>
             <div class="price yearly">
               $6.25<span>/month</span>
               <div class="billing-note">Billed annually at $74.99</div>
             </div>
           </div>
-          <p class="tier-description">Better value than competitors!</p>
+          <p class="tier-description">Complete study workflow for serious learners!</p>
           <ul class="features">
-            <li>25 deck generations per month</li>
-            <li>Up to 25 cards per deck</li>
-            <li>All card types (Term & Definition, Q&A, Cloze, Image Occlusion)</li>
-            <li>Quiz Mode - (Enhanced)</li>
-            <li>Detailed progress tracking</li>
-            <li>✨ Explainer Assistant (20 credits/month)</li>
-            <li>Text input, file upload & web content</li>
+            <li>🗒️ 25 FlashNotes generations per month</li>
+            <li>📚 25 flashcard deck generations per month</li>
+            <li>✨ FlashNotes: Bullet Point + Paragraph formats</li>
+            <li>📝 Flashcard types: Question & Answer, Cloze, Image Occlusion</li>
+            <li>📥 10 exports per month (FlashNotes + flashcards)</li>
+            <li>📝 Handwritten notes detection (OCR)</li>
+            <li>💡 Unlimited AI explanations and tutoring</li>
+            <li>🎯 Enhanced quiz modes & detailed progress tracking</li>
           </ul>
-          <button class="btn btn-secondary" id="basicSubBtn">
-            Start with Basic
+          <button class="btn btn-secondary" id="proSubBtn">
+            Upgrade to Pro
           </button>
         </div>
 
         <!-- Premium Tier -->
         <div class="pricing-card featured">
-          <div class="competitive-badge premium">🚀 Power User Choice</div>
+          <div class="competitive-badge premium">🚀 Study Powerhouse</div>
           <h3>Premium</h3>
           <div class="price-container">
             <div class="price monthly active">$14.99<span>/month</span></div>
@@ -127,18 +128,254 @@
           </div>
           <p class="tier-description">Master faster, remember longer, ace your exams!</p>
           <ul class="features">
-            <li>100 deck generations per month</li>
-            <li>Up to 100 cards per deck</li>
-            <li>All card types (Term & Definition, Q&A, Cloze, Image Occlusion)</li>
-            <li>Quiz Mode - (Adaptive AI)</li>
-            <li>Advanced progress tracking</li>
-            <li>✨ Explainer Assistant (100 credits/month)</li>
-            <li>📝 Handwritten notes detection (OCR)</li>
-            <li>Text input, file upload & web content</li>
+            <li>🗒️ 50 FlashNotes generations per month</li>
+            <li>📚 50 flashcard deck generations per month</li>
+            <li>✨ All FlashNotes: Bullet Point + Paragraph + Study Guide</li>
+            <li>📝 All flashcard types: Term, Q&A, Cloze, Contextual, Image Occlusion</li>
+            <li>📥 Unlimited exports (FlashNotes + flashcards)</li>
+            <li>💡 Unlimited AI explanations and tutoring</li>
+            <li>📊 Advanced study analytics dashboard</li>
           </ul>
           <button class="btn btn-primary" id="premiumSubBtn">
-            Get Premium
+            Go Premium
           </button>
+        </div>
+      </div>
+
+      <!-- Feature Comparison Matrix -->
+      <div class="comparison-matrix">
+        <h2>Compare Plans</h2>
+        <p class="comparison-subtitle">Choose the plan that fits your learning goals</p>
+        
+        <div class="comparison-table-wrapper">
+          <table class="comparison-table">
+            <thead>
+              <tr>
+                <th class="feature-header">Features</th>
+                <th class="plan-header free">
+                  <div class="plan-info">
+                    <h4>Free</h4>
+                    <p class="plan-price">$0<span>/month</span></p>
+                  </div>
+                </th>
+                <th class="plan-header pro">
+                  <div class="plan-info">
+                    <h4>Pro</h4>
+                    <p class="plan-price">$8.99<span>/month</span></p>
+                    <span class="popular-badge">Most Popular</span>
+                  </div>
+                </th>
+                <th class="plan-header premium">
+                  <div class="plan-info">
+                    <h4>Premium</h4>
+                    <p class="plan-price">$14.99<span>/month</span></p>
+                    <span class="best-value-badge">Best Value</span>
+                  </div>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              <!-- Generation Limits -->
+              <tr class="category-row">
+                <td colspan="4" class="category-title">
+                  <i class="fas fa-magic"></i> Generation Limits
+                </td>
+              </tr>
+              <tr>
+                <td class="feature-name">FlashNotes per month</td>
+                <td class="feature-value">3</td>
+                <td class="feature-value">25</td>
+                <td class="feature-value">50</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Flashcard decks per month</td>
+                <td class="feature-value">3</td>
+                <td class="feature-value">25</td>
+                <td class="feature-value">50</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Cards per deck</td>
+                <td class="feature-value">Up to 10</td>
+                <td class="feature-value">Up to 25</td>
+                <td class="feature-value">Up to 50</td>
+              </tr>
+
+              <!-- Content Types -->
+              <tr class="category-row">
+                <td colspan="4" class="category-title">
+                  <i class="fas fa-file-alt"></i> Content Input
+                </td>
+              </tr>
+              <tr>
+                <td class="feature-name">Text input</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">File upload (PDF, DOCX, etc.)</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Web content extraction</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Handwritten notes (OCR)</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+
+              <!-- FlashNotes Features -->
+              <tr class="category-row">
+                <td colspan="4" class="category-title">
+                  <i class="fas fa-sticky-note"></i> FlashNotes Formats
+                </td>
+              </tr>
+              <tr>
+                <td class="feature-name">Bullet Point summaries</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Paragraph summaries</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Study Guide format</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+              </tr>
+
+              <!-- Flashcard Types -->
+              <tr class="category-row">
+                <td colspan="4" class="category-title">
+                  <i class="fas fa-layer-group"></i> Flashcard Types
+                </td>
+              </tr>
+              <tr>
+                <td class="feature-name">Term & Definition</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Question & Answer</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Cloze (fill-in-the-blank)</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Image Occlusion</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Contextual cards</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+              </tr>
+
+              <!-- Study Features -->
+              <tr class="category-row">
+                <td colspan="4" class="category-title">
+                  <i class="fas fa-brain"></i> Study Features
+                </td>
+              </tr>
+              <tr>
+                <td class="feature-name">Quiz mode</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Progress tracking</td>
+                <td class="feature-value">Basic</td>
+                <td class="feature-value">Enhanced</td>
+                <td class="feature-value">Advanced</td>
+              </tr>
+              <tr>
+                <td class="feature-name">AI explanations & tutoring</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">Unlimited</td>
+                <td class="feature-check">Unlimited</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Study analytics dashboard</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+              </tr>
+
+              <!-- Export & Sharing -->
+              <tr class="category-row">
+                <td colspan="4" class="category-title">
+                  <i class="fas fa-download"></i> Export & Sharing
+                </td>
+              </tr>
+              <tr>
+                <td class="feature-name">Exports per month</td>
+                <td class="feature-value">1</td>
+                <td class="feature-value">10</td>
+                <td class="feature-value">Unlimited</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Export formats</td>
+                <td class="feature-value">PDF, Text, CSV</td>
+                <td class="feature-value">+ Anki, Quizlet, JSON, Markdown</td>
+                <td class="feature-value">+ Word, PowerPoint, Excel, LaTeX</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Print-optimized layouts</td>
+                <td class="feature-cross">✗</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-value">Advanced</td>
+              </tr>
+              <tr>
+                <td class="feature-name">Share FlashNotes & decks</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+                <td class="feature-check">✓</td>
+              </tr>
+
+              <!-- Action Row -->
+              <tr class="action-row">
+                <td class="feature-name"><strong>Get Started</strong></td>
+                <td class="action-cell">
+                  <button class="btn btn-secondary btn-sm" onclick="window.location.href='create-deck.html'">
+                    Try Free
+                  </button>
+                </td>
+                <td class="action-cell">
+                  <button class="btn btn-primary btn-sm" id="proMatrixBtn">
+                    Upgrade to Pro
+                  </button>
+                </td>
+                <td class="action-cell">
+                  <button class="btn btn-primary btn-sm" id="premiumMatrixBtn">
+                    Go Premium
+                  </button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </div>
 
@@ -147,11 +384,11 @@
         <h2>Frequently Asked Questions</h2>
         <div class="faq-grid">
           <div class="faq-item">
-            <h3>What's the difference between Free, Basic, and Premium?</h3>
+            <h3>What's the difference between Free, Pro, and Premium?</h3>
             <p>
-              <strong>Free:</strong> 3 generations/month, 10 cards/deck, 2 saved decks - perfect for trying us out.<br>
-              <strong>Basic ($7.99):</strong> 25 generations/month, 25 cards/deck, 25 saved decks, image occlusion, 100 explainer credits - great for individual students.<br>
-              <strong>Premium ($14.99):</strong> 100 generations/month, 100 cards/deck, 100 saved decks, all features - perfect for serious learners.
+              <strong>Free:</strong> 3 FlashNotes + 3 flashcard generations monthly, 1 export/month, bullet point FlashNotes only, Term & Definition cards only - perfect for trying our workflow.<br>
+              <strong>Pro ($8.99):</strong> 25 FlashNotes + 25 flashcard generations monthly, 10 exports/month, OCR handwritten notes, bullet point + paragraph FlashNotes, Q&A/Cloze/Image Occlusion cards - ideal for serious students.<br>
+              <strong>Premium ($14.99):</strong> 50 FlashNotes + 50 flashcard generations monthly, unlimited exports, OCR, all FlashNotes formats + all card types, AI Study Planner, priority speed, advanced features - perfect for power learners.
             </p>
           </div>
           <div class="faq-item">
@@ -179,25 +416,43 @@
           <div class="faq-item">
             <h3>How much do I save with annual billing?</h3>
             <p>
-              Annual billing saves you money on both plans! Basic: $74.99/year (vs $95.88 monthly), Premium: $149.99/year (vs $179.88 monthly). Save $20-30 per year!
+              Annual billing saves you money on both plans! Pro: $74.99/year (vs $107.88 monthly), Premium: $149.99/year (vs $179.88 monthly). Save $30+ per year!
             </p>
           </div>
           <div class="faq-item">
-            <h3>What is the Explainer Assistant?</h3>
+            <h3>How does Explain This! work now?</h3>
             <p>
-              Our breakthrough feature that goes beyond memorization! When you're stuck on a flashcard, click "Explain" to get AI-powered explanations that help you truly understand the concept. Ask follow-up questions, get examples, and build deep comprehension - not just rote memorization like traditional flashcard apps.
+              <strong>Completely unlimited!</strong> Get AI-powered explanations for any FlashNotes, flashcards, or quiz content. Ask follow-up questions, request examples, dive deeper into concepts, or connect ideas across your studies. No limits, no credits - just unlimited AI tutoring to help you truly understand what you're learning.
             </p>
           </div>
           <div class="faq-item">
-            <h3>Can I upgrade from Basic to Premium anytime?</h3>
+            <h3>What makes FlashNotes different from regular summaries?</h3>
             <p>
-              Absolutely! You can upgrade from Basic to Premium at any time. We'll prorate your billing so you only pay the difference for the remaining time in your billing cycle.
+              FlashNotes are AI-optimized for active learning! Unlike passive summaries, they're structured for retention with key concepts highlighted, formatted for easy scanning, and designed to flow seamlessly into flashcard creation. Plus, every FlashNote includes built-in explanations and can instantly generate targeted flashcards for spaced repetition practice.
             </p>
           </div>
           <div class="faq-item">
-            <h3>How do Explainer Credits work?</h3>
+            <h3>Can I use FlashNotes and Flashcards together?</h3>
             <p>
-              Credits give you flexible access to our breakthrough Explainer Assistant! Basic users get 20 credits that refill monthly, while Premium users get 100 credits monthly. Need more credits? You can purchase additional credit packs anytime at $0.10 per credit.
+              Absolutely! This is our recommended study workflow: 1) Generate FlashNotes to understand concepts quickly, 2) Create targeted flashcards for memorization, 3) Use our quiz mode for active recall. Pro and Premium users can generate both from the same content in one click with our seamless workflow.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>Can I upgrade from Pro to Premium anytime?</h3>
+            <p>
+              Absolutely! You can upgrade from Pro to Premium at any time. We'll prorate your billing so you only pay the difference for the remaining time in your billing cycle.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>What makes your AI tutoring special?</h3>
+            <p>
+              Our AI tutor understands the context of your specific study materials! It can explain concepts from your FlashNotes, help clarify confusing flashcards, connect ideas across different topics you're studying, and provide personalized examples based on your learning progress. It's like having a personal tutor who knows exactly what you're working on.
+            </p>
+          </div>
+          <div class="faq-item">
+            <h3>How do export limits work?</h3>
+            <p>
+              Export limits apply to both FlashNotes and flashcard downloads. <strong>Free:</strong> 1 export/month, <strong>Pro:</strong> 10 exports/month, <strong>Premium:</strong> unlimited exports. We support multiple formats including Text, PDF, Anki, CSV, and more. Sharing content doesn't count toward export limits - only downloads do.
             </p>
           </div>
         </div>
@@ -284,17 +539,17 @@
           });
         });
 
-        // Basic subscription button
+        // Pro subscription button
         document
-          .getElementById("basicSubBtn")
+          .getElementById("proSubBtn")
           ?.addEventListener("click", async () => {
             // Trigger auth modal if not logged in, handle subscription logic in app.js
             const authModal = document.getElementById("authModal");
             if (
               authModal &&
-              typeof window.handleBasicSubscription === "function"
+              typeof window.handleProSubscription === "function"
             ) {
-              window.handleBasicSubscription();
+              window.handleProSubscription();
             } else {
               // Fallback - show auth modal
               if (authModal) {
@@ -322,6 +577,29 @@
               }
             }
           });
+
+        // Matrix button handlers
+        document.getElementById("proMatrixBtn")?.addEventListener("click", () => {
+          if (typeof window.handleProSubscription === "function") {
+            window.handleProSubscription();
+          } else {
+            const authModal = document.getElementById("authModal");
+            if (authModal) {
+              authModal.style.display = "block";
+            }
+          }
+        });
+
+        document.getElementById("premiumMatrixBtn")?.addEventListener("click", () => {
+          if (typeof window.handlePremiumSubscription === "function") {
+            window.handlePremiumSubscription();
+          } else {
+            const authModal = document.getElementById("authModal");
+            if (authModal) {
+              authModal.style.display = "block";
+            }
+          }
+        });
       });
     </script>
 
