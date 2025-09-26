@@ -83,6 +83,7 @@
             <li>🎯 Basic quiz mode & progress tracking</li>
             <li>📤 Text input, file upload & web content</li>
           </ul>
+<<<<<<< HEAD
           <button class="btn btn-secondary" onclick="window.location.href='create-deck.html'">
             Try FlashNotes Free
           </button>
@@ -112,6 +113,10 @@
           </ul>
           <button class="btn btn-secondary" id="proSubBtn">
             Upgrade to Pro
+=======
+          <button class="btn btn-secondary" id="getStartedFreeBtn">
+            Get Started Free
+>>>>>>> 9109d1b (Added unique twists markdown document)
           </button>
         </div>
 
@@ -578,6 +583,7 @@
             }
           });
 
+<<<<<<< HEAD
         // Matrix button handlers
         document.getElementById("proMatrixBtn")?.addEventListener("click", () => {
           if (typeof window.handleProSubscription === "function") {
@@ -600,6 +606,26 @@
             }
           }
         });
+=======
+        // Get Started Free button - handled by app.js free trial system
+        document
+          .getElementById("getStartedFreeBtn")
+          ?.addEventListener("click", (event) => {
+            // If user is not logged in, show signup modal
+            if (
+              typeof window.currentUser === "undefined" ||
+              !window.currentUser
+            ) {
+              event.preventDefault();
+              if (typeof window.showAuthModal === "function") {
+                window.showAuthModal("signup");
+              }
+            } else {
+              // If user is logged in, navigate to homepage
+              window.location.href = "index.html";
+            }
+          });
+>>>>>>> 9109d1b (Added unique twists markdown document)
       });
     </script>
 

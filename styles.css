@@ -1811,6 +1811,155 @@ a.btn:hover {
   max-height: 730px;
 }
 
+/* Enhanced styles for free trial signup modal */
+#authModal .modal-content {
+  max-width: 450px;
+  background: linear-gradient(145deg, #ffffff, #f8f9fa);
+  border: 2px solid var(--primary-200);
+  box-shadow: 0 20px 60px rgba(14, 165, 233, 0.15);
+  animation: modalSlideIn 0.4s ease-out;
+}
+
+#authModal .modal-content::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 4px;
+  background: linear-gradient(90deg, var(--primary-500), var(--primary-600));
+  border-radius: 12px 12px 0 0;
+}
+
+/* Enhanced tab styles for signup focus */
+#authModal .auth-tabs {
+  margin-bottom: 2rem;
+  border-bottom: 2px solid var(--primary-100);
+  padding-bottom: 0.75rem;
+}
+
+#authModal .tab-btn {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 1rem 2rem;
+  border-radius: 8px 8px 0 0;
+  transition: all 0.3s ease;
+}
+
+#authModal .tab-btn.active {
+  background: var(--primary-500);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.3);
+}
+
+#authModal .tab-btn.active::after {
+  display: none;
+}
+
+/* Enhanced form styles */
+#authModal .auth-form {
+  gap: 1.5rem;
+  padding: 1.5rem 0;
+}
+
+#authModal .form-group input {
+  padding: 1rem;
+  font-size: 1rem;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+#authModal .form-group input:focus {
+  border-color: var(--primary-500);
+  box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
+  transform: translateY(-1px);
+}
+
+#authModal .btn-primary {
+  padding: 1rem 2rem;
+  font-size: 1.1rem;
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--primary-500), var(--primary-600));
+  border: none;
+  border-radius: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(14, 165, 233, 0.2);
+}
+
+#authModal .btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(14, 165, 233, 0.3);
+}
+
+/* Enhanced social login button */
+#authModal .social-login button {
+  padding: 1rem 2rem;
+  font-size: 1rem;
+  font-weight: 500;
+  border: 2px solid var(--border-color);
+  border-radius: 8px;
+  transition: all 0.3s ease;
+}
+
+#authModal .social-login button:hover {
+  border-color: var(--primary-300);
+  background: var(--primary-50);
+  transform: translateY(-1px);
+}
+
+/* Success message styling */
+#authModal .auth-success {
+  background: linear-gradient(135deg, var(--success-50), #e6f9ed);
+  border: 1px solid var(--success-200);
+  color: var(--success-700);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+/* Error message styling */
+#authModal .auth-error {
+  background: linear-gradient(135deg, var(--error-50), #fef2f2);
+  border: 1px solid var(--error-200);
+  color: var(--error-700);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+  font-weight: 500;
+}
+
+/* Mobile responsive adjustments */
+@media (max-width: 768px) {
+  #authModal .modal-content {
+    margin: 2vh auto;
+    padding: 1.5rem;
+    width: 95%;
+    max-width: 400px;
+  }
+
+  #authModal .tab-btn {
+    padding: 0.75rem 1.5rem;
+    font-size: 1rem;
+  }
+
+  #authModal .auth-form {
+    gap: 1rem;
+    padding: 1rem 0;
+  }
+
+  #authModal .form-group input {
+    padding: 0.875rem;
+  }
+
+  #authModal .btn-primary {
+    padding: 0.875rem 1.5rem;
+    font-size: 1rem;
+  }
+}
+
 .auth-form input {
   width: 100%;
   padding: 0.75rem;

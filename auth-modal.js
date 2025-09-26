@@ -111,8 +111,17 @@ export function createAuthModal() {
         </form>
 
         <!-- Sign Up Form -->
+<<<<<<< HEAD
         <form id="signupForm" class="auth-form" style="display: none;">
           <div class="form-group" style="margin-bottom: 1rem;">
+=======
+        <form id="signupForm" class="auth-form" style="display: none">
+          <div class="welcome-message">
+            <h3>🎉 Start Your Free Trial!</h3>
+            <p>Create your account to start generating AI-powered flashcards instantly.</p>
+          </div>
+          <div class="form-group">
+>>>>>>> 9109d1b (Added unique twists markdown document)
             <input
               type="email"
               id="signupEmail"
@@ -143,8 +152,13 @@ export function createAuthModal() {
               style="width: 100%; padding: 0.75rem; border: 2px solid var(--border-color); border-radius: 8px; font-size: 1rem; background: var(--background-color); color: var(--text-color);"
             />
           </div>
+<<<<<<< HEAD
           <button type="submit" class="btn btn-primary" id="signupBtn" style="width: 100%; padding: 0.75rem; background: var(--primary-color); color: white; border: none; border-radius: 8px; font-size: 1rem; cursor: pointer;">
             Create Account
+=======
+          <button type="submit" class="btn btn-primary" id="signupBtn">
+            Create Account & Start Free Trial
+>>>>>>> 9109d1b (Added unique twists markdown document)
           </button>
         </form>
 

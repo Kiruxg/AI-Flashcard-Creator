@@ -248,7 +248,11 @@ $(document).ready(function () {
   initializeSessionRecovery();
   initializeMobileMenu();
   initializeUserMenuDropdown();
+<<<<<<< HEAD
   initializeEditDeckName();
+=======
+  initializeFreeTrialButtons();
+>>>>>>> 9109d1b (Added unique twists markdown document)
 
   // Initialize subscription manager
   const subscriptionManager = new SubscriptionManager();
@@ -381,6 +385,99 @@ $(document).ready(function () {
   // The auth state handling is now done in the DOMContentLoaded event above
 
 
+<<<<<<< HEAD
+=======
+    if (user) {
+      currentUser = user;
+
+      // Check email verification
+      // For testing: allow access even if not verified
+      // if (!user.emailVerified) {
+      //   showVerificationRequired();
+      //   await signOut(auth);
+      //   return;
+      // }
+
+      deckManager = new DeckManager(user.uid);
+
+      // Initialize KnowledgeHub with the deckManager instance
+      await KnowledgeHub.init(deckManager);
+      console.log("KnowledgeHub.init() completed, calling initialize()...");
+      if (!window.disableKnowledgeHubAutoInit) {
+        KnowledgeHub.initialize();
+      }
+
+      // Update desktop view
+      if (userMenuBtn) {
+        userMenuBtn.style.display = "flex";
+        userEmail.textContent = user.email;
+      }
+      if (showLoginBtn) showLoginBtn.style.display = "none";
+
+      // Update shared decks view
+      if (createDeckBtn) createDeckBtn.style.display = "block";
+      if (importDeckBtn) importDeckBtn.style.display = "block";
+      if (loginToCreateBtn) loginToCreateBtn.style.display = "none";
+
+      await loadUserDecks();
+      await loadStudyProgress();
+      await updateSubscriptionUI();
+      updatePremiumFeatures();
+
+      // Add dashboard button for logged in users
+      addDashboardButton();
+
+      // Add subscription tier check and card type update
+      await updateCardTypesForUserTier();
+
+      // Re-initialize free trial buttons for logged-in state
+      initializeFreeTrialButtons();
+    } else {
+      currentUser = null;
+      window.currentUser = null;
+      deckManager = null;
+
+      // Update desktop view
+      if (userMenuBtn) userMenuBtn.style.display = "none";
+      if (showLoginBtn) showLoginBtn.style.display = "block";
+      if (userEmail) userEmail.textContent = "";
+
+      // Update shared decks view
+      if (createDeckBtn) createDeckBtn.style.display = "none";
+      if (importDeckBtn) importDeckBtn.style.display = "none";
+      if (loginToCreateBtn) loginToCreateBtn.style.display = "block";
+
+      // Initialize KnowledgeHub without deckManager for shared decks only
+      await KnowledgeHub.init(null);
+      if (!window.disableKnowledgeHubAutoInit) {
+        KnowledgeHub.initialize();
+      }
+
+      // Re-initialize free trial buttons for logged-out state
+      initializeFreeTrialButtons();
+    }
+  });
+
+  // Auth UI functions
+  function updateAuthUI() {
+    if (currentUser) {
+      $("#userEmail").text(currentUser.email);
+      document.getElementById("userEmail").style.display = "block";
+      document.getElementById("loginBtn").style.display = "none";
+      document.getElementById("logoutBtn").style.display = "block";
+      $("#authModal").hide();
+      $("#resetPasswordModal").hide();
+      // Clear any error messages
+      $(".auth-error").remove();
+      // Clear form inputs
+      $(".auth-form input").val("");
+    } else {
+      document.getElementById("userEmail").style.display = "none";
+      document.getElementById("loginBtn").style.display = "block";
+      document.getElementById("logoutBtn").style.display = "none";
+    }
+  }
+>>>>>>> 9109d1b (Added unique twists markdown document)
 
   function showAuthError(message, formId) {
     // Remove any existing error messages in the specific form
@@ -1335,12 +1432,24 @@ $(document).ready(function () {
       $(".card-back").slideDown(200);
       $(this).hide();
       $(".performance-buttons").slideDown(200);
+<<<<<<< HEAD
 
       // Show helpful tooltip for new users on first card
       if (currentCardIndex === 0 && !localStorage.getItem('seenSpacedRepetitionTip')) {
         setTimeout(() => {
           showSpacedRepetitionTip();
         }, 500);
+=======
+      $("#feynmanContainer").slideDown(200);
+      // initialize confidence readout
+      const slider = document.getElementById("confidenceSlider");
+      const valueEl = document.getElementById("confidenceValue");
+      if (slider && valueEl) {
+        valueEl.textContent = slider.value;
+        slider.oninput = function () {
+          valueEl.textContent = this.value;
+        };
+>>>>>>> 9109d1b (Added unique twists markdown document)
       }
     });
 
@@ -1352,7 +1461,25 @@ $(document).ready(function () {
         window.speechSynthesis.cancel();
       }
       const answer = parseInt($(this).data("performance"));
-      handlePerformanceAnswer(answer);
+
+      // Capture Feynman explanation and confidence
+      const explanationEl = document.getElementById("feynmanExplanation");
+      const confidenceEl = document.getElementById("confidenceSlider");
+      const explanation = explanationEl ? explanationEl.value : "";
+      const confidence = confidenceEl ? parseInt(confidenceEl.value) : 3;
+
+      // Attach to global card metadata before handling answer
+      const card = flashcards[currentCardIndex];
+      if (card) {
+        card.metadata = card.metadata || {};
+        card.metadata.feynman = {
+          explanation,
+          confidence,
+          reviewedAt: new Date().toISOString(),
+        };
+      }
+
+      handlePerformanceAnswer(confidence);
     });
 
     // Keyboard shortcuts for performance buttons (1-4)
@@ -1607,52 +1734,52 @@ $(document).ready(function () {
 
 
 
+<<<<<<< HEAD
+=======
+    flashcards.forEach((card) => {
+      if (card.metadata && card.metadata.performance) {
+        if (card.metadata.performance === 1) {
+          needPracticeCount++;
+        } else if (card.metadata.performance === 5) {
+          confidentCount++;
+        }
+      }
+    });
 
-  function showQuizPrompt() {
-    console.log("showQuizPrompt called");
-    let quizPrompt = document.querySelector(".quiz-prompt");
-
-    if (!quizPrompt) {
-      console.log("Creating new quiz prompt element");
-      quizPrompt = document.createElement("div");
-      quizPrompt.className = "quiz-prompt";
-      quizPrompt.innerHTML = `
-        <div class="quiz-prompt-content">
-          <h3><i class="fas fa-graduation-cap"></i> Ready to Test Your Knowledge?</h3>
-          <p>You've completed all of your flashcards! Would you like to take a quiz to reinforce your learning?</p>
-          <div class="quiz-prompt-actions">
-            <button class="btn btn-primary" id="startQuizBtn">
-              <i class="fas fa-check"></i> Start Quiz
-            </button>
-            <button class="btn btn-secondary" id="continuePracticeBtn">
-              <i class="fas fa-redo"></i> Continue Practice
-            </button>
-          </div>
+    // Update or create counts display
+    let countsDisplay = $("#practiceConfidentCounts");
+    if (countsDisplay.length === 0) {
+      // Create the counts display if it doesn't exist
+      $("#progressText").after(`
+        <div id="practiceConfidentCounts" class="practice-confident-counts">
+          <span class="need-practice-count">
+            <i class="fas fa-exclamation-triangle"></i> 
+            Need Practice: <span class="count">0</span>
+          </span>
+          <span class="confident-count">
+            <i class="fas fa-check-circle"></i> 
+            Confident: <span class="count">0</span>
+          </span>
         </div>
-      `;
-      document.body.appendChild(quizPrompt);
-
-      // Add event listeners
-      document.getElementById("startQuizBtn").addEventListener("click", () => {
-        console.log("Start Quiz button clicked");
-        quizPrompt.classList.remove("show");
-        startQuizMode();
-      });
-
-      document
-        .getElementById("continuePracticeBtn")
-        .addEventListener("click", () => {
-          console.log("Continue Practice button clicked");
-          quizPrompt.classList.remove("show");
-          currentCardIndex = 0;
-          updateFlashcard();
-        });
+      `);
+      countsDisplay = $("#practiceConfidentCounts");
     }
 
-    console.log("Showing quiz prompt modal");
-    quizPrompt.classList.add("show");
-    // Store in session that we've shown the prompt
-    sessionStorage.setItem("quizPromptShown", "true");
+    // Update the counts
+    countsDisplay.find(".need-practice-count .count").text(needPracticeCount);
+    countsDisplay.find(".confident-count .count").text(confidentCount);
+
+    // Disabled quiz prompt modal (was shown at 100% progress)
+    // if (progress >= 100 && !sessionStorage.getItem("quizPromptShown")) {
+    //   showQuizPrompt();
+    //   sessionStorage.setItem("quizPromptShown", "true");
+    // }
+  }
+>>>>>>> 9109d1b (Added unique twists markdown document)
+
+  // Quiz prompt disabled for now
+  function showQuizPrompt() {
+    /* disabled */
   }
 
   function startQuizMode() {
@@ -5491,7 +5618,23 @@ function handlePerformanceAnswer(answer) {
   card.metadata.performance = answer;
   card.metadata.lastReviewed = new Date().toISOString();
 
+<<<<<<< HEAD
   // Show discreet feedback
+=======
+  // Map confidence (1-5) to SRS answer scale (1 Again, 2 Hard, 3 Good, 4 Easy)
+  const confidenceToSrs = { 1: 1, 2: 2, 3: 3, 4: 3, 5: 4 };
+  const srsAnswer = confidenceToSrs[answer] ?? 3;
+
+  try {
+    if (typeof spacedRepetition?.answerCard === "function" && card?.id) {
+      spacedRepetition.answerCard(card.id, srsAnswer, responseTime);
+    }
+  } catch (e) {
+    console.warn("SRS update failed", e);
+  }
+
+  // Show feedback
+>>>>>>> 9109d1b (Added unique twists markdown document)
   showAnswerFeedback(answer);
 
   // Debug session state
@@ -5859,6 +6002,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
+<<<<<<< HEAD
 // ... existing code ...
 
 // Enhanced tag generation with more sophisticated analysis
@@ -5992,3 +6136,83 @@ function generateTagsFromContent(front, back) {
 
 
 // ... existing code ...
+=======
+// Handle free trial button clicks
+function handleFreeTrialClick(event) {
+  event.preventDefault();
+  // Show auth modal with signup tab
+  showAuthModal("signup");
+}
+
+// Initialize free trial button event listeners
+function initializeFreeTrialButtons() {
+  // Get all free trial buttons
+  const freeTrialButtons = document.querySelectorAll(
+    'a[href="#input-section"], a[href="create-deck.html"], button[onclick*="create-deck.html"], .btn-primary[href*="create-deck"], .btn-primary[href="#input-section"]'
+  );
+
+  // Add event listeners to each button
+  freeTrialButtons.forEach((button) => {
+    // Remove any existing onclick handlers that might interfere
+    if (button.onclick) {
+      const originalOnclick = button.onclick;
+      button.onclick = (event) => {
+        // If user is not logged in, show signup modal
+        if (!currentUser) {
+          handleFreeTrialClick(event);
+          return false;
+        }
+        // If user is logged in, proceed with original action
+        return originalOnclick.call(button, event);
+      };
+    } else {
+      // Add new event listener
+      button.addEventListener("click", (event) => {
+        // If user is not logged in, show signup modal
+        if (!currentUser) {
+          handleFreeTrialClick(event);
+          return;
+        }
+        // If user is logged in, allow default behavior (navigation)
+      });
+    }
+  });
+
+  // Also handle specific buttons by their text content
+  const textBasedButtons = document.querySelectorAll(
+    ".btn-primary, .btn-secondary"
+  );
+  textBasedButtons.forEach((button) => {
+    const buttonText = button.textContent.toLowerCase();
+    if (
+      buttonText.includes("create free") ||
+      buttonText.includes("start creating free") ||
+      buttonText.includes("get started free") ||
+      buttonText.includes("free trial") ||
+      buttonText.includes("start free")
+    ) {
+      // Remove any existing onclick handlers
+      if (button.onclick) {
+        const originalOnclick = button.onclick;
+        button.onclick = (event) => {
+          if (!currentUser) {
+            handleFreeTrialClick(event);
+            return false;
+          }
+          return originalOnclick.call(button, event);
+        };
+      } else {
+        button.addEventListener("click", (event) => {
+          if (!currentUser) {
+            handleFreeTrialClick(event);
+            return;
+          }
+        });
+      }
+    }
+  });
+}
+
+// Initialize Google Auth Provider
+const googleProvider = new GoogleAuthProvider();
+>>>>>>> 9109d1b (Added unique twists markdown document)

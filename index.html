@@ -707,12 +707,60 @@ Examples:
                     <i class="fas fa-chevron-right"></i>
                   </button>
                 </div>
+<<<<<<< HEAD
                 
                 <!-- Explain This Button -->
                 <div class="explain-this-section">
                   <button id="explainThisBtn" class="btn btn-explain" title="Get AI-powered explanation">
                     <i class="fas fa-lightbulb"></i> Explain This!
                     <small>Unlimited</small>
+=======
+                <button id="showAnswerBtn" class="btn btn-primary">
+                  <i class="fas fa-eye"></i> Show Answer
+                </button>
+
+                <!-- Feynman Mode: explanation + confidence -->
+                <div
+                  id="feynmanContainer"
+                  style="
+                    display: none;
+                    margin-top: 12px;
+                    gap: 12px;
+                    flex-direction: column;
+                  "
+                >
+                  <label for="feynmanExplanation" style="font-weight: 600"
+                    >Explain the answer in 1–2 sentences</label
+                  >
+                  <textarea
+                    id="feynmanExplanation"
+                    rows="3"
+                    placeholder="Write your explanation..."
+                    style="width: 100%"
+                  ></textarea>
+                  <div style="display: flex; align-items: center; gap: 10px">
+                    <label for="confidenceSlider" style="margin: 0"
+                      >Confidence:</label
+                    >
+                    <input
+                      id="confidenceSlider"
+                      type="range"
+                      min="1"
+                      max="5"
+                      value="3"
+                      step="1"
+                    />
+                    <span id="confidenceValue">3</span>
+                  </div>
+                </div>
+
+                <div class="performance-buttons">
+                  <button class="btn btn-danger" data-performance="1">
+                    <i class="fas fa-tools"></i> Need Practice
+                  </button>
+                  <button class="btn btn-success" data-performance="5">
+                    <i class="fas fa-check-circle"></i> Confident
+>>>>>>> 9109d1b (Added unique twists markdown document)
                   </button>
                 </div>
                 
