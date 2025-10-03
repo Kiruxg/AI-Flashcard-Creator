@@ -1,10 +1,10 @@
 import { showNotification } from "./utils.js";
-import { 
-  signInWithEmailAndPassword, 
-  createUserWithEmailAndPassword, 
+import {
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   sendPasswordResetEmail,
   onAuthStateChanged,
-  signOut 
+  signOut,
 } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
 
 // Import Firebase configuration
@@ -20,7 +20,10 @@ function debugAuthLog(message, data = null) {
 
 // Google Sign-In placeholder functions (to be implemented)
 async function handleGoogleSignInPlaceholder() {
-  showAuthMessage("Google Sign-In is not yet configured. Please use email/password authentication.", "info");
+  showAuthMessage(
+    "Google Sign-In is not yet configured. Please use email/password authentication.",
+    "info"
+  );
 }
 
 // Make auth functions globally available
@@ -273,54 +276,54 @@ export function createAuthModal() {
 function initializeUserSession() {
   debugAuthLog("Initializing user session");
   if (!getCurrentUser()) return;
-  
+
   // Initialize user-specific features
   if (window.loadUserDecks) {
     window.loadUserDecks();
   }
-  
+
   // Initialize explain this manager with user data if available
   if (window.explainThisManager && window.explainThisManager.setCurrentUser) {
     window.explainThisManager.setCurrentUser(getCurrentUser());
   }
-  
+
   // Update subscription UI if available
   if (window.updateSubscriptionUI) {
     window.updateSubscriptionUI();
   }
-  
+
   // Initialize edit deck name if available
   if (window.initializeEditDeckName) {
     window.initializeEditDeckName();
   }
-  
-  debugAuthLog('User session initialized for:', getCurrentUser().email);
+
+  debugAuthLog("User session initialized for:", getCurrentUser().email);
 }
 
 // Clean up when user logs out
 function cleanupUserSession() {
   debugAuthLog("Cleaning up user session");
-  
+
   // Reset global currentUser if available
   if (window.currentUser !== undefined) {
     window.currentUser = null;
   }
-  
+
   // Reset userDecks if available
   if (window.userDecks !== undefined) {
     window.userDecks = [];
   }
-  
+
   // Reset UI state if functions are available
   if (window.updateDeckList) {
     window.updateDeckList([]);
   }
-  
+
   if (window.stopDueCardChecking) {
     window.stopDueCardChecking();
   }
-  
-  debugAuthLog('User session cleaned up');
+
+  debugAuthLog("User session cleaned up");
 }
 
 // Auth UI functions for dual authentication (Firebase + Auth0)
@@ -338,8 +341,8 @@ function updateAuthUI() {
   const currentUser = getCurrentUser();
 
   if (currentUser) {
-    debugAuthLog('Updating UI for authenticated user:', currentUser.email);
-    
+    debugAuthLog("Updating UI for authenticated user:", currentUser.email);
+
     // Desktop UI
     if (showLoginBtn) showLoginBtn.style.display = "none";
     if (userEmail) {
@@ -349,7 +352,8 @@ function updateAuthUI() {
     if (userMenuBtn) userMenuBtn.style.display = "flex";
 
     // Mobile UI
-    if (mobileUserEmail) mobileUserEmail.textContent = currentUser.email || currentUser.name;
+    if (mobileUserEmail)
+      mobileUserEmail.textContent = currentUser.email || currentUser.name;
     if (mobileLogoutBtn) mobileLogoutBtn.style.display = "block";
 
     // Shared decks UI
@@ -360,14 +364,16 @@ function updateAuthUI() {
     // Hide auth modal if open
     hideAuthModal();
     hideResetPasswordModal();
-    
+
     // Clear any error messages
-    document.querySelectorAll(".auth-error").forEach(el => el.remove());
+    document.querySelectorAll(".auth-error").forEach((el) => el.remove());
     // Clear form inputs
-    document.querySelectorAll(".auth-form input").forEach(input => input.value = "");
+    document
+      .querySelectorAll(".auth-form input")
+      .forEach((input) => (input.value = ""));
   } else {
-    debugAuthLog('Updating UI for unauthenticated state');
-    
+    debugAuthLog("Updating UI for unauthenticated state");
+
     // Desktop UI
     if (showLoginBtn) showLoginBtn.style.display = "block";
     if (userEmail) userEmail.style.display = "none";
@@ -388,15 +394,15 @@ function updateAuthUI() {
 export async function signOutUser() {
   try {
     debugAuthLog("Signing out user");
-    
+
     // Firebase user (email/password only)
     debugAuthLog("Logging out Firebase user");
     await signOut(auth);
-    
+
     // Clean up session
     cleanupUserSession();
     updateAuthUI();
-    
+
     debugAuthLog("User signed out successfully");
   } catch (error) {
     debugAuthLog("Sign out error:", error);
@@ -410,42 +416,46 @@ export function getCurrentUser() {
   if (auth.currentUser) {
     return auth.currentUser;
   }
-  
+
   return null;
 }
 
 // Initialize the auth modal with event listeners
 export async function initializeAuthModal() {
   debugAuthLog("Initializing Auth Modal");
-  
+
   // Create the modal HTML
   createAuthModal();
-  
+
   // Get modal elements
   const authModal = document.getElementById("authModal");
   const resetPasswordModal = document.getElementById("resetPasswordModal");
   const authModalClose = document.getElementById("authModalClose");
-  const resetPasswordModalClose = document.getElementById("resetPasswordModalClose");
-  
+  const resetPasswordModalClose = document.getElementById(
+    "resetPasswordModalClose"
+  );
+
   // Tab switching
   const tabBtns = document.querySelectorAll("#authModal .tab-btn");
   const loginForm = document.getElementById("loginForm");
   const signupForm = document.getElementById("signupForm");
-  
+
   // Forms
   const loginFormEl = document.getElementById("loginForm");
   const signupFormEl = document.getElementById("signupForm");
   const resetPasswordFormEl = document.getElementById("resetPasswordForm");
-  
+
   // Buttons
   const googleSignInBtn = document.getElementById("googleSignInBtn");
   const forgotPasswordBtn = document.getElementById("forgotPasswordBtn");
   const backToLoginBtn = document.getElementById("backToLoginBtn");
-  
+
   // Close modal handlers
   authModalClose.addEventListener("click", () => hideAuthModal());
-  resetPasswordModalClose.addEventListener("click", () => hideResetPasswordModal());
-  
+  resetPasswordModalClose.addEventListener("click", () =>
+    hideResetPasswordModal()
+  );
+
   // Click outside modal to close
   authModal.addEventListener("click", (e) => {
     if (e.target === authModal) hideAuthModal();
@@ -453,28 +463,28 @@ export async function initializeAuthModal() {
   resetPasswordModal.addEventListener("click", (e) => {
     if (e.target === resetPasswordModal) hideResetPasswordModal();
   });
-  
+
   // Tab switching
-  tabBtns.forEach(btn => {
+  tabBtns.forEach((btn) => {
     btn.addEventListener("click", () => {
       const tab = btn.getAttribute("data-tab");
       switchAuthTab(tab);
     });
   });
-  
+
   // Google Sign-In placeholder
   googleSignInBtn.addEventListener("click", (e) => {
     e.preventDefault();
     e.stopPropagation();
     handleGoogleSignInPlaceholder();
   });
-  
+
   // Firebase Email/Password Login
   loginFormEl.addEventListener("submit", handleEmailLogin);
-  
+
   // Firebase Email/Password Sign Up
   signupFormEl.addEventListener("submit", handleEmailSignup);
-  
+
   // Password Reset
   forgotPasswordBtn.addEventListener("click", () => showResetPasswordModal());
   backToLoginBtn.addEventListener("click", () => {
@@ -482,21 +492,21 @@ export async function initializeAuthModal() {
     showAuthModal("login");
   });
   resetPasswordFormEl.addEventListener("submit", handlePasswordReset);
-  
+
   // Listen for Firebase auth state changes
   onAuthStateChanged(auth, (user) => {
     debugAuthLog("Firebase auth state changed:", user);
     if (user) {
-      debugAuthLog('Firebase user authenticated:', user.email);
+      debugAuthLog("Firebase user authenticated:", user.email);
       updateAuthUI();
       initializeUserSession();
     } else {
-      debugAuthLog('Firebase user logged out');
+      debugAuthLog("Firebase user logged out");
       updateAuthUI();
       cleanupUserSession();
     }
   });
-  
+
   debugAuthLog("Auth Modal initialized successfully");
 }
 
@@ -504,16 +514,18 @@ export async function initializeAuthModal() {
 export async function initializeAuthSystem() {
   try {
     debugAuthLog("Initializing Firebase authentication system");
-    
+
     // Initialize the auth modal UI
     await initializeAuthModal();
-    
-    debugAuthLog('Firebase authentication system initialized');
-    
+
+    debugAuthLog("Firebase authentication system initialized");
   } catch (error) {
-    debugAuthLog('Failed to initialize authentication:', error);
+    debugAuthLog("Failed to initialize authentication:", error);
     if (window.showNotification) {
-      window.showNotification('Authentication initialization failed. Please refresh the page.', 'error');
+      window.showNotification(
+        "Authentication initialization failed. Please refresh the page.",
+        "error"
+      );
     }
   }
 }
@@ -524,32 +536,37 @@ export async function initializeAuthSystem() {
 async function handleEmailLogin(e) {
   e.preventDefault();
   debugAuthLog("Handling email login");
-  
+
   const email = document.getElementById("loginEmail").value;
   const password = document.getElementById("loginPassword").value;
   const btn = document.getElementById("loginBtn");
   const originalHTML = btn.innerHTML;
-  
+
   try {
     // Show loading state
     btn.disabled = true;
-    btn.innerHTML = '<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div> Signing in...';
-    
-    const userCredential = await signInWithEmailAndPassword(auth, email, password);
+    btn.innerHTML =
+      '<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div> Signing in...';
+
+    const userCredential = await signInWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     debugAuthLog("Firebase login successful:", userCredential.user);
-    
+
     showAuthMessage("Successfully signed in!", "success");
-    
+
     // Modal will be hidden by the auth state change listener
-    
   } catch (error) {
     debugAuthLog("Firebase login error:", error);
-    
+
     // Restore button
     btn.disabled = false;
     btn.innerHTML = originalHTML;
-    
-    const errorMessage = AUTH_ERROR_MESSAGES[error.code] || "Failed to sign in. Please try again.";
+
+    const errorMessage =
+      AUTH_ERROR_MESSAGES[error.code] || "Failed to sign in. Please try again.";
     showAuthMessage(errorMessage, "error");
   }
 }
@@ -558,39 +575,45 @@ async function handleEmailLogin(e) {
 async function handleEmailSignup(e) {
   e.preventDefault();
   debugAuthLog("Handling email signup");
-  
+
   const email = document.getElementById("signupEmail").value;
   const password = document.getElementById("signupPassword").value;
   const confirmPassword = document.getElementById("confirmPassword").value;
   const btn = document.getElementById("signupBtn");
   const originalHTML = btn.innerHTML;
-  
+
   // Validate passwords match
   if (password !== confirmPassword) {
     showAuthMessage("Passwords do not match.", "error");
     return;
   }
-  
+
   try {
     // Show loading state
     btn.disabled = true;
-    btn.innerHTML = '<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div> Creating account...';
-    
-    const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+    btn.innerHTML =
+      '<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div> Creating account...';
+
+    const userCredential = await createUserWithEmailAndPassword(
+      auth,
+      email,
+      password
+    );
     debugAuthLog("Firebase signup successful:", userCredential.user);
-    
+
     showAuthMessage("Account created successfully!", "success");
-    
+
     // Modal will be hidden by the auth state change listener
-    
   } catch (error) {
     debugAuthLog("Firebase signup error:", error);
-    
+
     // Restore button
     btn.disabled = false;
     btn.innerHTML = originalHTML;
-    
-    const errorMessage = AUTH_ERROR_MESSAGES[error.code] || "Failed to create account. Please try again.";
+
+    const errorMessage =
+      AUTH_ERROR_MESSAGES[error.code] ||
+      "Failed to create account. Please try again.";
     showAuthMessage(errorMessage, "error");
   }
 }
@@ -599,28 +622,30 @@ async function handleEmailSignup(e) {
 async function handlePasswordReset(e) {
   e.preventDefault();
   debugAuthLog("Handling password reset");
-  
+
   const email = document.getElementById("resetEmail").value;
   const btn = document.getElementById("sendResetBtn");
   const originalHTML = btn.innerHTML;
-  
+
   try {
     // Show loading state
     btn.disabled = true;
-    btn.innerHTML = '<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div> Sending...';
-    
+    btn.innerHTML =
+      '<div style="display: inline-block; width: 16px; height: 16px; border: 2px solid transparent; border-top: 2px solid currentColor; border-radius: 50%; animation: spin 1s linear infinite;"></div> Sending...';
+
     await sendPasswordResetEmail(auth, email);
     debugAuthLog("Password reset email sent");
-    
+
     showResetMessage("Password reset link sent to your email!", "success");
-    
+
     // Clear form
     document.getElementById("resetEmail").value = "";
-    
   } catch (error) {
     debugAuthLog("Password reset error:", error);
-    
-    const errorMessage = AUTH_ERROR_MESSAGES[error.code] || "Failed to send reset email. Please try again.";
+
+    const errorMessage =
+      AUTH_ERROR_MESSAGES[error.code] ||
+      "Failed to send reset email. Please try again.";
     showResetMessage(errorMessage, "error");
   } finally {
     // Restore button
@@ -631,8 +656,10 @@ async function handlePasswordReset(e) {
 
 // Show/Hide modals
 export function showAuthModal(tab = "login") {
+  console.log("showAuthModal called with tab:", tab);
   debugAuthLog("Showing auth modal, tab:", tab);
   const modal = document.getElementById("authModal");
+  console.log("Auth modal element:", modal);
   if (modal) {
     modal.style.display = "block";
     switchAuthTab(tab);
@@ -671,15 +698,15 @@ export function hideResetPasswordModal() {
 // Switch between login and signup tabs
 export function switchAuthTab(tab) {
   debugAuthLog("Switching to tab:", tab);
-  
+
   const tabBtns = document.querySelectorAll("#authModal .tab-btn");
   const loginForm = document.getElementById("loginForm");
   const signupForm = document.getElementById("signupForm");
   const title = document.getElementById("authModalTitle");
   const subtitle = document.getElementById("authModalSubtitle");
-  
+
   // Update tab buttons
-  tabBtns.forEach(btn => {
+  tabBtns.forEach((btn) => {
     if (btn.getAttribute("data-tab") === tab) {
       btn.classList.add("active");
       btn.style.color = "var(--primary-color)";
@@ -690,20 +717,22 @@ export function switchAuthTab(tab) {
       btn.style.borderBottomColor = "transparent";
     }
   });
-  
+
   // Show/hide forms
   if (tab === "login") {
     loginForm.style.display = "block";
     signupForm.style.display = "none";
     title.textContent = "Welcome Back";
-    subtitle.textContent = "Sign in to access your flashcards and study progress";
+    subtitle.textContent =
+      "Sign in to access your flashcards and study progress";
   } else {
     loginForm.style.display = "none";
     signupForm.style.display = "block";
     title.textContent = "Create Account";
-    subtitle.textContent = "Join Note2Flash to start creating and studying flashcards";
+    subtitle.textContent =
+      "Join Note2Flash to start creating and studying flashcards";
   }
-  
+
   clearAuthMessages();
 }
 
@@ -713,7 +742,7 @@ function showAuthMessage(message, type) {
   if (messageEl) {
     messageEl.textContent = message;
     messageEl.style.display = "block";
-    
+
     if (type === "error") {
       messageEl.style.background = "#fee";
       messageEl.style.color = "#c33";
@@ -727,12 +756,15 @@ function showAuthMessage(message, type) {
       messageEl.style.color = "#0066cc";
       messageEl.style.border = "1px solid #b3d9ff";
     }
-    
+
     // Auto-hide success and info messages
     if (type === "success" || type === "info") {
-      setTimeout(() => {
-        clearAuthMessages();
-      }, type === "info" ? 5000 : 3000); // Info messages stay longer
+      setTimeout(
+        () => {
+          clearAuthMessages();
+        },
+        type === "info" ? 5000 : 3000
+      ); // Info messages stay longer
     }
   }
 }
@@ -742,7 +774,7 @@ function showResetMessage(message, type) {
   if (messageEl) {
     messageEl.textContent = message;
     messageEl.style.display = "block";
-    
+
     if (type === "error") {
       messageEl.style.background = "#fee";
       messageEl.style.color = "#c33";
@@ -774,6 +806,9 @@ export function isAuthenticated() {
   return !!getCurrentUser();
 }
 
-// Remove this function - no longer needed
+// Expose showAuthModal globally so it can be called from anywhere
+window.showAuthModal = showAuthModal;
+window.hideAuthModal = hideAuthModal;
 
 debugAuthLog("Auth Modal module loaded");
+debugAuthLog("showAuthModal exposed globally");

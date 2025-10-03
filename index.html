@@ -70,6 +70,46 @@
     <script type="module" src="./app.js"></script>
     
     <style>
+      /* Hero Stats */
+      .hero-stats {
+        display: flex;
+        justify-content: center;
+        gap: 3rem;
+        margin-top: 2rem;
+        flex-wrap: wrap;
+      }
+
+      .stat {
+        text-align: center;
+      }
+
+      .stat-number {
+        display: block;
+        font-size: 2.5rem;
+        font-weight: 700;
+        color: var(--primary-500);
+        line-height: 1;
+      }
+
+      .stat-label {
+        display: block;
+        font-size: 0.9rem;
+        color: var(--text-secondary);
+        margin-top: 0.5rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+      }
+
+      @media (max-width: 768px) {
+        .hero-stats {
+          gap: 2rem;
+        }
+        
+        .stat-number {
+          font-size: 2rem;
+        }
+      }
+
       /* Flip Card Styles */
       .flashcard {
         perspective: 1000px !important;
@@ -221,17 +261,32 @@
     <!-- Hero Section -->
     <section class="hero">
       <div class="hero-content">
-        <h1>Transform Your Notes into Smart Study Materials</h1>
+        <h1>Pass Your NEC & Trade Exams Faster with AI Flashcards</h1>
         <p class="hero-subtitle">
-          Drop in your PDFs, paste YouTube links, upload lecture notes, or snap photos—our AI creates perfect flashcards and FlashNotes from any source in seconds.
+          Turn your handwritten notes, PDFs, and study materials into smart flashcards. 
+          Perfect for electricians, HVAC techs, plumbers, and all skilled trades preparing for certification exams.
         </p>
         <div class="hero-cta">
-          <a href="create-deck.html" class="btn btn-primary btn-large"
-            >Create Free Study Materials</a
+          <a href="nec-2026-free-questions.html" class="btn btn-primary btn-large"
+            >🎯 Get FREE NEC 2026 Questions</a
           >
-          <a href="#how-it-works" class="btn btn-secondary btn-large"
-            >See How It Works</a
+          <a href="create-deck.html" class="btn btn-secondary btn-large"
+            >Create Your Own Flashcards</a
           >
+        </div>
+        <div class="hero-stats">
+          <div class="stat">
+            <span class="stat-number">10,000+</span>
+            <span class="stat-label">Tradespeople</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number">85%</span>
+            <span class="stat-label">Exam Pass Rate</span>
+          </div>
+          <div class="stat">
+            <span class="stat-number">20+</span>
+            <span class="stat-label">Pre-made Decks</span>
+          </div>
         </div>
       </div>
     </section>
@@ -1060,6 +1115,7 @@ Examples:
     <script type="module" src="./deckManager.js"></script>
     <script type="module" src="./explainThisManager.js"></script>
     <script type="module" src="./app.js"></script>
+    <script type="module" src="./auth-modal.js"></script>
     <script type="module">
       import { initializeNavigation } from "./nav-template.js";
       // Initialize navigation as soon as the DOM is ready
@@ -1074,6 +1130,20 @@ Examples:
 
     <script>
       document.addEventListener("DOMContentLoaded", function () {
+        // Check for auth URL parameters and show modal
+        const urlParams = new URLSearchParams(window.location.search);
+        const authParam = urlParams.get('auth');
+        if (authParam === 'signup' || authParam === 'login' || authParam === 'required') {
+          // Wait for auth modal to be loaded by nav-template
+          setTimeout(() => {
+            if (typeof window.showAuthModal === 'function') {
+              window.showAuthModal(authParam === 'signup' ? 'signup' : 'login');
+              // Clean up URL
+              window.history.replaceState({}, document.title, window.location.pathname);
+            }
+          }, 500);
+        }
+        
         // Initialize dynamic elements to be hidden
         const cardTypeSelection = document.getElementById("cardTypeSelection");
         const urlPreview = document.getElementById("urlPreview");

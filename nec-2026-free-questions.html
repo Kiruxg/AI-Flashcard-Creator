@@ -1,0 +1,367 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/x-icon" href="Note2Flash_logo.png" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FREE: Top 100 NEC 2026 Questions - Note2Flash</title>
+    <link rel="icon" type="image/png" href="Note2Flash_logo.png" />
+    <link rel="stylesheet" href="styles.css" />
+    <!-- Font Awesome -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"
+    />
+    <!-- Firebase SDK -->
+    <script type="module">
+      import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+      import { getAnalytics } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-analytics.js";
+      import { getAuth } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+      import { getFirestore } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    </script>
+    <!-- Other Dependencies -->
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+
+    <style>
+      .lead-magnet-hero {
+        background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+        color: white;
+        padding: 4rem 0;
+        text-align: center;
+      }
+
+      .lead-magnet-hero h1 {
+        font-size: 3rem;
+        font-weight: 700;
+        margin-bottom: 1rem;
+        line-height: 1.2;
+      }
+
+      .lead-magnet-hero .subtitle {
+        font-size: 1.25rem;
+        opacity: 0.9;
+        margin-bottom: 2rem;
+        max-width: 600px;
+        margin-left: auto;
+        margin-right: auto;
+      }
+
+      .free-badge {
+        background: #10b981;
+        color: white;
+        padding: 0.5rem 1rem;
+        border-radius: 25px;
+        font-weight: 600;
+        font-size: 1.1rem;
+        display: inline-block;
+        margin-bottom: 2rem;
+      }
+
+      .cta-section {
+        background: white;
+        padding: 3rem 0;
+        text-align: center;
+      }
+
+      .cta-button {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+        padding: 1rem 2rem;
+        border-radius: 8px;
+        font-size: 1.25rem;
+        font-weight: 600;
+        text-decoration: none;
+        display: inline-block;
+        margin: 1rem;
+        transition: transform 0.2s ease;
+        border: none;
+        cursor: pointer;
+        font-family: inherit;
+        position: relative;
+        z-index: 1000;
+        pointer-events: auto !important;
+      }
+
+      .cta-button:hover {
+        transform: translateY(-2px);
+        color: white;
+        text-decoration: none;
+        background: linear-gradient(135deg, #059669, #047857);
+      }
+
+      .cta-button:active {
+        transform: translateY(0);
+      }
+
+      .features-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 2rem;
+        margin: 3rem 0;
+      }
+
+      .feature-card {
+        background: white;
+        padding: 2rem;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        text-align: center;
+      }
+
+      .feature-icon {
+        font-size: 3rem;
+        margin-bottom: 1rem;
+        color: #3b82f6;
+      }
+
+      .testimonial {
+        background: #f8fafc;
+        padding: 2rem;
+        border-radius: 12px;
+        margin: 2rem 0;
+        border-left: 4px solid #10b981;
+      }
+
+      .testimonial-author {
+        font-weight: 600;
+        color: #374151;
+        margin-top: 1rem;
+      }
+
+      .urgency-section {
+        background: #fef3c7;
+        border: 2px solid #f59e0b;
+        border-radius: 12px;
+        padding: 2rem;
+        margin: 2rem 0;
+        text-align: center;
+      }
+
+      .urgency-section h3 {
+        color: #92400e;
+        margin-bottom: 1rem;
+      }
+
+      .urgency-section p {
+        color: #92400e;
+        margin-bottom: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Navigation will be loaded here -->
+    <div id="nav-placeholder"></div>
+
+    <div class="container">
+      <!-- Lead Magnet Hero Section -->
+      <div class="lead-magnet-hero">
+        <div class="free-badge">🎯 100% FREE - No Credit Card Required</div>
+        <h1>Top 100 NEC 2026 Questions</h1>
+        <p class="subtitle">
+          The most frequently asked questions on journeyman electrician exams.
+          Master these and you're 80% there to passing!
+        </p>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">⚡</div>
+            <h3>Exam-Focused</h3>
+            <p>Questions that actually appear on NEC journeyman exams</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📚</div>
+            <h3>2026 Updated</h3>
+            <p>Latest code changes and requirements included</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🎯</div>
+            <h3>85% Pass Rate</h3>
+            <p>Students who master these questions pass their exams</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- CTA Section -->
+      <div class="cta-section">
+        <h2>Get Instant Access - Completely Free!</h2>
+        <p>
+          Join thousands of electricians who've used these questions to pass
+          their exams
+        </p>
+
+        <button id="getFreeNecQuestions" class="cta-button">
+          <i class="fas fa-download"></i> Get My Free NEC Questions Now
+        </button>
+
+        <p style="margin-top: 1rem; color: #6b7280">
+          <i class="fas fa-shield-alt"></i> No spam, no credit card, no strings
+          attached
+        </p>
+      </div>
+
+      <!-- Testimonials -->
+      <div class="testimonial">
+        <p>
+          "These questions were spot-on for my journeyman exam. I studied them
+          for 2 weeks and passed on my first try. The explanations really helped
+          me understand the 'why' behind each answer."
+        </p>
+        <div class="testimonial-author">
+          - Mike R., Journeyman Electrician, Local 134
+        </div>
+      </div>
+
+      <div class="testimonial">
+        <p>
+          "As an instructor, I've seen these questions help my students improve
+          their pass rates by 40%. The format makes it easy to study on breaks
+          between jobs."
+        </p>
+        <div class="testimonial-author">
+          - Sarah K., Electrical Instructor, ABC Training Center
+        </div>
+      </div>
+
+      <!-- Urgency Section -->
+      <div class="urgency-section">
+        <h3>⏰ Limited Time Offer</h3>
+        <p>
+          Get instant access to these premium exam questions - normally $49 -
+          <strong>completely FREE</strong> for a limited time!
+        </p>
+      </div>
+
+      <!-- What's Included -->
+      <div style="margin: 3rem 0">
+        <h2 style="text-align: center; margin-bottom: 2rem">What You Get:</h2>
+        <div class="features-grid">
+          <div class="feature-card">
+            <div class="feature-icon">📋</div>
+            <h3>100 Practice Questions</h3>
+            <p>
+              Multiple choice, fill-in-the-blank, and scenario-based questions
+              covering all major NEC topics
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">💡</div>
+            <h3>Detailed Explanations</h3>
+            <p>
+              Every answer includes the NEC article reference and explanation of
+              why it's correct
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Progress Tracking</h3>
+            <p>
+              Track your performance and identify weak areas before exam day
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📱</div>
+            <h3>Mobile Friendly</h3>
+            <p>Study anywhere - on your phone, tablet, or computer</p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">🔄</div>
+            <h3>Spaced Repetition</h3>
+            <p>
+              AI-powered system shows you questions at optimal intervals for
+              retention
+            </p>
+          </div>
+          <div class="feature-card">
+            <div class="feature-icon">📤</div>
+            <h3>Export Options</h3>
+            <p>Download as PDF, print flashcards, or export to Anki/Quizlet</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- Final CTA -->
+      <div class="cta-section" style="background: #f8fafc">
+        <h2>Ready to Pass Your NEC Exam?</h2>
+        <p>
+          Join 10,000+ electricians who've already downloaded these questions
+        </p>
+
+        <button id="startStudyingNow" class="cta-button">
+          <i class="fas fa-rocket"></i> Start Studying Now - It's Free!
+        </button>
+
+        <div style="margin-top: 2rem">
+          <p style="color: #6b7280">
+            <i class="fas fa-lock"></i> Your information is secure and will
+            never be shared
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="./config.js"></script>
+    <script type="module" src="./app.js"></script>
+    <script type="module">
+      import { initializeNavigation } from "./nav-template.js";
+      // Initialize navigation as soon as the DOM is ready
+      document.addEventListener("DOMContentLoaded", initializeNavigation);
+    </script>
+
+    <script type="module">
+      import { initializeFooter } from "./footer-template.js";
+      // Initialize footer
+      document.addEventListener("DOMContentLoaded", initializeFooter);
+    </script>
+
+    <script>
+      // Handle CTA button clicks
+      document.addEventListener("DOMContentLoaded", function () {
+        console.log("NEC landing page loaded");
+
+        const getFreeQuestionsBtn = document.getElementById(
+          "getFreeNecQuestions"
+        );
+        const startStudyingBtn = document.getElementById("startStudyingNow");
+
+        console.log("Buttons found:", {
+          getFreeQuestionsBtn: !!getFreeQuestionsBtn,
+          startStudyingBtn: !!startStudyingBtn,
+        });
+
+        function handleNecQuestionsAccess() {
+          console.log("Button clicked! Current user:", window.currentUser);
+
+          // Direct redirect to shared decks
+          window.location.href = "shared-decks.html";
+        }
+
+        if (getFreeQuestionsBtn) {
+          console.log("Adding click listener to getFreeQuestionsBtn");
+          console.log("Button element:", getFreeQuestionsBtn);
+          console.log(
+            "Button computed style:",
+            window.getComputedStyle(getFreeQuestionsBtn)
+          );
+
+          getFreeQuestionsBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            console.log("Get Free Questions button clicked");
+            handleNecQuestionsAccess();
+          });
+        } else {
+          console.error("getFreeQuestionsBtn not found!");
+        }
+
+        if (startStudyingBtn) {
+          console.log("Adding click listener to startStudyingBtn");
+          startStudyingBtn.addEventListener("click", function (e) {
+            e.preventDefault();
+            console.log("Start Studying button clicked");
+            handleNecQuestionsAccess();
+          });
+        } else {
+          console.error("startStudyingBtn not found!");
+        }
+      });
+    </script>
+  </body>
+</html>

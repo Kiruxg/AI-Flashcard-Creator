@@ -21,6 +21,7 @@ const db = admin.firestore();
 // List of deck files to import
 const deckFiles = [
   // Electrical decks
+  { path: "electrical/top_100_nec_2026_questions.json" }, // Lead magnet - FREE NEC questions
   { path: "electrical/nec_2026_changes.json" },
   { path: "electrical/article_100_definitions.json" },
   { path: "electrical/article_210_branch_circuits.json" },

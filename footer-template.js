@@ -23,7 +23,6 @@ export const footerTemplate = `
                 <li><a href="create-deck.html">Create Flashcards from Notes</a></li>
                 <li><a href="shared-decks.html">Shared Decks</a></li>
                 <li><a href="index.html#how-it-works">Study Progress</a></li>
-                <li><a href="ai-coach.html">AI Coach</a></li>
                 <li><a href="pricing.html">Pricing</a></li>
             </ul>
         </div>
